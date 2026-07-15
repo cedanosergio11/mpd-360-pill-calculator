@@ -27,6 +27,11 @@ if (!/<section class="data-section" id="pillSection">[\s\S]*?<h2>Pill Calculatio
 if (!/<section class="data-section" id="slugSection">[\s\S]*?<h2>Slug Calculations<\/h2>[\s\S]*?<\/section>/.test(html)) {
   throw new Error("Slug Calculations section is not wired correctly");
 }
+const summaryPanel = html.match(/<section class="tab-panel active" id="summary">([\s\S]*?)<section class="tab-panel" id="schedule">/)?.[1] ?? "";
+const schedulePanel = html.match(/<section class="tab-panel" id="schedule">([\s\S]*?)<section class="tab-panel" id="cement">/)?.[1] ?? "";
+if (summaryPanel.includes("Trip Speed Pressure Table") || !schedulePanel.includes("Trip Speed Pressure Table")) {
+  throw new Error("Trip Speed Pressure Table must appear only on the Schedule tab");
+}
 
 source = source.slice(0, source.lastIndexOf("buildInputs();"));
 source += `
