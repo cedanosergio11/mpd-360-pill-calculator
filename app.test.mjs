@@ -30,9 +30,28 @@ if (!/<section class="data-section" id="slugSection">[\s\S]*?<h2>Slug Calculatio
 
 source = source.slice(0, source.lastIndexOf("buildInputs();"));
 source += `
+const blankResults = calc();
+if (blankResults.topOfPillWithDp === "Surface") {
+  throw new Error("Incomplete inputs should leave procedure results pending");
+}
 Object.assign(state, example);
 const exampleResults = calc();
 const exampleSchedule = makeScheduleRows(exampleResults, "noSlug");
+if (round(exampleResults.topOfPillNoDp, 3) !== round(example.spotMd - exampleResults.heightPillNoDp, 3)) {
+  throw new Error("Top of pill without DP does not follow the workbook formula");
+}
+if (
+  exampleResults.topOfPillWithDp !== "Surface" &&
+  round(exampleResults.topOfPillWithDp, 3) !== round(example.spotMd - exampleResults.minHeightWithDp, 3)
+) {
+  throw new Error("Top of pill with DP does not follow the workbook formula");
+}
+if (round(exampleResults.balancedEsdCasing, 6) !== round(exampleResults.esdCasingNoDp + exampleResults.addPpgCsg, 6)) {
+  throw new Error("Balanced casing-shoe ESD does not include the DP pressure increment");
+}
+if (exampleResults.totalPillVolAtSpotNoSlug !== exampleResults.totalPillVol) {
+  throw new Error("No Slug total pill volume at spot depth is incorrect");
+}
 const exampleStrokes = exampleSchedule.rows.map((row) => row.strokes);
 if (!exampleStrokes.every((value, index) => index === 0 || value > exampleStrokes[index - 1])) {
   throw new Error("Schedule strokes repeat before cutoff");
@@ -42,6 +61,56 @@ if (exampleSchedule.rows.at(-1)?.volume !== exampleResults.kwmPlusChase) {
 }
 if (exampleSchedule.cutoff?.strokes !== exampleSchedule.rows.at(-1)?.strokes) {
   throw new Error("Cutoff row is not the first repeated stroke total");
+}
+
+Object.assign(state, {
+  anchorMd: 11804,
+  anchorTvd: 10509,
+  casingMd: 11167,
+  casingTvd: 10188,
+  spotMd: 6000,
+  spotTvd: 6000,
+  openHoleDia: 6.75,
+  desiredEmw: 12.5,
+  odDp: 4,
+  idDp: 2.688,
+  idCasing: 6.875,
+  currentMw: 11.8,
+  pumpDisp: 0.0693,
+  kmw: 15,
+  fit: 14,
+});
+const workbookResults = calc();
+const workbookResultSnapshot = [
+  workbookResults.correctedPillVol,
+  workbookResults.finalKwm,
+  workbookResults.totalPillVol,
+  workbookResults.totalPillVolAtSpotNoSlug,
+  workbookResults.totalPillVolAtSpotWithSlug,
+  workbookResults.topOfPillWithDp,
+  workbookResults.topOfPillNoDp,
+  workbookResults.balancedEsdCasing,
+  workbookResults.anchorPointEsd,
+  workbookResults.minHeightWithDp,
+  workbookResults.esdCasingNoDp,
+  workbookResults.heightPillNoDp,
+].map((value) => round(value, 3));
+const expectedWorkbookResultSnapshot = [
+  70,
+  36.143,
+  106,
+  106,
+  106,
+  3165.143,
+  3700,
+  12.69,
+  12.663,
+  2834.857,
+  12.522,
+  2300,
+];
+if (JSON.stringify(workbookResultSnapshot) !== JSON.stringify(expectedWorkbookResultSnapshot)) {
+  throw new Error("Procedure result block differs from workbook: " + JSON.stringify(workbookResultSnapshot));
 }
 
 Object.assign(state, {
@@ -128,6 +197,7 @@ console.log(JSON.stringify({
   exampleRows: exampleSchedule.rows.length,
   referenceRows: reference.rows.length,
   withSlugRows: withSlugReference.rows.length,
+  workbookResultVerified: true,
   cutoffVerified: true,
 }, null, 2));
 `;

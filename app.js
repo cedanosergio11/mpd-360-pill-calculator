@@ -349,13 +349,13 @@ function calc() {
   const balancedAdditionalPsi = (minHeightWithDp - heightPillNoDp) * pressureGradient;
   const addPpgCsg = safeDiv(balancedAdditionalPsi, 0.052 * casingTvd);
   const addPpgTarget = safeDiv(balancedAdditionalPsi, 0.052 * anchorTvd);
-  const esdCasingWithDp =
+  const esdCasingNoDp =
     spotMd <= casingMd
       ? safeDiv(targetPressure, 0.052 * casingTvd) + currentMw
       : ((heightPillNoDp - spotTvd + casingTvd) * (kmw - currentMw)) /
           casingTvd +
         currentMw;
-  const balancedEsdCasing = esdCasingWithDp + addPpgCsg;
+  const balancedEsdCasing = esdCasingNoDp + addPpgCsg;
   const anchorPointEsd = desiredEmw + addPpgTarget;
   const resolutionHeightGain = safeDiv(desiredResolution, annularCap);
   const resolutionPressureGain = (kmw - currentMw) * resolutionHeightGain * 0.052;
@@ -373,7 +373,25 @@ function calc() {
   const slugPsiEquivalent = slugPpgEquivalent * 0.052 * anchorTvd;
   const slugApl = (safevisionSlug - currentMw) * 0.052 * anchorTvd;
   const correctedSlugPill = correctedPillVol + slugFallOut;
-  const topOfPillNoDp = casingMd - heightPillNoDp;
+  const combinedPillCapacity =
+    (idCasing ** 2 - odDp ** 2 + idDp ** 2) / 1029.4;
+  const pillHeightPosition =
+    minHeightWithDp < spotMd && spotMd > heightPillNoDp
+      ? minHeightWithDp - spotMd
+      : 0;
+  const correctedTotalPillAtSpot =
+    totalPillVol - round(pillHeightPosition * combinedPillCapacity, 0);
+  const totalPillVolAtSpotNoSlug =
+    spotMd > minHeightWithDp ? totalPillVol : correctedTotalPillAtSpot;
+  const totalPillVolAtSpotWithSlug =
+    pillVolAtSpot < annularAtSpot ? totalPillVol : correctedTotalPillAtSpot;
+  const topOfPillWithDp =
+    isNum(spotMd) && isNum(minHeightWithDp)
+      ? spotMd > minHeightWithDp
+        ? spotMd - minHeightWithDp
+        : "Surface"
+      : NaN;
+  const topOfPillNoDp = spotMd - heightPillNoDp;
   const kwmPlusChase = roundup(totalPillVol + correctedChase, 0);
 
   const cement = calcCement();
@@ -403,7 +421,7 @@ function calc() {
     addPpgCsg,
     addPpgTarget,
     balancedEsdCasing,
-    esdCasingWithDp,
+    esdCasingNoDp,
     anchorPointEsd,
     resolutionHeightGain,
     resolutionPressureGain,
@@ -426,6 +444,10 @@ function calc() {
     slugPsiEquivalent,
     slugApl,
     correctedSlugPill,
+    correctedTotalPillAtSpot,
+    totalPillVolAtSpotNoSlug,
+    totalPillVolAtSpotWithSlug,
+    topOfPillWithDp,
     topOfPillNoDp,
     kwmPlusChase,
     cement,
@@ -605,6 +627,64 @@ function renderMetrics(results) {
   ]
     .map((row) => metricRow(...row))
     .join("");
+}
+
+function procedureValue(value, unit, digits) {
+  if (typeof value === "string") return value;
+  if (!isNum(value)) return `<span class="pending">Pending</span>`;
+  return `${numberText(value, digits)}${unit ? ` ${unit}` : ""}`;
+}
+
+function procedureRows(rows) {
+  return rows
+    .map(
+      ([label, value, unit, digits]) => `
+        <div class="procedure-result-row">
+          <span>${label}</span>
+          <strong>${procedureValue(value, unit, digits)}</strong>
+        </div>
+      `,
+    )
+    .join("");
+}
+
+function renderProcedureResults(results) {
+  const withSlug = state.pillMode === "withSlug";
+  const atSurface = results.topOfPillWithDp === "Surface";
+  const totalAtSpot = withSlug
+    ? results.totalPillVolAtSpotWithSlug
+    : results.totalPillVolAtSpotNoSlug;
+  const esdCasingWithDp = atSurface
+    ? results.esdCasingNoDp
+    : results.balancedEsdCasing;
+  const esdTargetWithDp = atSurface ? n("desiredEmw") : results.anchorPointEsd;
+  const pillHeightWithDp = atSurface
+    ? results.heightPillNoDp
+    : results.minHeightWithDp;
+
+  byId("procedureOutcome").innerHTML = `
+    This procedure will result in
+    <strong>${procedureValue(results.correctedPillVol, "bbl", 1)}</strong>
+    of the heavy pill into the annulus and leave the remaining
+    <strong>${procedureValue(results.finalKwm, "bbl", 1)}</strong>
+    in the drill string.
+  `;
+  byId("placementResults").innerHTML = procedureRows([
+    ["Total Pill Volume", results.totalPillVol, "bbl", 1],
+    ["Total Pill Volume @ Spot Depth", totalAtSpot, "bbl", 1],
+    ["Top of Pill w/ DP", results.topOfPillWithDp, "ft", 0],
+    ["Top of Pill w/o DP", results.topOfPillNoDp, "ft", 0],
+  ]);
+  byId("withDpResults").innerHTML = procedureRows([
+    ["ESD @ Casing Shoe", esdCasingWithDp, "ppg", 2],
+    ["ESD @ Target", esdTargetWithDp, "ppg", 2],
+    ["Pill Height w/ DP", pillHeightWithDp, "ft", 0],
+  ]);
+  byId("withoutDpResults").innerHTML = procedureRows([
+    ["ESD @ Casing Shoe", results.esdCasingNoDp, "ppg", 2],
+    ["ESD @ Anchor Point", n("desiredEmw"), "ppg", 2],
+    ["Pill Height w/o DP", results.heightPillNoDp, "ft", 0],
+  ]);
 }
 
 function renderTripTable(results) {
@@ -959,6 +1039,7 @@ function render() {
   renderScenarioMetrics(results);
   renderKpis(results);
   renderMetrics(results);
+  renderProcedureResults(results);
   renderTripTable(results);
   renderSchedule(results);
   renderCement(results);
