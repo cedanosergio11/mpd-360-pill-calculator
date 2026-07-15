@@ -21,6 +21,12 @@ if (duplicateIds.length) throw new Error(`Duplicate HTML ids: ${duplicateIds.joi
 if (pillModes.join(",") !== "noSlug,withSlug") {
   throw new Error("Pill mode toggle is incomplete");
 }
+if (!/<section class="data-section" id="pillSection">[\s\S]*?<h2>Pill Calculations<\/h2>[\s\S]*?<\/section>/.test(html)) {
+  throw new Error("Pill Calculations section is not wired correctly");
+}
+if (!/<section class="data-section" id="slugSection">[\s\S]*?<h2>Slug Calculations<\/h2>[\s\S]*?<\/section>/.test(html)) {
+  throw new Error("Slug Calculations section is not wired correctly");
+}
 
 source = source.slice(0, source.lastIndexOf("buildInputs();"));
 source += `
