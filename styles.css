@@ -18,6 +18,10 @@
   box-sizing: border-box;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -235,6 +239,8 @@ h2 {
 
 .tabs {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 14px;
   border-radius: 8px;
@@ -257,6 +263,58 @@ h2 {
 .tab.active {
   background: #111827;
   color: #ffffff;
+}
+
+.pill-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  margin-left: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 7px;
+  background: #eef2f7;
+  overflow: hidden;
+}
+
+.mode-switch-label {
+  padding: 0 10px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.mode-option {
+  position: relative;
+  cursor: pointer;
+}
+
+.mode-option input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.mode-option span {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 7px 12px;
+  color: var(--steel);
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.mode-option input:checked + span {
+  background: var(--teal);
+  color: #ffffff;
+}
+
+.mode-option input:focus-visible + span {
+  outline: 3px solid rgba(37, 99, 235, 0.24);
+  outline-offset: -3px;
 }
 
 .tab-panel {
@@ -388,6 +446,10 @@ h2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 14px;
+}
+
+.split-layout.single-mode {
+  grid-template-columns: 1fr;
 }
 
 .data-section {
@@ -620,6 +682,19 @@ td {
     padding: 10px;
   }
 
+  .pill-mode-switch {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .mode-option {
+    flex: 1;
+  }
+
+  .mode-option span {
+    justify-content: center;
+  }
+
   .kpi-grid,
   .kpi-grid.compact,
   .pressure-summary {
@@ -649,7 +724,8 @@ td {
   .input-panel,
   .tabs,
   .header-actions,
-  .job-strip {
+  .job-strip,
+  .pill-mode-switch {
     display: none;
   }
 

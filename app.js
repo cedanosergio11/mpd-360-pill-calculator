@@ -61,7 +61,10 @@
   },
 ];
 
+const slugOnlyFields = new Set(["overbalanceSlug", "safevisionSlug"]);
+
 const defaults = {
+  pillMode: "noSlug",
   wellName: "",
   client: "",
   date: new Date().toISOString().slice(0, 10),
@@ -82,6 +85,7 @@ const defaults = {
   currentMw: "",
   pumpDisp: "",
   kmw: "",
+  sbpConnection: "",
   fit: "",
   maxFlowRate: "",
   desiredResolution: "",
@@ -174,6 +178,7 @@ const state = { ...defaults };
 const storageKey = "mpd360.savedScenario.v2";
 let scheduleCache = [];
 let scheduleCutoffRow = null;
+let scheduleMeta = { mode: "noSlug", finalVolume: NaN };
 
 const byId = (id) => document.getElementById(id);
 const isNum = (value) => Number.isFinite(value);
@@ -248,7 +253,7 @@ function buildInputs() {
                       </select>`
                     : `<input id="${key}" data-key="${key}" type="${type}" value="${inputValue(key)}" ${type === "number" ? 'step="any"' : ""} />`;
                 return `
-                  <div class="field">
+                  <div class="field" data-field-key="${key}" ${slugOnlyFields.has(key) ? 'data-mode-only="withSlug"' : ""}>
                     <label for="${key}">
                       <span>${label}</span>
                       <span class="unit">${unit}</span>
@@ -355,6 +360,7 @@ function calc() {
   const resolutionHeightGain = safeDiv(desiredResolution, annularCap);
   const resolutionPressureGain = (kmw - currentMw) * resolutionHeightGain * 0.052;
   const pressureDifferential = (desiredEmw - safevisionNoSlug) * 0.052 * anchorTvd;
+  const pressureDifferentialSlug = (desiredEmw - safevisionSlug) * 0.052 * anchorTvd;
   const slugPressure = maxDynamicSbp + overbalanceSlug;
   const slugPillVol = safeDiv(slugPressure, pressureGradient) * drillStringCap;
   const strokesToPumpSlug = safeDiv(slugPillVol, pumpDisp);
@@ -402,6 +408,7 @@ function calc() {
     resolutionHeightGain,
     resolutionPressureGain,
     pressureDifferential,
+    pressureDifferentialSlug,
     staticStrippingPressure,
     maxDynamicSbp,
     maxSwabPressure,
@@ -483,6 +490,24 @@ function metricRow(name, value, unit, digits = 1) {
   `;
 }
 
+function modeLabel(mode = state.pillMode) {
+  return mode === "withSlug" ? "With Slug" : "No Slug";
+}
+
+function renderModeUi() {
+  const withSlug = state.pillMode === "withSlug";
+  document.body.dataset.pillMode = state.pillMode;
+  document.querySelectorAll('[data-mode-only="withSlug"]').forEach((field) => {
+    field.hidden = !withSlug;
+  });
+  document.querySelectorAll('input[name="pillMode"]').forEach((control) => {
+    control.checked = control.value === state.pillMode;
+  });
+  byId("slugSection").hidden = !withSlug;
+  byId("summarySplit").classList.toggle("single-mode", !withSlug);
+  byId("scheduleTitle").textContent = `Standard Pill - ${modeLabel()}`;
+}
+
 function renderJobStrip() {
   byId("jobWell").textContent = textOrDash(state.wellName);
   byId("jobClient").textContent = textOrDash(state.client);
@@ -504,6 +529,7 @@ function renderScenarioMetrics(results) {
     ["Well", state.wellName || "-", ""],
     ["Client", state.client || "-", ""],
     ["Produced by", state.producedBy || "-", ""],
+    ["Pill mode", modeLabel(), ""],
     ["Workbook source", "MPD 360 (2026) - RIG - WELL", ""],
     ["Last saved locally", saved ? "Available" : "None", ""],
   ]
@@ -516,12 +542,19 @@ function renderScenarioMetrics(results) {
     .join("");
 }
 function renderKpis(results) {
-  const kpis = [
-    ["MASP", results.masp, "psi", 0],
-    ["Total Pill Volume", results.totalPillVol, "bbl", 0],
-    ["Corrected Chase", results.correctedChase, "bbl", 0],
-    ["Anchor Point ESD", results.anchorPointEsd, "ppge", 2],
-  ];
+  const kpis = state.pillMode === "withSlug"
+    ? [
+        ["MASP", results.masp, "psi", 0],
+        ["Total Pill Volume", results.totalPillVol, "bbl", 0],
+        ["Slug Volume", results.slugPillVol, "bbl", 1],
+        ["Chase with Slug", results.chaseWithSlug, "bbl", 0],
+      ]
+    : [
+        ["MASP", results.masp, "psi", 0],
+        ["Total Pill Volume", results.totalPillVol, "bbl", 0],
+        ["Corrected Chase", results.correctedChase, "bbl", 0],
+        ["Anchor Point ESD", results.anchorPointEsd, "ppge", 2],
+      ];
   byId("kpiGrid").innerHTML = kpis
     .map(
       ([label, value, unit, digits]) => `
@@ -591,43 +624,104 @@ function renderTripTable(results) {
     .join("");
 }
 
-function makeScheduleRows(results) {
+function makeScheduleRows(results, mode = state.pillMode) {
+  const activeMode = mode === "withSlug" ? "withSlug" : "noSlug";
+  const withSlug = activeMode === "withSlug";
   const resolution = n("desiredResolution");
   const flow = n("initialFlowRate");
   const pumpDisp = n("pumpDisp");
   const currentMw = n("currentMw");
   const kmw = n("kmw");
   const odDp = n("odDp");
+  const heavyVolume = nonNegative(
+    withSlug ? results.pillVolAtSpot : results.totalPillVol,
+  );
+  const fullPillAtSpot =
+    !withSlug ||
+    !isNum(results.minHeightWithDp) ||
+    !isNum(n("spotMd")) ||
+    n("spotMd") > results.minHeightWithDp;
+  const normalFinalVolume = nonNegative(
+    withSlug ? results.chaseWithSlug : results.kwmPlusChase,
+  );
+  const correctedFinalVolume = nonNegative(results.correctedSlugPill);
+  const finalVolume =
+    withSlug && !fullPillAtSpot && isNum(correctedFinalVolume)
+      ? correctedFinalVolume
+      : normalFinalVolume;
   const required = [
     resolution,
     flow,
     pumpDisp,
     currentMw,
     kmw,
+    odDp,
     results.drillStringVolAtSpot,
     results.totalPillVol,
-    results.kwmPlusChase,
+    heavyVolume,
+    finalVolume,
     results.staticStrippingPressure,
     results.resolutionPressureGain,
     results.pressureDifferential,
   ];
-  if (required.some((value) => !isNum(value)) || resolution <= 0 || pumpDisp <= 0) {
-    return { rows: [], cutoff: null };
+  if (withSlug) {
+    required.push(
+      results.pressureDifferentialSlug,
+      results.slugFallOut,
+      results.slugPsiEquivalent,
+    );
+  }
+  if (
+    required.some((value) => !isNum(value)) ||
+    resolution <= 0 ||
+    pumpDisp <= 0 ||
+    heavyVolume <= 0 ||
+    finalVolume <= 0 ||
+    (withSlug && typeof results.slugFits !== "boolean")
+  ) {
+    return {
+      rows: [],
+      cutoff: null,
+      mode: activeMode,
+      heavyVolume,
+      finalVolume,
+    };
   }
 
-  const totalPillVolume = nonNegative(results.totalPillVol);
-  const finalVolume = nonNegative(results.kwmPlusChase);
-  let volume = Math.min(totalPillVolume, nonNegative(results.drillStringVolAtSpot));
-  let hiddenSbp = results.pressureDifferential;
+  const noSlugInitialVolume = Math.min(
+    heavyVolume,
+    nonNegative(results.drillStringVolAtSpot),
+  );
+  const slugInitialVolume =
+    results.totalPillVol < results.drillStringVolAtSpot
+      ? heavyVolume
+      : Math.min(resolution, finalVolume);
+  let volume = Math.min(
+    withSlug ? slugInitialVolume : noSlugInitialVolume,
+    finalVolume,
+  );
+  let hiddenSbp = withSlug
+    ? results.pressureDifferentialSlug
+    : results.pressureDifferential;
+  let priorStaticSbp = NaN;
   const rows = [];
 
   for (let step = 1; step <= 200; step += 1) {
     let sbp = "Open Choke";
     if (step === 1 && hiddenSbp > 0) {
       sbp = hiddenSbp;
-    } else if (step === 2 && odDp > 0 && hiddenSbp > 0) {
+    } else if (!withSlug && step === 2 && odDp > 0 && hiddenSbp > 0) {
       sbp = results.pressureDifferential;
+    } else if (withSlug && step === 2 && results.slugFits) {
+      hiddenSbp = results.pressureDifferential;
+      if (hiddenSbp > 0) sbp = hiddenSbp;
     } else if (step > 2 && hiddenSbp > 50) {
+      hiddenSbp =
+        hiddenSbp > results.resolutionPressureGain
+          ? Math.max(hiddenSbp - results.resolutionPressureGain, 50)
+          : 50;
+      sbp = hiddenSbp;
+    } else if (withSlug && step === 2 && hiddenSbp > 50) {
       hiddenSbp =
         hiddenSbp > results.resolutionPressureGain
           ? Math.max(hiddenSbp - results.resolutionPressureGain, 50)
@@ -635,26 +729,48 @@ function makeScheduleRows(results) {
       sbp = hiddenSbp;
     }
 
+    const slugPressureOffset =
+      withSlug && results.slugPsiEquivalent > 0 ? results.slugPsiEquivalent : 0;
+    let staticSbp;
+    if (slugPressureOffset > 0) {
+      if (step === 1) {
+        staticSbp = Math.max(0, results.staticStrippingPressure - slugPressureOffset);
+      } else if (step === 2) {
+        staticSbp = Math.max(
+          0,
+          results.staticStrippingPressure - slugPressureOffset * 2,
+        );
+      } else {
+        staticSbp = Math.max(
+          0,
+          priorStaticSbp - results.resolutionPressureGain - slugPressureOffset,
+        );
+      }
+    } else {
+      staticSbp = Math.max(
+        0,
+        results.staticStrippingPressure - (step - 1) * results.resolutionPressureGain,
+      );
+    }
+    priorStaticSbp = staticSbp;
+
     rows.push({
       step,
       sbp,
       flow,
       volume,
       strokes: safeDiv(volume, pumpDisp),
-      density: volume <= totalPillVolume ? kmw : currentMw,
-      staticSbp: Math.max(
-        0,
-        results.staticStrippingPressure - (step - 1) * results.resolutionPressureGain,
-      ),
+      density: volume <= heavyVolume ? kmw : currentMw,
+      staticSbp,
       activityNotes: "",
     });
 
     if (volume >= finalVolume - 1e-9) break;
 
     let nextVolume = volume + resolution;
-    const remainingPill = totalPillVolume - volume;
+    const remainingPill = heavyVolume - volume;
     if (remainingPill > 0 && remainingPill < resolution) {
-      nextVolume = totalPillVolume;
+      nextVolume = heavyVolume;
     }
     nextVolume = Math.min(nextVolume, finalVolume);
     if (nextVolume <= volume + 1e-9) break;
@@ -669,13 +785,21 @@ function makeScheduleRows(results) {
         activityNotes: "Excluded: Total strokes repeat",
       }
     : null;
-  return { rows, cutoff };
+  return {
+    rows,
+    cutoff,
+    mode: activeMode,
+    heavyVolume,
+    finalVolume,
+    fullPillAtSpot,
+  };
 }
 
 function renderSchedule(results) {
-  const generated = makeScheduleRows(results);
+  const generated = makeScheduleRows(results, state.pillMode);
   scheduleCache = generated.rows;
   scheduleCutoffRow = generated.cutoff;
+  scheduleMeta = generated;
   const showCutoff = byId("showCutoff").checked && scheduleCutoffRow;
   const displayRows = showCutoff ? [...scheduleCache, scheduleCutoffRow] : scheduleCache;
 
@@ -684,16 +808,16 @@ function renderSchedule(results) {
     0,
   );
   byId("scheduleMaxDynamic").textContent = numberText(results.maxDynamicSbp, 0);
-  byId("scheduleFinalVolume").textContent = numberText(results.kwmPlusChase, 0);
+  byId("scheduleFinalVolume").textContent = numberText(generated.finalVolume, 0);
   byId("scheduleFinalStrokes").textContent = numberText(
-    safeDiv(results.kwmPlusChase, n("pumpDisp")),
+    safeDiv(generated.finalVolume, n("pumpDisp")),
     0,
   );
   byId("scheduleMode").textContent = !scheduleCache.length
     ? "Waiting for inputs"
     : scheduleCutoffRow
-      ? `${scheduleCache.length} active rows · repeat auto-trimmed`
-      : `${scheduleCache.length} active rows · review resolution`;
+      ? `${modeLabel(generated.mode)} · ${scheduleCache.length} rows · repeat trimmed`
+      : `${modeLabel(generated.mode)} · ${scheduleCache.length} rows · review resolution`;
 
   byId("scheduleRows").innerHTML = displayRows
     .map(
@@ -751,6 +875,7 @@ function renderCement(results) {
 
 function renderWarnings(results) {
   const warnings = [];
+  const withSlug = state.pillMode === "withSlug";
   const required = [
     ["anchorTvd", "Anchor point TVD"],
     ["casingTvd", "Casing depth TVD"],
@@ -767,6 +892,12 @@ function renderWarnings(results) {
     ["initialFlowRate", "Initial flow rate"],
     ["safevisionNoSlug", "Safevision AP ECD, no slug"],
   ];
+  if (withSlug) {
+    required.push(
+      ["overbalanceSlug", "Over balance pressure for slug"],
+      ["safevisionSlug", "Safevision AP ECD, with slug"],
+    );
+  }
   const missing = required.filter(([key]) => !isNum(n(key))).map(([, label]) => label);
   if (missing.length) {
     warnings.push({
@@ -792,6 +923,23 @@ function renderWarnings(results) {
       text: "Calculated pressure differential is above MASP.",
     });
   }
+  if (
+    withSlug &&
+    isNum(results.slugPillVol) &&
+    isNum(results.totalPillVol) &&
+    results.slugPillVol >= results.totalPillVol
+  ) {
+    warnings.push({
+      level: "error",
+      text: "Calculated slug volume leaves no remaining pill volume for the spotting schedule.",
+    });
+  }
+  if (withSlug && results.slugFits === false && isNum(results.slugFallOut)) {
+    warnings.push({
+      level: "",
+      text: `Slug exceeds drill string volume at spot depth; ${numberText(results.slugFallOut, 1)} bbl of fallout compensation is applied.`,
+    });
+  }
   if (!warnings.length) {
     warnings.push({ level: "good", text: "Inputs are sufficient for the primary calculations." });
   }
@@ -804,6 +952,7 @@ function renderWarnings(results) {
 }
 
 function render() {
+  renderModeUi();
   const results = calc();
   renderDerivedOutputs(results);
   renderJobStrip();
@@ -822,6 +971,7 @@ function reset(values = defaults) {
   });
   state.date = values.date ?? new Date().toISOString().slice(0, 10);
   state.sectionType = values.sectionType ?? "Production";
+  state.pillMode = values.pillMode === "withSlug" ? "withSlug" : "noSlug";
   document.querySelectorAll("[data-key]").forEach((control) => {
     control.value = inputValue(control.dataset.key);
   });
@@ -891,11 +1041,19 @@ function exportScheduleCsv() {
   const link = document.createElement("a");
   const well = (state.wellName || "mpd-360").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase();
   link.href = url;
-  link.download = `${well || "mpd-360"}-schedule.csv`;
+  const mode = scheduleMeta.mode === "withSlug" ? "with-slug" : "no-slug";
+  link.download = `${well || "mpd-360"}-${mode}-schedule.csv`;
   link.click();
   URL.revokeObjectURL(url);
 }
 function initActions() {
+  document.querySelectorAll('input[name="pillMode"]').forEach((control) => {
+    control.addEventListener("change", () => {
+      if (!control.checked) return;
+      state.pillMode = control.value === "withSlug" ? "withSlug" : "noSlug";
+      render();
+    });
+  });
   byId("showCutoff").addEventListener("change", render);
   byId("loadExample").addEventListener("click", () => reset({ ...defaults, ...example }));
   byId("saveScenario").addEventListener("click", saveScenario);

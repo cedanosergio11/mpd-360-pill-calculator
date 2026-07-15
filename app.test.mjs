@@ -13,14 +13,20 @@ const missingIds = [...new Set(referencedIds)].filter(
   (id) => !htmlIds.includes(id) && !generatedIds.has(id),
 );
 const duplicateIds = htmlIds.filter((id, index) => htmlIds.indexOf(id) !== index);
+const pillModes = [...html.matchAll(/name="pillMode" value="([^"]+)"/g)].map(
+  (match) => match[1],
+);
 if (missingIds.length) throw new Error(`Missing HTML ids: ${missingIds.join(", ")}`);
 if (duplicateIds.length) throw new Error(`Duplicate HTML ids: ${duplicateIds.join(", ")}`);
+if (pillModes.join(",") !== "noSlug,withSlug") {
+  throw new Error("Pill mode toggle is incomplete");
+}
 
 source = source.slice(0, source.lastIndexOf("buildInputs();"));
 source += `
 Object.assign(state, example);
 const exampleResults = calc();
-const exampleSchedule = makeScheduleRows(exampleResults);
+const exampleSchedule = makeScheduleRows(exampleResults, "noSlug");
 const exampleStrokes = exampleSchedule.rows.map((row) => row.strokes);
 if (!exampleStrokes.every((value, index) => index === 0 || value > exampleStrokes[index - 1])) {
   throw new Error("Schedule strokes repeat before cutoff");
@@ -47,7 +53,7 @@ const reference = makeScheduleRows({
   staticStrippingPressure: 808,
   resolutionPressureGain: 48.05,
   pressureDifferential: 574,
-});
+}, "noSlug");
 if (reference.rows.length !== 19) throw new Error("Reference schedule should have 19 active rows");
 if (reference.rows[14].volume !== 346 || reference.rows[14].density !== 19.5) {
   throw new Error("Pill-volume boundary row is incorrect");
@@ -62,11 +68,60 @@ if (reference.rows[17].staticSbp !== 0 || Math.round(reference.rows.at(-1).strok
 if (reference.cutoff?.strokes !== reference.rows.at(-1)?.strokes) {
   throw new Error("Reference cutoff does not repeat the final stroke total");
 }
+
+Object.assign(state, {
+  desiredResolution: 10,
+  initialFlowRate: 250,
+  pumpDisp: 0.0561,
+  currentMw: 15.3,
+  kmw: 18.5,
+  odDp: 5,
+  spotMd: 6000,
+});
+const withSlugReference = makeScheduleRows({
+  drillStringVolAtSpot: 87,
+  totalPillVol: 163,
+  kwmPlusChase: 180,
+  pillVolAtSpot: 49.89090139224119,
+  chaseWithSlug: 66.72923100172241,
+  correctedSlugPill: 130.89090139224118,
+  minHeightWithDp: 4001.6580703732634,
+  staticStrippingPressure: 589.004,
+  resolutionPressureGain: 63.40484812030074,
+  pressureDifferential: 323.9522,
+  pressureDifferentialSlug: 229.7273556231407,
+  slugFits: false,
+  slugFallOut: 26,
+  slugPsiEquivalent: 94.22484437685948,
+}, "withSlug");
+if (withSlugReference.rows.length !== 7) {
+  throw new Error("With Slug reference should have 7 active rows");
+}
+if (round(withSlugReference.rows[4].volume, 3) !== 49.891 || withSlugReference.rows[4].density !== 18.5) {
+  throw new Error("With Slug KMW boundary is incorrect");
+}
+if (withSlugReference.rows[5].density !== 15.3) {
+  throw new Error("With Slug chase density transition is incorrect");
+}
+const withSlugSbp = withSlugReference.rows.slice(0, 5).map((row) =>
+  isNum(row.sbp) ? round(row.sbp, 3) : row.sbp,
+);
+if (JSON.stringify(withSlugSbp) !== JSON.stringify([229.727, 166.323, 102.918, 50, "Open Choke"])) {
+  throw new Error("With Slug SBP sequence is incorrect");
+}
+const withSlugStatic = withSlugReference.rows.slice(0, 5).map((row) => round(row.staticSbp, 3));
+if (JSON.stringify(withSlugStatic) !== JSON.stringify([494.779, 400.554, 242.925, 85.295, 0])) {
+  throw new Error("With Slug static SBP compensation is incorrect");
+}
+if (withSlugReference.cutoff?.strokes !== withSlugReference.rows.at(-1)?.strokes) {
+  throw new Error("With Slug cutoff does not repeat the final stroke total");
+}
 console.log(JSON.stringify({
   staticPressure: round(exampleResults.staticStrippingPressure, 3),
   maxDynamicSbp: round(exampleResults.maxDynamicSbp, 3),
   exampleRows: exampleSchedule.rows.length,
   referenceRows: reference.rows.length,
+  withSlugRows: withSlugReference.rows.length,
   cutoffVerified: true,
 }, null, 2));
 `;

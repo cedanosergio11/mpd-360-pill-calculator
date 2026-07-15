@@ -6,16 +6,16 @@
     <title>MPD 360 Pill Calculator</title>
     <meta
       name="description"
-      content="MPD pill calculations, pressure outputs, and automatically trimmed pumping schedules."
+      content="MPD pill calculations and automatically trimmed pumping schedules with No Slug and With Slug modes."
     />
     <meta name="theme-color" content="#111827" />
     <meta property="og:title" content="MPD 360 Pill Calculator" />
     <meta
       property="og:description"
-      content="Build and export MPD pill schedules with automatic pressure calculations."
+      content="Build and export No Slug or With Slug MPD pill schedules with automatic pressure calculations."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/og.png" />
+    <meta property="og:image" content="og.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="stylesheet" href="styles.css" />
   </head>
@@ -50,6 +50,17 @@
           <button class="tab" type="button" data-tab="schedule">Schedule</button>
           <button class="tab" type="button" data-tab="cement">Cement</button>
           <button class="tab" type="button" data-tab="audit">Audit</button>
+          <div class="pill-mode-switch" role="radiogroup" aria-label="Pill mode">
+            <span class="mode-switch-label">Mode</span>
+            <label class="mode-option">
+              <input type="radio" name="pillMode" value="noSlug" checked />
+              <span>No Slug</span>
+            </label>
+            <label class="mode-option">
+              <input type="radio" name="pillMode" value="withSlug" />
+              <span>With Slug</span>
+            </label>
+          </div>
         </nav>
 
         <section class="tab-panel active" id="summary">
@@ -72,8 +83,8 @@
             </div>
           </section>
           <div class="kpi-grid" id="kpiGrid"></div>
-          <div class="split-layout">
-            <section class="data-section">
+          <div class="split-layout" id="summarySplit">
+            <section class="data-section" id="slugSection">
               <div class="section-heading">
                 <h2>Pill Calculations</h2>
               </div>
@@ -132,7 +143,7 @@
           </section>
           <section class="data-section">
             <div class="section-heading">
-              <h2>Standard Pill Schedule</h2>
+              <h2 id="scheduleTitle">Standard Pill - No Slug</h2>
               <div class="schedule-controls">
                 <span id="scheduleMode">Waiting for inputs</span>
                 <label class="toggle-control">
@@ -190,9 +201,9 @@
               <h2>Calculation Notes</h2>
             </div>
             <p class="note">
-              This local app ports the primary formulas from the workbook's Inputs sheet and
-              converts spreadsheet errors into pending values until the required inputs are present.
-              It is intended as a fast operational calculator and report preview.
+              This app ports the primary formulas from the workbook's Inputs and standard pill
+              sheets, including the separate No Slug and With Slug schedules. Spreadsheet errors
+              remain pending until the required inputs are present.
             </p>
           </section>
         </section>
