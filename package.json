@@ -1,0 +1,10 @@
+{
+  "name": "mpd-360-pill-calculator",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build-worker.mjs",
+    "test": "node app.test.mjs && node hosting.test.mjs"
+  }
+}

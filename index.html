@@ -1,0 +1,205 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MPD 360 Pill Calculator</title>
+    <meta
+      name="description"
+      content="MPD pill calculations, pressure outputs, and automatically trimmed pumping schedules."
+    />
+    <meta name="theme-color" content="#111827" />
+    <meta property="og:title" content="MPD 360 Pill Calculator" />
+    <meta
+      property="og:description"
+      content="Build and export MPD pill schedules with automatic pressure calculations."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/og.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Stasis Drilling</p>
+        <h1>MPD 360 Pill Calculator</h1>
+      </div>
+      <div class="header-actions">
+        <button type="button" class="ghost-button" id="loadExample">Load Example</button>
+        <button type="button" class="ghost-button" id="saveScenario">Save Scenario</button>
+        <button type="button" class="ghost-button" id="loadScenario">Load Saved</button>
+        <button type="button" class="ghost-button" id="exportSchedule">Export CSV</button>
+        <button type="button" class="ghost-button" id="resetInputs">Reset</button>
+        <button type="button" class="primary-button" id="printReport">Print</button>
+      </div>
+    </header>
+
+    <main class="app-shell">
+      <aside class="input-panel" aria-label="Engineering inputs">
+        <div class="panel-title">
+          <h2>Inputs</h2>
+          <span id="validityPill">Waiting for values</span>
+        </div>
+        <div id="inputSections"></div>
+      </aside>
+
+      <section class="workspace">
+        <nav class="tabs" aria-label="Calculator views">
+          <button class="tab active" type="button" data-tab="summary">Summary</button>
+          <button class="tab" type="button" data-tab="schedule">Schedule</button>
+          <button class="tab" type="button" data-tab="cement">Cement</button>
+          <button class="tab" type="button" data-tab="audit">Audit</button>
+        </nav>
+
+        <section class="tab-panel active" id="summary">
+          <section class="job-strip" aria-label="Current scenario">
+            <div>
+              <span>Well</span>
+              <strong id="jobWell">-</strong>
+            </div>
+            <div>
+              <span>Client</span>
+              <strong id="jobClient">-</strong>
+            </div>
+            <div>
+              <span>Date</span>
+              <strong id="jobDate">-</strong>
+            </div>
+            <div>
+              <span>Section</span>
+              <strong id="jobSection">-</strong>
+            </div>
+          </section>
+          <div class="kpi-grid" id="kpiGrid"></div>
+          <div class="split-layout">
+            <section class="data-section">
+              <div class="section-heading">
+                <h2>Pill Calculations</h2>
+              </div>
+              <div class="metric-list" id="pillMetrics"></div>
+            </section>
+            <section class="data-section">
+              <div class="section-heading">
+                <h2>Slug Calculations</h2>
+              </div>
+              <div class="metric-list" id="slugMetrics"></div>
+            </section>
+          </div>
+          <section class="data-section">
+            <div class="section-heading">
+              <h2>Trip Speed Pressure Table</h2>
+              <span class="section-badge" id="tripTableLabel">Auto</span>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Trip speed</th>
+                    <th>Swab AP</th>
+                    <th>Swab AP</th>
+                    <th>Dynamic pressure</th>
+                  </tr>
+                </thead>
+                <tbody id="tripSpeedRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="tab-panel" id="schedule">
+          <section class="pressure-summary" aria-label="Calculated schedule outputs">
+            <div>
+              <span>Static Stripping Pressure</span>
+              <strong id="scheduleStaticPressure">Pending</strong>
+              <small>psi</small>
+            </div>
+            <div>
+              <span>MAX Dynamic SBP</span>
+              <strong id="scheduleMaxDynamic">Pending</strong>
+              <small>psi</small>
+            </div>
+            <div>
+              <span>Final Pump Volume</span>
+              <strong id="scheduleFinalVolume">Pending</strong>
+              <small>bbls</small>
+            </div>
+            <div>
+              <span>Final Total Strokes</span>
+              <strong id="scheduleFinalStrokes">Pending</strong>
+              <small>stks</small>
+            </div>
+          </section>
+          <section class="data-section">
+            <div class="section-heading">
+              <h2>Standard Pill Schedule</h2>
+              <div class="schedule-controls">
+                <span id="scheduleMode">Waiting for inputs</span>
+                <label class="toggle-control">
+                  <input type="checkbox" id="showCutoff" />
+                  <span>Show cutoff row</span>
+                </label>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="schedule-table">
+                <thead>
+                  <tr>
+                    <th>Step</th>
+                    <th>SBP<br />(psi)</th>
+                    <th>Flow Rate<br />(gpm)</th>
+                    <th>Volume<br />(bbls)</th>
+                    <th>Total Strokes<br />(stks)</th>
+                    <th>Density In<br />(ppg)</th>
+                    <th>Static SBP<br />(psi)</th>
+                    <th>Activity Notes</th>
+                  </tr>
+                </thead>
+                <tbody id="scheduleRows"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="tab-panel" id="cement">
+          <div class="kpi-grid compact" id="cementGrid"></div>
+          <section class="data-section">
+            <div class="section-heading">
+              <h2>Offline Cement Pill</h2>
+            </div>
+            <div class="metric-list" id="cementMetrics"></div>
+          </section>
+        </section>
+
+        <section class="tab-panel" id="audit">
+          <section class="data-section">
+            <div class="section-heading">
+              <h2>Saved Scenario</h2>
+              <span id="saveStatus">Not saved this session</span>
+            </div>
+            <div class="metric-list" id="scenarioMetrics"></div>
+          </section>
+          <section class="data-section">
+            <div class="section-heading">
+              <h2>Validation</h2>
+            </div>
+            <div id="warnings" class="warnings"></div>
+          </section>
+          <section class="data-section">
+            <div class="section-heading">
+              <h2>Calculation Notes</h2>
+            </div>
+            <p class="note">
+              This local app ports the primary formulas from the workbook's Inputs sheet and
+              converts spreadsheet errors into pending values until the required inputs are present.
+              It is intended as a fast operational calculator and report preview.
+            </p>
+          </section>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
+
