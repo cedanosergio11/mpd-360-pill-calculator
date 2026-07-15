@@ -48,6 +48,7 @@
         <nav class="tabs" aria-label="Calculator views">
           <button class="tab active" type="button" data-tab="summary">Summary</button>
           <button class="tab" type="button" data-tab="schedule">Schedule</button>
+          <button class="tab" type="button" data-tab="schematic">Schematic</button>
           <button class="tab" type="button" data-tab="cement">Cement</button>
           <button class="tab" type="button" data-tab="audit">Audit</button>
           <div class="pill-mode-switch" role="radiogroup" aria-label="Pill mode">
@@ -190,6 +191,38 @@
                 </thead>
                 <tbody id="scheduleRows"></tbody>
               </table>
+            </div>
+          </section>
+        </section>
+
+        <section class="tab-panel" id="schematic">
+          <section class="data-section schematic-section">
+            <div class="section-heading">
+              <h2>Wellbore Schematic</h2>
+              <span class="section-badge" id="schematicMode">No Slug</span>
+            </div>
+            <div class="schematic-body">
+              <div class="schematic-legend" aria-label="Schematic legend">
+                <span><i class="legend-swatch annular-pill"></i>Annular KMW</span>
+                <span>
+                  <i class="legend-swatch pipe-pill"></i>
+                  <span id="drillStringLegend">KMW in drill string</span>
+                </span>
+                <span><i class="legend-line solid"></i>Calculated depth</span>
+                <span><i class="legend-line dashed"></i>No-DP comparison</span>
+              </div>
+              <div class="schematic-canvas-wrap">
+                <canvas
+                  id="wellboreCanvas"
+                  class="schematic-canvas"
+                  width="1100"
+                  height="640"
+                  role="img"
+                  aria-label="Wellbore schematic pending calculated inputs"
+                >
+                  Live wellbore schematic showing pill placement and calculated depths.
+                </canvas>
+              </div>
             </div>
           </section>
         </section>

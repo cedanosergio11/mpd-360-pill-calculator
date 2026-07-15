@@ -583,6 +583,70 @@ h2 {
   white-space: nowrap;
 }
 
+.schematic-body {
+  padding: 14px 16px 16px;
+}
+
+.schematic-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 22px;
+  margin-bottom: 12px;
+  color: var(--steel);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.schematic-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1px solid rgba(15, 23, 42, 0.28);
+}
+
+.legend-swatch.annular-pill {
+  background: #b97850;
+}
+
+.legend-swatch.pipe-pill {
+  background: #965044;
+}
+
+body[data-pill-mode="withSlug"] .legend-swatch.pipe-pill {
+  background: #c9933c;
+}
+
+.legend-line {
+  display: inline-block;
+  width: 22px;
+  border-top: 3px solid #dc2626;
+}
+
+.legend-line.dashed {
+  border-top-style: dashed;
+  border-top-width: 2px;
+}
+
+.schematic-canvas-wrap {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  background: #ffffff;
+}
+
+.schematic-canvas {
+  display: block;
+  width: 100%;
+  min-width: 760px;
+  background: #ffffff;
+}
+
 .pending {
   color: #94a3b8;
 }
@@ -793,6 +857,10 @@ td {
     padding: 12px;
   }
 
+  .schematic-body {
+    padding: 12px;
+  }
+
   .procedure-result-row {
     grid-template-columns: 1fr;
     gap: 4px;
@@ -830,6 +898,12 @@ td {
   .tab-panel {
     display: block;
     page-break-after: always;
+  }
+
+  .schematic-canvas {
+    width: 100% !important;
+    min-width: 0;
+    height: auto !important;
   }
 }
 

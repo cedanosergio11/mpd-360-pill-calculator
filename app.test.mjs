@@ -5,6 +5,45 @@ const appUrl = new URL("./app.js", import.meta.url);
 const htmlUrl = new URL("./index.html", import.meta.url);
 let source = fs.readFileSync(appUrl, "utf8");
 const html = fs.readFileSync(htmlUrl, "utf8");
+const schematicTest = {
+  attributes: {},
+  drawnText: [],
+  elements: {},
+};
+const fakeCanvasContext = {
+  setTransform() {},
+  clearRect() {},
+  fillRect() {},
+  strokeRect() {},
+  beginPath() {},
+  moveTo() {},
+  lineTo() {},
+  stroke() {},
+  save() {},
+  restore() {},
+  setLineDash() {},
+  fillText(value) {
+    schematicTest.drawnText.push(String(value));
+  },
+};
+schematicTest.elements = {
+  wellboreCanvas: {
+    width: 0,
+    height: 0,
+    style: {},
+    parentElement: { getBoundingClientRect: () => ({ width: 1100 }) },
+    getContext: () => fakeCanvasContext,
+    setAttribute: (name, value) => {
+      schematicTest.attributes[name] = value;
+    },
+  },
+  schematicMode: { textContent: "" },
+  drillStringLegend: { textContent: "" },
+};
+const fakeDocument = {
+  getElementById: (id) => schematicTest.elements[id] ?? null,
+};
+const fakeWindow = { devicePixelRatio: 1 };
 
 const referencedIds = [...source.matchAll(/byId\("([^"]+)"\)/g)].map((match) => match[1]);
 const htmlIds = [...html.matchAll(/\sid="([^"]+)"/g)].map((match) => match[1]);
@@ -16,10 +55,14 @@ const duplicateIds = htmlIds.filter((id, index) => htmlIds.indexOf(id) !== index
 const pillModes = [...html.matchAll(/name="pillMode" value="([^"]+)"/g)].map(
   (match) => match[1],
 );
+const tabs = [...html.matchAll(/data-tab="([^"]+)"/g)].map((match) => match[1]);
 if (missingIds.length) throw new Error(`Missing HTML ids: ${missingIds.join(", ")}`);
 if (duplicateIds.length) throw new Error(`Duplicate HTML ids: ${duplicateIds.join(", ")}`);
 if (pillModes.join(",") !== "noSlug,withSlug") {
   throw new Error("Pill mode toggle is incomplete");
+}
+if (tabs.join(",") !== "summary,schedule,schematic,cement,audit") {
+  throw new Error("Calculator tabs are incomplete or out of order");
 }
 if (!/<section class="data-section" id="pillSection">[\s\S]*?<h2>Pill Calculations<\/h2>[\s\S]*?<\/section>/.test(html)) {
   throw new Error("Pill Calculations section is not wired correctly");
@@ -28,9 +71,13 @@ if (!/<section class="data-section" id="slugSection">[\s\S]*?<h2>Slug Calculatio
   throw new Error("Slug Calculations section is not wired correctly");
 }
 const summaryPanel = html.match(/<section class="tab-panel active" id="summary">([\s\S]*?)<section class="tab-panel" id="schedule">/)?.[1] ?? "";
-const schedulePanel = html.match(/<section class="tab-panel" id="schedule">([\s\S]*?)<section class="tab-panel" id="cement">/)?.[1] ?? "";
+const schedulePanel = html.match(/<section class="tab-panel" id="schedule">([\s\S]*?)<section class="tab-panel" id="schematic">/)?.[1] ?? "";
+const schematicPanel = html.match(/<section class="tab-panel" id="schematic">([\s\S]*?)<section class="tab-panel" id="cement">/)?.[1] ?? "";
 if (summaryPanel.includes("Trip Speed Pressure Table") || !schedulePanel.includes("Trip Speed Pressure Table")) {
   throw new Error("Trip Speed Pressure Table must appear only on the Schedule tab");
+}
+if (!schematicPanel.includes("Wellbore Schematic") || !schematicPanel.includes('id="wellboreCanvas"')) {
+  throw new Error("Wellbore schematic is not wired to its tab");
 }
 
 source = source.slice(0, source.lastIndexOf("buildInputs();"));
@@ -57,6 +104,23 @@ if (round(exampleResults.balancedEsdCasing, 6) !== round(exampleResults.esdCasin
 if (exampleResults.totalPillVolAtSpotNoSlug !== exampleResults.totalPillVol) {
   throw new Error("No Slug total pill volume at spot depth is incorrect");
 }
+if (
+  round(exampleResults.topOfPillInsideDp, 3) !==
+  round(example.spotMd - exampleResults.finalKwm / exampleResults.drillStringCap, 3)
+) {
+  throw new Error("Top of KMW inside the drill string is incorrect");
+}
+schematicTest.drawnText.length = 0;
+renderSchematic(exampleResults);
+if (!schematicTest.drawnText.includes("Top of Pill w/ DP") || !schematicTest.drawnText.includes("Spot Depth")) {
+  throw new Error("No Slug schematic did not render its calculated depth markers");
+}
+state.pillMode = "withSlug";
+renderSchematic(calc());
+if (schematicTest.elements.drillStringLegend.textContent !== "Slug / KMW in drill string") {
+  throw new Error("With Slug schematic state did not render");
+}
+state.pillMode = "noSlug";
 const exampleStrokes = exampleSchedule.rows.map((row) => row.strokes);
 if (!exampleStrokes.every((value, index) => index === 0 || value > exampleStrokes[index - 1])) {
   throw new Error("Schedule strokes repeat before cutoff");
@@ -203,8 +267,14 @@ console.log(JSON.stringify({
   referenceRows: reference.rows.length,
   withSlugRows: withSlugReference.rows.length,
   workbookResultVerified: true,
+  schematicVerified: true,
   cutoffVerified: true,
 }, null, 2));
 `;
 
-vm.runInNewContext(source, { console });
+vm.runInNewContext(source, {
+  console,
+  document: fakeDocument,
+  schematicTest,
+  window: fakeWindow,
+});

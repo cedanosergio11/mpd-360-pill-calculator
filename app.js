@@ -179,6 +179,7 @@ const storageKey = "mpd360.savedScenario.v2";
 let scheduleCache = [];
 let scheduleCutoffRow = null;
 let scheduleMeta = { mode: "noSlug", finalVolume: NaN };
+let schematicResizeFrame = null;
 
 const byId = (id) => document.getElementById(id);
 const isNum = (value) => Number.isFinite(value);
@@ -392,6 +393,11 @@ function calc() {
         : "Surface"
       : NaN;
   const topOfPillNoDp = spotMd - heightPillNoDp;
+  const drillStringPillHeight = safeDiv(finalKwm, drillStringCap);
+  const topOfPillInsideDp =
+    isNum(spotMd) && isNum(drillStringPillHeight)
+      ? Math.max(0, spotMd - drillStringPillHeight)
+      : NaN;
   const kwmPlusChase = roundup(totalPillVol + correctedChase, 0);
 
   const cement = calcCement();
@@ -449,6 +455,8 @@ function calc() {
     totalPillVolAtSpotWithSlug,
     topOfPillWithDp,
     topOfPillNoDp,
+    drillStringPillHeight,
+    topOfPillInsideDp,
     kwmPlusChase,
     cement,
   };
@@ -685,6 +693,271 @@ function renderProcedureResults(results) {
     ["ESD @ Anchor Point", n("desiredEmw"), "ppg", 2],
     ["Pill Height w/o DP", results.heightPillNoDp, "ft", 0],
   ]);
+}
+
+function drawSchematicMarker(ctx, marker, labelX) {
+  ctx.save();
+  ctx.strokeStyle = marker.color;
+  ctx.lineWidth = marker.lineWidth ?? 2;
+  ctx.setLineDash(marker.dash ?? []);
+  marker.segments.forEach(([fromX, toX]) => {
+    ctx.beginPath();
+    ctx.moveTo(fromX, marker.y);
+    ctx.lineTo(toX, marker.y);
+    ctx.stroke();
+  });
+  ctx.setLineDash([]);
+  ctx.lineWidth = 1.25;
+  ctx.beginPath();
+  ctx.moveTo(marker.connectorX, marker.y);
+  ctx.lineTo(labelX - 18, marker.y);
+  ctx.lineTo(labelX - 8, marker.labelY);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = marker.color;
+  ctx.font = '700 13px Inter, "Segoe UI", sans-serif';
+  ctx.fillText(marker.label, labelX, marker.labelY - 3);
+  ctx.fillStyle = "#64748b";
+  ctx.font = '600 12px Inter, "Segoe UI", sans-serif';
+  ctx.fillText(marker.depthText, labelX, marker.labelY + 14);
+}
+
+function renderSchematic(results) {
+  const canvas = byId("wellboreCanvas");
+  if (!canvas) return;
+
+  const wrapper = canvas.parentElement;
+  const cssWidth = Math.max(760, Math.round(wrapper?.getBoundingClientRect().width || 760));
+  const cssHeight = Math.max(560, Math.min(700, Math.round(cssWidth * 0.56)));
+  const pixelRatio = Math.max(1, Math.min(window.devicePixelRatio || 1, 2));
+  const renderWidth = Math.round(cssWidth * pixelRatio);
+  const renderHeight = Math.round(cssHeight * pixelRatio);
+  if (canvas.width !== renderWidth || canvas.height !== renderHeight) {
+    canvas.width = renderWidth;
+    canvas.height = renderHeight;
+  }
+  canvas.style.width = `${cssWidth}px`;
+  canvas.style.height = `${cssHeight}px`;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+  ctx.clearRect(0, 0, cssWidth, cssHeight);
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, cssWidth, cssHeight);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  const withSlug = state.pillMode === "withSlug";
+  byId("schematicMode").textContent = modeLabel();
+  byId("drillStringLegend").textContent = withSlug
+    ? "Slug / KMW in drill string"
+    : "KMW in drill string";
+
+  const spotMd = n("spotMd");
+  const casingMd = n("casingMd");
+  const anchorMd = n("anchorMd");
+  const topWithDp =
+    results.topOfPillWithDp === "Surface" ? 0 : results.topOfPillWithDp;
+  const topWithoutDp = Math.max(0, results.topOfPillNoDp);
+  const required = [spotMd, topWithDp, results.topOfPillNoDp, results.topOfPillInsideDp];
+  const ready = spotMd > 0 && required.every(isNum);
+
+  if (!ready) {
+    canvas.setAttribute("aria-label", "Wellbore schematic pending calculated inputs");
+    ctx.fillStyle = "#f8fafc";
+    ctx.fillRect(20, 20, cssWidth - 40, cssHeight - 40);
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(20, 20, cssWidth - 40, cssHeight - 40);
+    ctx.fillStyle = "#334155";
+    ctx.font = '800 18px Inter, "Segoe UI", sans-serif';
+    ctx.fillText("Schematic pending", 44, 64);
+    ctx.fillStyle = "#64748b";
+    ctx.font = '600 14px Inter, "Segoe UI", sans-serif';
+    ctx.fillText("Complete the geometry and fluid inputs to calculate pill placement.", 44, 91);
+    return;
+  }
+
+  const topY = 54;
+  const bottomY = cssHeight - 48;
+  const depthSpan = bottomY - topY;
+  const clampDepth = (depth) => Math.max(0, Math.min(spotMd, depth));
+  const yForDepth = (depth) => topY + (clampDepth(depth) / spotMd) * depthSpan;
+  const wellCenter = Math.max(235, Math.min(cssWidth * 0.31, 340));
+  const outerHalf = Math.max(96, Math.min(116, cssWidth * 0.13));
+  const pipeHalf = 31;
+  const outerLeft = wellCenter - outerHalf;
+  const outerRight = wellCenter + outerHalf;
+  const pipeLeft = wellCenter - pipeHalf;
+  const pipeRight = wellCenter + pipeHalf;
+  const labelX = Math.min(cssWidth - 280, outerRight + 72);
+  const annularTopY = yForDepth(topWithDp);
+  const pipeTopY = yForDepth(results.topOfPillInsideDp);
+  const casingShoeY = isNum(casingMd) ? yForDepth(casingMd) : bottomY;
+
+  ctx.fillStyle = "#eef4f6";
+  ctx.fillRect(outerLeft + 4, topY, pipeLeft - outerLeft - 7, depthSpan);
+  ctx.fillRect(pipeRight + 3, topY, outerRight - pipeRight - 7, depthSpan);
+  ctx.fillRect(pipeLeft + 3, topY, pipeRight - pipeLeft - 6, depthSpan);
+
+  ctx.fillStyle = "#b97850";
+  ctx.fillRect(outerLeft + 4, annularTopY, pipeLeft - outerLeft - 7, bottomY - annularTopY);
+  ctx.fillRect(pipeRight + 3, annularTopY, outerRight - pipeRight - 7, bottomY - annularTopY);
+
+  ctx.fillStyle = withSlug ? "#c9933c" : "#965044";
+  ctx.fillRect(pipeLeft + 3, pipeTopY, pipeRight - pipeLeft - 6, bottomY - pipeTopY);
+
+  ctx.strokeStyle = "#475569";
+  ctx.lineWidth = 7;
+  ctx.beginPath();
+  ctx.moveTo(outerLeft, topY);
+  ctx.lineTo(outerLeft, casingShoeY);
+  ctx.moveTo(outerRight, topY);
+  ctx.lineTo(outerRight, casingShoeY);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#111827";
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(outerLeft, casingShoeY);
+  ctx.lineTo(outerLeft - 10, bottomY);
+  ctx.moveTo(outerRight, casingShoeY);
+  ctx.lineTo(outerRight + 10, bottomY);
+  ctx.stroke();
+
+  ctx.lineWidth = 4.5;
+  ctx.beginPath();
+  ctx.moveTo(pipeLeft, topY);
+  ctx.lineTo(pipeLeft, bottomY);
+  ctx.moveTo(pipeRight, topY);
+  ctx.lineTo(pipeRight, bottomY);
+  ctx.stroke();
+
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.moveTo(pipeLeft - 9, bottomY);
+  ctx.lineTo(wellCenter, bottomY + 12);
+  ctx.lineTo(pipeRight + 9, bottomY);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#94a3b8";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(outerLeft - 34, topY);
+  ctx.lineTo(outerRight + 34, topY);
+  ctx.stroke();
+  ctx.fillStyle = "#64748b";
+  ctx.font = '700 12px Inter, "Segoe UI", sans-serif';
+  ctx.fillText("Surface", 24, topY + 4);
+
+  const markers = [
+    {
+      label: "Top of Pill w/ DP",
+      depth: topWithDp,
+      depthText: results.topOfPillWithDp === "Surface" ? "Surface" : `${numberText(topWithDp, 0)} ft MD`,
+      color: "#dc2626",
+      lineWidth: 3,
+      segments: [
+        [outerLeft, pipeLeft],
+        [pipeRight, outerRight],
+      ],
+      connectorX: outerRight,
+    },
+    {
+      label: "Top of Pill w/o DP",
+      depth: topWithoutDp,
+      depthText:
+        results.topOfPillNoDp <= 0 ? "Surface" : `${numberText(results.topOfPillNoDp, 0)} ft MD`,
+      color: "#e11d48",
+      dash: [7, 5],
+      segments: [[outerLeft - 6, outerRight + 6]],
+      connectorX: outerRight + 6,
+    },
+    {
+      label: withSlug ? "Top of Slug / KMW in DP" : "Top of KMW in DP",
+      depth: results.topOfPillInsideDp,
+      depthText: `${numberText(results.topOfPillInsideDp, 0)} ft MD`,
+      color: withSlug ? "#a16207" : "#965044",
+      dash: [3, 4],
+      segments: [[pipeLeft, pipeRight]],
+      connectorX: pipeRight,
+    },
+    {
+      label: "Spot Depth",
+      depth: spotMd,
+      depthText: `${numberText(spotMd, 0)} ft MD`,
+      color: "#b91c1c",
+      lineWidth: 3,
+      segments: [[outerLeft - 8, outerRight + 8]],
+      connectorX: outerRight + 8,
+    },
+  ];
+
+  if (isNum(casingMd) && casingMd >= 0 && casingMd <= spotMd) {
+    markers.push({
+      label: "Casing Shoe",
+      depth: casingMd,
+      depthText: `${numberText(casingMd, 0)} ft MD`,
+      color: "#475569",
+      segments: [
+        [outerLeft - 8, outerLeft + 8],
+        [outerRight - 8, outerRight + 8],
+      ],
+      connectorX: outerRight + 8,
+    });
+  }
+  if (isNum(anchorMd) && anchorMd >= 0 && anchorMd <= spotMd) {
+    markers.push({
+      label: "Anchor Point / BOC",
+      depth: anchorMd,
+      depthText: `${numberText(anchorMd, 0)} ft MD`,
+      color: "#0f766e",
+      dash: [2, 4],
+      segments: [[outerLeft - 6, outerRight + 6]],
+      connectorX: outerRight + 6,
+    });
+  }
+
+  markers.forEach((marker) => {
+    marker.y = yForDepth(marker.depth);
+  });
+  const sortedMarkers = [...markers].sort((a, b) => a.y - b.y);
+  const labelGap = 43;
+  let priorLabelY = 28 - labelGap;
+  sortedMarkers.forEach((marker) => {
+    marker.labelY = Math.max(marker.y, priorLabelY + labelGap);
+    priorLabelY = marker.labelY;
+  });
+  const bottomOverflow = sortedMarkers.at(-1).labelY - (cssHeight - 28);
+  if (bottomOverflow > 0) {
+    sortedMarkers.forEach((marker) => {
+      marker.labelY -= bottomOverflow;
+    });
+  }
+  for (let index = sortedMarkers.length - 2; index >= 0; index -= 1) {
+    sortedMarkers[index].labelY = Math.min(
+      sortedMarkers[index].labelY,
+      sortedMarkers[index + 1].labelY - labelGap,
+    );
+  }
+  const topOverflow = 28 - sortedMarkers[0].labelY;
+  if (topOverflow > 0) {
+    sortedMarkers.forEach((marker) => {
+      marker.labelY += topOverflow;
+    });
+  }
+  sortedMarkers.forEach((marker) => drawSchematicMarker(ctx, marker, labelX));
+
+  canvas.setAttribute(
+    "aria-label",
+    `Wellbore schematic from surface to ${numberText(spotMd, 0)} feet MD. ${modeLabel()} mode. Top of pill with drill pipe at ${
+      results.topOfPillWithDp === "Surface" ? "surface" : `${numberText(topWithDp, 0)} feet MD`
+    } and top of pill without drill pipe at ${
+      results.topOfPillNoDp <= 0 ? "surface" : `${numberText(results.topOfPillNoDp, 0)} feet MD`
+    }.`,
+  );
 }
 
 function renderTripTable(results) {
@@ -1040,6 +1313,7 @@ function render() {
   renderKpis(results);
   renderMetrics(results);
   renderProcedureResults(results);
+  renderSchematic(results);
   renderTripTable(results);
   renderSchedule(results);
   renderCement(results);
@@ -1068,7 +1342,18 @@ function initTabs() {
         .forEach((item) => item.classList.remove("active"));
       tab.classList.add("active");
       byId(tab.dataset.tab).classList.add("active");
+      if (tab.dataset.tab === "schematic") {
+        requestAnimationFrame(() => renderSchematic(calc()));
+      }
     });
+  });
+}
+
+function initSchematicResize() {
+  window.addEventListener("resize", () => {
+    if (!byId("schematic").classList.contains("active")) return;
+    if (schematicResizeFrame) cancelAnimationFrame(schematicResizeFrame);
+    schematicResizeFrame = requestAnimationFrame(() => renderSchematic(calc()));
   });
 }
 
@@ -1147,6 +1432,7 @@ function initActions() {
 buildInputs();
 initTabs();
 initActions();
+initSchematicResize();
 render();
 
 
