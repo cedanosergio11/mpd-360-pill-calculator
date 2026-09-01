@@ -9,6 +9,12 @@ Version scheme: `major.minor.patch.build` (shown in-app as `v 1.0.0.0`).
 
 ---
 
+## 1.0.6.0 — 2026-09-01
+
+RIH stop at shoe FIT
+
+- Displacement tab: run closed-end pipe into the no-DP pill until shoe ESD hits FIT, circulate extra KMW, repeat.
+
 ## 1.0.5.0 — 2026-09-01
 
 MASP at shoe TVD
