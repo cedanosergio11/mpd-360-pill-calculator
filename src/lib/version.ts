@@ -10,7 +10,7 @@
  * Always prepend a ReleaseNote and mirror it in CHANGELOG.md.
  */
 
-export const APP_VERSION = "1.0.3.4";
+export const APP_VERSION = "1.0.4.0";
 
 export type ReleaseNote = {
   version: string;
@@ -20,6 +20,12 @@ export type ReleaseNote = {
 };
 
 export const RELEASES: ReleaseNote[] = [
+  {
+    version: "1.0.4.0",
+    date: "2026-09-01",
+    title: "GitHub Pages SPA",
+    notes: ["SPA build at /mpd-360-pill-calculator/ plus 404.html for GitHub Pages."],
+  },
   {
     version: "1.0.3.4",
     date: "2026-09-01",
