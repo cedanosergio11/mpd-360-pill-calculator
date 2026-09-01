@@ -175,6 +175,12 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  .procedure-fit-banner {
+    background: #c45c4a !important;
+    color: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }
 
 .procedure-note-hot {
