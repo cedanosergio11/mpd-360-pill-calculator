@@ -10,7 +10,7 @@
  * Always prepend a ReleaseNote and mirror it in CHANGELOG.md.
  */
 
-export const APP_VERSION = "1.0.4.1";
+export const APP_VERSION = "1.0.5.0";
 
 export type ReleaseNote = {
   version: string;
@@ -20,6 +20,14 @@ export type ReleaseNote = {
 };
 
 export const RELEASES: ReleaseNote[] = [
+  {
+    version: "1.0.5.0",
+    date: "2026-09-01",
+    title: "MASP at shoe TVD",
+    notes: [
+      "MASP is (FIT − MW) × 0.052 × casing shoe TVD, not anchor TVD.",
+    ],
+  },
   {
     version: "1.0.4.1",
     date: "2026-09-01",
