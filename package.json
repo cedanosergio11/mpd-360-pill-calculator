@@ -13,9 +13,11 @@
     "build:dev": "node scripts/with-app-env.mjs vite build --mode development",
     "preview": "node scripts/with-app-env.mjs vite preview",
     "typecheck": "tsc --noEmit",
+    "check:auth": "node scripts/check-auth-invariant.mjs",
     "test": "vitest run && node scripts/run-script-tests.mjs",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "build:pages": "GITHUB_PAGES=1 node scripts/with-app-env.mjs vite build && node scripts/pages-fallback.mjs"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.5.4",
