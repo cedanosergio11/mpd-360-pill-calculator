@@ -9,6 +9,12 @@ Version scheme: `major.minor.patch.build` (shown in-app as `v 1.0.0.0`).
 
 ---
 
+## 1.0.5.0 — 2026-09-01
+
+MASP at shoe TVD
+
+- MASP is (FIT − MW) × 0.052 × casing shoe TVD, not anchor TVD.
+
 ## 1.0.4.1 — 2026-09-01
 
 FIT print confirm and banner
