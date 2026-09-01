@@ -9,17 +9,14 @@ import {
   safeDiv,
 } from "@/lib/utils";
 import { TRIP_TABLES, tripTableKey } from "./tables";
-import { equalizeFloatAirCap, surveyFromInputs, tvdOfSurvey } from "./equalize";
 import type {
-  CalcResults,
   CementResults,
   TaperedResults,
   TripPressure,
-  WarningItem,
   WellInputs,
 } from "./types";
 
-function n(inputs: WellInputs, key: keyof WellInputs): number {
+export function n(inputs: WellInputs, key: keyof WellInputs): number {
   return asNum(inputs[key]);
 }
 
@@ -32,7 +29,7 @@ function swabTable(inputs: WellInputs, hole: number): [number, number][] {
   return TRIP_TABLES[key];
 }
 
-function calcCement(inputs: WellInputs): CementResults {
+export function calcCement(inputs: WellInputs): CementResults {
   const desiredEsd = n(inputs, "cementDesiredEsd");
   const newCasingOd = n(inputs, "newCasingOd");
   const newCasingId = n(inputs, "newCasingId");
@@ -84,7 +81,7 @@ function calcCement(inputs: WellInputs): CementResults {
   };
 }
 
-function calcTapered(inputs: WellInputs, heightPillNoDp: number): TaperedResults {
+export function calcTapered(inputs: WellInputs, heightPillNoDp: number): TaperedResults {
   const spotMd = n(inputs, "spotMd");
   const ohDia = n(inputs, "openHoleDia");
   const linerId = n(inputs, "linerId");
@@ -131,7 +128,7 @@ function calcTapered(inputs: WellInputs, heightPillNoDp: number): TaperedResults
   };
 }
 
-type TripStatic = {
+export type TripStatic = {
   currentMw: number;
   kmw: number;
   anchorTvd: number;
@@ -154,7 +151,7 @@ type TripStatic = {
 };
 
 /** Trip/swab table plus static SBP, MASP, and APL. */
-function calcTripAndStatic(inputs: WellInputs): TripStatic {
+export function calcTripAndStatic(inputs: WellInputs): TripStatic {
   const currentMw = n(inputs, "currentMw");
   const kmw = n(inputs, "kmw");
   const anchorTvd = n(inputs, "anchorTvd");
@@ -206,7 +203,7 @@ function calcTripAndStatic(inputs: WellInputs): TripStatic {
   };
 }
 
-type WellCaps = {
+export type WellCaps = {
   spotMd: number;
   spotTvd: number;
   casingMd: number;
@@ -229,7 +226,7 @@ type WellCaps = {
 };
 
 /** Capacities and room-with-pipe (casing annulus + OH annulus + DP bore). */
-function calcCapacitiesAndRoom(inputs: WellInputs): WellCaps {
+export function calcCapacitiesAndRoom(inputs: WellInputs): WellCaps {
   const spotMd = n(inputs, "spotMd");
   const spotTvd = n(inputs, "spotTvd");
   const casingMd = n(inputs, "casingMd");
@@ -278,3 +275,12 @@ function calcCapacitiesAndRoom(inputs: WellInputs): WellCaps {
     dsVolUnrounded,
   };
 }
+
+export {
+  atSurface,
+  calculate,
+  collectWarnings,
+  esdCasingWithDp,
+  esdTargetWithDp,
+  pillHeightWithDp,
+} from "./engine-run";
