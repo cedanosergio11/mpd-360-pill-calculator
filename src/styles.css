@@ -1,0 +1,692 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme {
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --color-background: #0e1116;
+  --color-foreground: #e8ebe6;
+  --color-card: #161b22;
+  --color-card-foreground: #e8ebe6;
+  --color-popover: #1c222b;
+  --color-popover-foreground: #e8ebe6;
+  --color-primary: #4d8f8a;
+  --color-primary-foreground: #f4f7f6;
+  --color-secondary: #222a33;
+  --color-secondary-foreground: #d5dbd6;
+  --color-muted: #1e252e;
+  --color-muted-foreground: #93a09a;
+  --color-destructive: #c45c4a;
+  --color-border: #2a333c;
+  --color-input: #2a333c;
+  --color-ring: #4d8f8a;
+  --color-kmw: #b56a3c;
+  --color-pipe: #c1966a;
+  --color-pill: #4aa3c4;
+  --color-backfill: #6aa882;
+  --color-fluid: #3d5270;
+  --color-formation: #2c2723;
+  --color-warn: #c4a05a;
+  --color-danger: #c45c4a;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+  details > summary::-webkit-details-marker {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  :before,
+  :after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 12mm 10mm 14mm;
+  }
+  html,
+  body,
+  main {
+    color: #1a1d21 !important;
+    background: #fff !important;
+  }
+  .print\:hidden {
+    display: none !important;
+  }
+  .print\:block {
+    display: block !important;
+  }
+  .procedure-sheet {
+    box-shadow: none !important;
+    color: #1a1d21 !important;
+    background: #fff !important;
+    border: none !important;
+    max-width: none !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+    font-size: 10pt;
+  }
+  .procedure-sheet * {
+    box-shadow: none !important;
+  }
+  .procedure-sheet .text-muted-foreground,
+  .procedure-sheet .text-primary {
+    color: #333 !important;
+  }
+  .procedure-sheet .text-foreground,
+  .procedure-sheet .text-card-foreground {
+    color: #1a1d21 !important;
+  }
+  .procedure-sheet .bg-card,
+  .procedure-sheet .bg-background {
+    background: #fff !important;
+    color: #1a1d21 !important;
+  }
+  .procedure-sheet .border-border,
+  .procedure-sheet .border-foreground\/30 {
+    border-color: #222 !important;
+  }
+  .procedure-sheet .bg-muted,
+  .procedure-sheet .bg-muted\/40,
+  .procedure-sheet .bg-muted\/60,
+  .procedure-sheet .bg-muted\/70,
+  .procedure-sheet .bg-primary\/5 {
+    background: #f3f3f3 !important;
+    color: #1a1d21 !important;
+  }
+  .procedure-table thead {
+    display: table-header-group;
+  }
+  .procedure-table thead,
+  .procedure-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .procedure-block,
+  .print-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+  }
+  .procedure-steps {
+    gap: 1.35rem;
+  }
+  .procedure-steps > li {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .procedure-block,
+  .procedure-table-wrap {
+    margin-bottom: 2rem;
+  }
+  .procedure-hot {
+    background: #c45c4a !important;
+    color: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .procedure-warm {
+    background: #e2b844 !important;
+    color: #111 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .procedure-kmw-row td:nth-child(6) {
+    font-weight: 700;
+  }
+  .procedure-note-hot {
+    color: #b42318 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+.procedure-note-hot {
+  display: block;
+  margin-top: 0.4rem;
+  font-weight: 700;
+  color: #b42318;
+}
+
+.procedure-kicker {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+.procedure-block {
+  margin-bottom: 1.75rem;
+}
+
+.procedure-steps {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 1.15rem;
+}
+.procedure-steps > li {
+  display: grid;
+  grid-template-columns: 1.6rem 1fr;
+  gap: 0.55rem;
+  align-items: start;
+  break-inside: avoid;
+}
+.procedure-n {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+.procedure-steps p {
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.procedure-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  margin-bottom: 1.75rem;
+}
+.procedure-table-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.75rem;
+  background: color-mix(in oklab, var(--color-muted) 70%, transparent);
+  border-bottom: 1px solid var(--color-border);
+  font-size: 11px;
+}
+.procedure-table-head h3 {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+.procedure-table {
+  width: 100%;
+  min-width: 280px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.procedure-table-dense {
+  min-width: 640px;
+  font-size: 11px;
+}
+.procedure-table th {
+  padding: 0.4rem 0.65rem;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+  background: color-mix(in oklab, var(--color-muted) 50%, transparent);
+}
+.procedure-table td {
+  padding: 0.28rem 0.65rem;
+  border-top: 1px solid color-mix(in oklab, var(--color-border) 70%, transparent);
+}
+.procedure-caption {
+  padding: 0.4rem 0.75rem;
+  font-size: 11px;
+  color: var(--color-muted-foreground);
+}
+.procedure-hot {
+  background: #c45c4a;
+  color: #fff;
+  font-weight: 600;
+}
+.procedure-warm {
+  background: #e2b844;
+  color: #111;
+  font-weight: 600;
+}
+.procedure-sign-line {
+  margin-top: 1.35rem;
+  border-bottom: 1px solid var(--color-border);
+}
+.procedure-kmw-row {
+  background: color-mix(in oklab, var(--color-pill) 10%, transparent);
+}
+
+.bg-kmw {
+  background: var(--color-kmw);
+}
+.bg-pipe {
+  background: var(--color-pipe);
+}
+.bg-pill {
+  background: var(--color-pill);
+}
+.bg-backfill {
+  background: var(--color-backfill);
+}
+.bg-fluid {
+  background: var(--color-fluid);
+}
+.bg-warn {
+  background: var(--color-warn);
+}
+.bg-danger {
+  background: var(--color-danger);
+}
+
+input[type="range"] {
+  appearance: none;
+  background: color-mix(in oklab, var(--color-foreground) 12%, transparent);
+  border-radius: 999px;
+  width: 100%;
+  height: 6px;
+  outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  background: var(--color-primary);
+  border-radius: 999px;
+  width: 18px;
+  height: 18px;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-primary) 25%, transparent);
+}
+input[type="range"]::-moz-range-thumb {
+  background: var(--color-primary);
+  border: 0;
+  border-radius: 999px;
+  width: 18px;
+  height: 18px;
+}
+input[type="range"]:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-primary) 40%, transparent);
+}
+
+.wb-svg {
+  max-height: 78vh;
+}
+.wb-svg text {
+  font-family: var(--font-mono);
+  fill: var(--color-foreground);
+  font-size: 11px;
+}
+
+.wb-muted-label {
+  fill: var(--color-muted-foreground);
+  font-size: 10px;
+}
+
+.wb-vol-kicker {
+  fill: var(--color-muted-foreground);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  paint-order: stroke;
+  stroke: var(--color-background);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.wb-data {
+  fill: var(--color-foreground);
+  font-size: 10px;
+  font-weight: 500;
+  paint-order: stroke;
+  stroke: var(--color-background);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.wb-form-base {
+  fill: var(--color-formation);
+}
+.wb-form-hatch {
+  stroke: color-mix(in oklab, var(--color-foreground) 10%, transparent);
+  stroke-width: 0.7;
+}
+
+.wb-grid {
+  stroke: color-mix(in oklab, var(--color-foreground) 10%, transparent);
+  stroke-width: 1;
+}
+
+.wb-surface {
+  stroke: var(--color-foreground);
+  stroke-width: 2;
+}
+
+.wb-empty {
+  fill: color-mix(in oklab, var(--color-background) 80%, var(--color-card));
+}
+
+.wb-hole-wall {
+  fill: none;
+  stroke: color-mix(in oklab, var(--color-foreground) 22%, transparent);
+  stroke-width: 1.6;
+}
+
+.wb-pipe-edge {
+  stop-color: color-mix(in oklab, var(--color-pipe) 55%, #1a140e);
+}
+.wb-pipe-hi {
+  stop-color: color-mix(in oklab, var(--color-pipe) 88%, white);
+}
+.wb-pill-edge {
+  stop-color: color-mix(in oklab, var(--color-pill) 70%, transparent);
+}
+.wb-pill-hi {
+  stop-color: color-mix(in oklab, var(--color-pill) 92%, transparent);
+}
+.wb-fill-edge {
+  stop-color: color-mix(in oklab, var(--color-backfill) 45%, transparent);
+}
+.wb-fill-hi {
+  stop-color: color-mix(in oklab, var(--color-backfill) 70%, transparent);
+}
+.wb-fluid-edge {
+  stop-color: color-mix(in oklab, var(--color-fluid) 45%, transparent);
+}
+.wb-fluid-hi {
+  stop-color: color-mix(in oklab, var(--color-fluid) 72%, transparent);
+}
+
+.wb-bore-closed {
+  fill: color-mix(in oklab, var(--color-background) 70%, #0a0a0c);
+  stroke: color-mix(in oklab, var(--color-foreground) 12%, transparent);
+  stroke-width: 0.8;
+}
+.wb-bore-open {
+  fill: color-mix(in oklab, var(--color-background) 35%, transparent);
+  stroke: color-mix(in oklab, var(--color-foreground) 10%, transparent);
+  stroke-width: 0.6;
+}
+.wb-bore-air {
+  fill: color-mix(in oklab, var(--color-background) 40%, #9aa7b5);
+  opacity: 0.45;
+}
+
+.wb-kmw-level {
+  stroke: color-mix(in oklab, var(--color-foreground) 55%, var(--color-pill));
+  stroke-width: 1.4;
+}
+
+.wb-cement {
+  fill: color-mix(in oklab, #6b6358 70%, var(--color-formation));
+}
+.wb-casing {
+  fill: color-mix(in oklab, #9aa0a8 55%, #2a2e33);
+}
+.wb-casing-shoe {
+  fill: color-mix(in oklab, #c45c4a 70%, #8a4034);
+}
+.wb-casing-line {
+  stroke: color-mix(in oklab, #9aa0a8 70%, var(--color-foreground));
+  stroke-width: 1.1;
+  stroke-dasharray: 2 3;
+}
+.wb-casing-label {
+  fill: color-mix(in oklab, #c8cdd3 80%, var(--color-foreground));
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.wb-place {
+  stroke: var(--color-warn);
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+.wb-place-label {
+  fill: var(--color-warn);
+  font-size: 10px;
+}
+
+.wb-anchor {
+  stroke: var(--color-primary);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 4;
+}
+.wb-anchor-label {
+  fill: var(--color-primary);
+  font-size: 11px;
+  font-family: var(--font-mono);
+}
+
+.wb-program {
+  stroke: var(--color-primary);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 4;
+  fill: none;
+}
+.wb-program-label {
+  fill: var(--color-primary);
+  font-size: 10px;
+}
+
+.wb-pill-stroke {
+  stroke: var(--color-pill);
+  stroke-width: 1;
+}
+.wb-pill-tick {
+  stroke: var(--color-pill);
+  stroke-width: 1.2;
+}
+.wb-motion {
+  stroke: var(--color-foreground);
+  stroke-width: 1.6;
+  fill: none;
+}
+.wb-fg-fill {
+  fill: var(--color-foreground);
+}
+.wb-hover {
+  stroke: var(--color-primary);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.emw-svg {
+  touch-action: none;
+  max-height: 78vh;
+}
+.emw-hit {
+  cursor: crosshair;
+}
+.emw-plot-bg {
+  fill: color-mix(in oklab, var(--color-secondary) 70%, #1a222b);
+}
+.emw-grid {
+  stroke: color-mix(in oklab, var(--color-foreground) 14%, transparent);
+  stroke-width: 1;
+}
+.emw-frame {
+  fill: none;
+  stroke: color-mix(in oklab, var(--color-foreground) 22%, transparent);
+  stroke-width: 1.4;
+}
+.emw-curve {
+  fill: none;
+  stroke: var(--color-pill);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.emw-local {
+  fill: none;
+  stroke: var(--color-warn);
+  stroke-width: 1.6;
+  stroke-dasharray: 6 4;
+  stroke-linejoin: miter;
+}
+.emw-ref-base {
+  stroke: color-mix(in oklab, var(--color-fluid) 70%, var(--color-foreground));
+  stroke-width: 1;
+  stroke-dasharray: 2 5;
+}
+.emw-ref-pill {
+  stroke: color-mix(in oklab, var(--color-pill) 45%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 2 5;
+}
+.emw-ref-target {
+  stroke: var(--color-primary);
+  stroke-width: 1.4;
+  stroke-dasharray: 6 4;
+}
+.emw-ref-fit {
+  stroke: var(--color-destructive);
+  stroke-width: 1.6;
+  stroke-dasharray: 2 3;
+}
+.emw-shoe {
+  stroke: var(--color-pipe);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 4;
+}
+.emw-anchor {
+  stroke: var(--color-primary);
+  stroke-width: 1.2;
+  stroke-dasharray: 5 4;
+}
+.emw-anchor-dot {
+  fill: var(--color-primary);
+  stroke: var(--color-background);
+  stroke-width: 1;
+}
+.emw-anchor-label {
+  fill: var(--color-primary);
+  font-family: var(--font-mono);
+  paint-order: stroke;
+  stroke: var(--color-background);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  font-size: 11px;
+  font-weight: 500;
+}
+.emw-td {
+  stroke: var(--color-danger);
+  stroke-width: 1.8;
+}
+.emw-td-dot {
+  fill: var(--color-danger);
+  stroke: var(--color-background);
+  stroke-width: 1;
+}
+.emw-td-label {
+  fill: var(--color-danger);
+  font-family: var(--font-mono);
+  paint-order: stroke;
+  stroke: var(--color-background);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+  font-size: 11px;
+  font-weight: 500;
+}
+.emw-pill-guide {
+  stroke: color-mix(in oklab, var(--color-pill) 35%, transparent);
+  stroke-width: 1;
+  stroke-dasharray: 3 5;
+}
+.emw-pill-label {
+  fill: var(--color-pill);
+  font-size: 10px;
+}
+.emw-probe-dot {
+  fill: var(--color-primary);
+  stroke: var(--color-background);
+  stroke-width: 1.5;
+}
+.emw-legend-bg {
+  fill: color-mix(in oklab, var(--color-card) 88%, transparent);
+  stroke: color-mix(in oklab, var(--color-foreground) 12%, transparent);
+  stroke-width: 1;
+}
+
+.sbp-grid {
+  stroke: color-mix(in oklab, var(--color-foreground) 8%, transparent);
+  stroke-width: 1;
+}
+.sbp-frame {
+  fill: none;
+  stroke: color-mix(in oklab, var(--color-foreground) 18%, transparent);
+  stroke-width: 1.2;
+}
+.sbp-line {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2.2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+.sbp-dot {
+  fill: var(--color-primary);
+  stroke: var(--color-card);
+  stroke-width: 1.5;
+}
+.sbp-dot-active {
+  fill: var(--color-primary);
+  stroke: var(--color-foreground);
+  stroke-width: 1.6;
+}
+.sbp-dot-open {
+  fill: var(--color-card);
+  stroke: var(--color-primary);
+  stroke-width: 1.8;
+}
+.sbp-tick {
+  fill: var(--color-muted-foreground);
+  font-size: 10px;
+  font-family: var(--font-mono);
+}
+.sbp-axis {
+  fill: var(--color-muted-foreground);
+  font-size: 11px;
+}
