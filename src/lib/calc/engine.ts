@@ -205,3 +205,76 @@ function calcTripAndStatic(inputs: WellInputs): TripStatic {
     initialAplAnchor,
   };
 }
+
+type WellCaps = {
+  spotMd: number;
+  spotTvd: number;
+  casingMd: number;
+  idDp: number;
+  odDp: number;
+  idCasing: number;
+  openHoleDia: number;
+  drillStringCap: number;
+  drillStringVolAtSpot: number;
+  casingCap: number;
+  annularCap: number;
+  annularBelowShoe: number;
+  drillStringOpenHole: number;
+  openHoleCap: number;
+  volumeBelowShoe: number;
+  casingVolAtSpot: number;
+  annularAtSpot: number;
+  kmwRoomWithPipe: number;
+  dsVolUnrounded: number;
+};
+
+/** Capacities and room-with-pipe (casing annulus + OH annulus + DP bore). */
+function calcCapacitiesAndRoom(inputs: WellInputs): WellCaps {
+  const spotMd = n(inputs, "spotMd");
+  const spotTvd = n(inputs, "spotTvd");
+  const casingMd = n(inputs, "casingMd");
+  const idDp = n(inputs, "idDp");
+  const odDp = n(inputs, "odDp");
+  const idCasing = n(inputs, "idCasing");
+  const openHoleDia = n(inputs, "openHoleDia");
+  const drillStringCap = capBblFt(idDp);
+  const drillStringVolAtSpot = round(drillStringCap * spotMd, 0);
+  const casingCap = capBblFt(idCasing);
+  const annularCap = annularBblFt(idCasing, odDp);
+  const annularBelowShoe = spotMd <= casingMd ? 0 : annularBblFt(openHoleDia, odDp);
+  const drillStringOpenHole = spotMd <= casingMd ? 0 : spotMd - casingMd;
+  const openHoleCap = annularBblFt(openHoleDia, odDp);
+  const volumeBelowShoe = drillStringOpenHole * openHoleCap;
+  const casingVolAtSpot =
+    spotMd <= casingMd ? casingCap * spotMd : casingCap * casingMd - volumeBelowShoe;
+  const annularAtSpot =
+    spotMd <= casingMd
+      ? annularCap * spotMd
+      : annularCap * (spotMd - drillStringOpenHole) + annularBelowShoe * drillStringOpenHole;
+  const dsVolUnrounded = drillStringCap * spotMd;
+  const kmwRoomWithPipe = round(
+    (isNum(annularAtSpot) ? annularAtSpot : 0) + dsVolUnrounded,
+    0,
+  );
+  return {
+    spotMd,
+    spotTvd,
+    casingMd,
+    idDp,
+    odDp,
+    idCasing,
+    openHoleDia,
+    drillStringCap,
+    drillStringVolAtSpot,
+    casingCap,
+    annularCap,
+    annularBelowShoe,
+    drillStringOpenHole,
+    openHoleCap,
+    volumeBelowShoe,
+    casingVolAtSpot,
+    annularAtSpot,
+    kmwRoomWithPipe,
+    dsVolUnrounded,
+  };
+}
