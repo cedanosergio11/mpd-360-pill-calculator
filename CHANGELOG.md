@@ -9,6 +9,12 @@ Version scheme: `major.minor.patch.build` (shown in-app as `v 1.0.0.0`).
 
 ---
 
+## 1.0.6.1 — 2026-09-01
+
+Displacement wellbore ladder
+
+- Displacement tab shows the closed-end RIH stops on a wellbore strip next to the stage list.
+
 ## 1.0.6.0 — 2026-09-01
 
 RIH stop at shoe FIT
