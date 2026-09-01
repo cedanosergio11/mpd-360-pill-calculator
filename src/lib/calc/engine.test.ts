@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { calculate } from "./engine";
 import { buildSchedule } from "./schedule";
-import { AUBURNIA, EXAMPLE_SHALLOW, MOMENTUM } from "./examples";
+import { AUBURNIA, EXAMPLE_SHALLOW, MOMENTUM, WW_FARMS } from "./examples";
 import { round } from "../utils";
 
 describe("calculate — Auburnia", () => {
   const r = calculate(AUBURNIA);
 
   it("locks workbook MASP / static / volumes", () => {
-    expect(round(r.masp, 1)).toBe(1362.7);
+    expect(round(r.masp, 1)).toBe(1192.7);
     expect(round(r.staticStrippingPressure, 3)).toBe(619.424);
     expect(round(r.drillStringVolAtSpot, 0)).toBe(166);
     expect(r.heightPillNoDp).toBe(3730);
@@ -46,7 +46,7 @@ describe("calculate — Momentum 17.4 EMW", () => {
   const momentum = calculate(MOMENTUM);
 
   it("locks procedure volumes", () => {
-    expect(round(momentum.masp, 1)).toBe(1112.7);
+    expect(round(momentum.masp, 1)).toBe(965.0);
     expect(momentum.heightPillNoDp).toBe(7810);
     expect(momentum.totalPillVol).toBe(358);
     expect(momentum.correctedChase).toBe(0);
@@ -83,5 +83,12 @@ describe("calculate — Momentum 18.0 ppge", () => {
     expect(round(tight.addPpgTarget, 2)).toBe(0.03);
     expect(round(tight.anchorPointEsd, 2)).toBe(18.03);
     expect(round(tight.remainingKmwInDp, 2)).toBe(150.38);
+  });
+});
+
+describe("calculate — WW Farms MASP at shoe", () => {
+  it("uses casing TVD, not anchor TVD", () => {
+    const r = calculate(WW_FARMS);
+    expect(round(r.masp, 1)).toBe(1244.1);
   });
 });
