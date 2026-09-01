@@ -10,7 +10,7 @@
  * Always prepend a ReleaseNote and mirror it in CHANGELOG.md.
  */
 
-export const APP_VERSION = "1.0.6.0";
+export const APP_VERSION = "1.0.6.1";
 
 export type ReleaseNote = {
   version: string;
@@ -20,6 +20,14 @@ export type ReleaseNote = {
 };
 
 export const RELEASES: ReleaseNote[] = [
+  {
+    version: "1.0.6.1",
+    date: "2026-09-01",
+    title: "Displacement wellbore ladder",
+    notes: [
+      "Displacement tab shows the closed-end RIH stops on a wellbore strip next to the stage list.",
+    ],
+  },
   {
     version: "1.0.6.0",
     date: "2026-09-01",
