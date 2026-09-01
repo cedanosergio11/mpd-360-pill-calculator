@@ -5,6 +5,13 @@ import appCss from "../styles.css?url";
 
 const APP_NAME = "PillView";
 
+/** Prefix public asset hrefs with Vite `base` so GitHub Pages project URLs resolve. */
+function publicAsset(path: string): string {
+  const base = import.meta.env.BASE_URL || "/";
+  const prefix = base.endsWith("/") ? base : `${base}/`;
+  return `${prefix}${path.replace(/^\//, "")}`;
+}
+
 export const Route = createRootRoute({
   head: () => ({
     meta: [
@@ -19,10 +26,10 @@ export const Route = createRootRoute({
       },
     ],
     links: [
-      { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+      { rel: "icon", type: "image/svg+xml", href: publicAsset("/favicon.svg") },
       { rel: "stylesheet", href: appCss },
-      { rel: "manifest", href: "/__grok/manifest.webmanifest" },
-      { rel: "apple-touch-icon", href: "/__grok/icon-180.png" },
+      { rel: "manifest", href: publicAsset("/__grok/manifest.webmanifest") },
+      { rel: "apple-touch-icon", href: publicAsset("/__grok/icon-180.png") },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
