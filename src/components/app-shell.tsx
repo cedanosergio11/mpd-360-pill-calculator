@@ -31,7 +31,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { InputPanel } from "@/components/input-panel";
 import { KpiBar } from "@/components/kpi-bar";
-import { ProcedureDoc } from "@/components/procedure-doc";
+import { ProcedureDoc, shoeExceedsFit } from "@/components/procedure-doc";
 import { ScheduleView } from "@/components/schedule-view";
 import { DisplacementView } from "@/components/displacement-view";
 import { CementView } from "@/components/cement-view";
@@ -41,10 +41,11 @@ import { SimulatorView } from "@/components/simulator-view";
 import { ExcelPasteButton } from "@/components/excel-paste";
 import { BrandGlyph, BrandWordmark } from "@/components/brand-mark";
 import { calculate, collectWarnings, buildSchedule, scheduleToCsv } from "@/lib/calc";
+import { esdCasingWithDp } from "@/lib/calc/engine";
 import { PRESETS } from "@/lib/calc/examples";
 import { useAppStore, type WorkspaceTab } from "@/lib/store";
 import { useSimulator } from "@/lib/pill/store";
-import { slugify } from "@/lib/utils";
+import { formatExact, slugify } from "@/lib/utils";
 import { RELEASES, formatVersion } from "@/lib/version";
 
 const TABS: { id: WorkspaceTab; label: string }[] = [
@@ -72,6 +73,7 @@ export function AppShell() {
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [notesOpen, setNotesOpen] = useState(false);
+  const [printFitOpen, setPrintFitOpen] = useState(false);
 
   const results = useMemo(() => calculate(inputs), [inputs]);
   const schedule = useMemo(() => buildSchedule(inputs, results), [inputs, results]);
@@ -106,6 +108,14 @@ export function AppShell() {
     };
     window.addEventListener("afterprint", restore);
     window.print();
+  }
+
+  function requestPrint() {
+    if (shoeExceedsFit(inputs, results)) {
+      setPrintFitOpen(true);
+      return;
+    }
+    printProcedure();
   }
 
   return (
@@ -235,7 +245,7 @@ export function AppShell() {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="default" size="sm" onClick={printProcedure}>
+                  <Button variant="default" size="sm" onClick={requestPrint}>
                     <Printer />
                     <span className="hidden sm:inline">Print</span>
                   </Button>
@@ -446,6 +456,31 @@ export function AppShell() {
                 </li>
               ))}
             </ol>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={printFitOpen} onOpenChange={setPrintFitOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Shoe ESD at or above FIT</DialogTitle>
+              <DialogDescription>
+                Not issuable. FIT {formatExact(inputs.fit, 2)} ppge · as-pumped {formatExact(results.esdCasingNoDp, 2)} · equalized {formatExact(esdCasingWithDp(results), 2)}. Print still works — the sheet gets a red banner.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-3 flex justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={() => setPrintFitOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => {
+                  setPrintFitOpen(false);
+                  printProcedure();
+                }}
+              >
+                Print anyway
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>
