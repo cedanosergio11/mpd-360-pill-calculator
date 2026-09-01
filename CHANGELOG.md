@@ -9,6 +9,12 @@ Version scheme: `major.minor.patch.build` (shown in-app as `v 1.0.0.0`).
 
 ---
 
+## 1.0.4.1 — 2026-09-01
+
+FIT print confirm and banner
+
+- Print stays enabled when shoe ESD is at or above FIT; confirm first, then a red not-issuable banner on SDS-FRM-087.
+
 ## 1.0.4.0 — 2026-09-01
 
 GitHub Pages SPA
@@ -21,6 +27,7 @@ Print fidelity and sim ≠ procedure chip
 
 - Field sheet print uses ink-on-paper colors; long spotting schedules paginate instead of clipping.
 - Sticky chip when the simulator has been moved off the procedure, with From procedure to reseat it. Print still uses the field sheet.
+- GitHub Pages hosting at https://cedanosergio11.github.io/mpd-360-pill-calculator/.
 
 ## 1.0.3.3 — 2026-08-25
 

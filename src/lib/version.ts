@@ -10,7 +10,7 @@
  * Always prepend a ReleaseNote and mirror it in CHANGELOG.md.
  */
 
-export const APP_VERSION = "1.0.4.0";
+export const APP_VERSION = "1.0.4.1";
 
 export type ReleaseNote = {
   version: string;
@@ -20,6 +20,14 @@ export type ReleaseNote = {
 };
 
 export const RELEASES: ReleaseNote[] = [
+  {
+    version: "1.0.4.1",
+    date: "2026-09-01",
+    title: "FIT print confirm and banner",
+    notes: [
+      "Print stays enabled when shoe ESD is at or above FIT; confirm first, then a red not-issuable banner on SDS-FRM-087.",
+    ],
+  },
   {
     version: "1.0.4.0",
     date: "2026-09-01",
