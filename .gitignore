@@ -1,3 +1,10 @@
-*.tar.gz
-*.tgz
-.wrangler/
+node_modules/
+dist/
+.output/
+.vercel/
+.nitro/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
