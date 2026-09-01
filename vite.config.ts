@@ -1,4 +1,4 @@
-import { readdirSync } from "node:fs";
+import { readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
@@ -142,10 +142,21 @@ function authPopupPlugin(): Plugin {
   };
 }
 
+const isGitHubPages =
+  process.env.GITHUB_PAGES === "1" ||
+  Boolean(process.env.BASE_PATH && process.env.BASE_PATH.length > 0);
+
+/** Project Pages path; Vite `base` must end with a slash. */
+function pagesBase(): string {
+  const raw = process.env.BASE_PATH?.trim() || "/mpd-360-pill-calculator/";
+  return raw.endsWith("/") ? raw : `${raw}/`;
+}
+
 // `0.0.0.0:8080` is the live-preview contract — don't change host/port.
 // The dev server starts once `src/router.tsx` and `src/routes/` exist — see
 // AGENTS.md § "First scaffold".
 export default defineConfig(({ command, isPreview }) => ({
+  ...(isGitHubPages ? { base: pagesBase() } : {}),
   server: {
     host: "0.0.0.0",
     port: 8080,
@@ -164,10 +175,29 @@ export default defineConfig(({ command, isPreview }) => ({
     // Dev-only /__app-env, read by scripts/check-auth-invariant.mjs.
     appEnvPlugin(),
     // PWA head + ?install=1 tutorial page; runs before Start/Nitro.
-    grokPwaPlugin(),
+    // GitHub Pages is static — skip Grok PWA server middleware / install page.
+    ...(isGitHubPages ? [] : [grokPwaPlugin()]),
     tailwindcss(),
-    tanstackStart(),
-    ...(command === "build" || isPreview
+    // Pages: SPA-only. Nitro github_pages prerender + grok-pwa/serverDir is too
+    // broken for this Grok/pglite app (empty index, nitro env build fails).
+    tanstackStart(
+      isGitHubPages
+        ? {
+            spa: {
+              enabled: true,
+              prerender: {
+                onSuccess: ({ html }) => {
+                  const dir = join(process.cwd(), "dist/client");
+                  writeFileSync(join(dir, "index.html"), html);
+                  writeFileSync(join(dir, "404.html"), html);
+                  writeFileSync(join(dir, ".nojekyll"), "");
+                },
+              },
+            },
+          }
+        : undefined,
+    ),
+    ...(!isGitHubPages && (command === "build" || isPreview)
       ? [
           nitro({
             preset: "vercel",
