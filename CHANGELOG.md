@@ -15,6 +15,7 @@ Print fidelity and sim ≠ procedure chip
 
 - Field sheet print uses ink-on-paper colors; long spotting schedules paginate instead of clipping.
 - Sticky chip when the simulator has been moved off the procedure, with From procedure to reseat it. Print still uses the field sheet.
+- GitHub Pages hosting added at https://cedanosergio11.github.io/mpd-360-pill-calculator/.
 
 ## 1.0.3.3 — 2026-08-25
 
