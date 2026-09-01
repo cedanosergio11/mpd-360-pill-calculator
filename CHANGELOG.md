@@ -9,18 +9,13 @@ Version scheme: `major.minor.patch.build` (shown in-app as `v 1.0.0.0`).
 
 ---
 
-## 1.0.4.0 — 2026-09-01
-
-GitHub Pages SPA
-
-- SPA build at `/mpd-360-pill-calculator/` plus `404.html` for GitHub Pages.
-
 ## 1.0.3.4 — 2026-09-01
 
 Print fidelity and sim ≠ procedure chip
 
 - Field sheet print uses ink-on-paper colors; long spotting schedules paginate instead of clipping.
 - Sticky chip when the simulator has been moved off the procedure, with From procedure to reseat it. Print still uses the field sheet.
+- GitHub Pages hosting added at https://cedanosergio11.github.io/mpd-360-pill-calculator/.
 
 ## 1.0.3.3 — 2026-08-25
 
