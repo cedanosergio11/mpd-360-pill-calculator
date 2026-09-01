@@ -2,6 +2,8 @@
 
 MPD 360 kill-weight-mud (KMW) **pill calculator** and interactive **wellbore simulator**.
 
+**Live:** https://cedanosergio11.github.io/mpd-360-pill-calculator/
+
 This repository is now **PillView 1.0.3.4**. The old vanilla calculator (`app.js`, root `index.html`, `styles.css`) is gone. The app is a Vite + React + TypeScript workspace; HTML is generated from `src/routes/__root.tsx` (TanStack Start), not a root `index.html`.
 
 **Version:** `1.0.3.4` (`src/lib/version.ts`) — print fidelity and sim ≠ procedure chip. Full history in `CHANGELOG.md`.
@@ -18,6 +20,7 @@ Dev server listens on `http://localhost:8080`.
 
 - `npm test` runs Vitest on `src/**/*.test.ts` (calc + simulator). `scripts/verify-calc.mjs` is a standalone Auburnia regression.
 - `npm run typecheck` for `tsc --noEmit`.
+- `npm run build:pages` builds a static SPA for GitHub Pages (`dist/client`).
 
 ## Layout
 
