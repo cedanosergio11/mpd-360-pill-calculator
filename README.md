@@ -1,0 +1,33 @@
+# PillView 1.0.3.4
+
+MPD 360 kill-weight-mud (KMW) **pill calculator** and interactive **wellbore simulator**.
+
+This repository is now **PillView 1.0.3.4**. The old vanilla calculator (`app.js`, root `index.html`, `styles.css`) is gone. The app is a Vite + React + TypeScript workspace; HTML is generated from `src/routes/__root.tsx` (TanStack Start), not a root `index.html`.
+
+**Version:** `1.0.3.4` (`src/lib/version.ts`) — print fidelity and sim ≠ procedure chip. Full history in `CHANGELOG.md`.
+
+## Quick start
+
+```bash
+npm i
+npm test
+npm run dev
+```
+
+Dev server listens on `http://localhost:8080`.
+
+- `npm test` runs Vitest on `src/**/*.test.ts` (calc + simulator). `scripts/verify-calc.mjs` is a standalone Auburnia regression.
+- `npm run typecheck` for `tsc --noEmit`.
+
+## Layout
+
+| Area | Path |
+|---|---|
+| Workbook calculator | `src/lib/calc/` |
+| Wellbore simulator | `src/lib/pill/` |
+| UI (procedure, schematic, schedule) | `src/components/` |
+| Routes / shell | `src/routes/` |
+
+Auth is off: `src/lib/auth/provider.tsx` is a passthrough. Wells persist in `localStorage` on this device.
+
+The old vanilla `app.js` is gone.
