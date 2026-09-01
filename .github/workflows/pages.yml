@@ -2,8 +2,7 @@ name: Deploy GitHub Pages
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -22,20 +21,25 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
       - name: Install
         run: npm install
       - name: Build Pages
         run: npm run build:pages
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        env:
+          GITHUB_PAGES: "1"
+      - name: Verify dist/client/index.html
+        run: |
+          if [ ! -f dist/client/index.html ]; then
+            echo "dist/client/index.html missing after build:pages"
+            exit 1
+          fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: dist/client
-      - name: Deploy
-        id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v4
