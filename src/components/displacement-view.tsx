@@ -31,6 +31,11 @@ export function DisplacementView({ inputs, results }: { inputs: WellInputs; resu
   const fit = plan.fit;
   const stages = plan.stages;
   const firstTop = stages[0]?.pillTop;
+  const stageCount = stages.length;
+  const title =
+    stageCount > 0
+      ? `RIH - minimum ${stageCount} ${stageCount === 1 ? "stage" : "stages"} needed`
+      : "RIH - minimum stages needed";
   const marks = marksFor(plan.pillBase, stages);
   const dMin = marks.length ? Math.max(0, Math.min(...marks.map((m) => m.d)) - 800) : 0;
   const dMax = isNum(plan.pillBase) && plan.pillBase > dMin ? plan.pillBase : dMin + 1;
@@ -41,7 +46,7 @@ export function DisplacementView({ inputs, results }: { inputs: WellInputs; resu
       <section className="rounded-2xl border border-border bg-card p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="text-sm font-semibold">RIH ladder — shoe ESD to FIT</h3>
+            <h3 className="text-sm font-semibold">{title}</h3>
             <p className="mt-1 max-w-xl text-xs text-muted-foreground">
               Closed-end / float. Pipe out, run until hydrostatic at the shoe hits FIT, circulate
               extra KMW (new top = bit), repeat. Static only — no surge.
