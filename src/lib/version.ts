@@ -10,7 +10,7 @@
  * Always prepend a ReleaseNote and mirror it in CHANGELOG.md.
  */
 
-export const APP_VERSION = "1.0.6.1";
+export const APP_VERSION = "1.0.6.2";
 
 export type ReleaseNote = {
   version: string;
@@ -20,6 +20,14 @@ export type ReleaseNote = {
 };
 
 export const RELEASES: ReleaseNote[] = [
+  {
+    version: "1.0.6.2",
+    date: "2026-09-01",
+    title: "WoolWorth Load well",
+    notes: [
+      "Load well includes WoolWorth #11 HH (R Lacy, Tanner Hembling, 2026-07-26).",
+    ],
+  },
   {
     version: "1.0.6.1",
     date: "2026-09-01",
