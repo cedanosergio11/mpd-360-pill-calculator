@@ -182,6 +182,7 @@ export const MOMENTUM: WellInputs = {
   idDp1: 3.7,
 };
 
+
 export const WW_FARMS: WellInputs = {
   ...EMPTY_INPUTS,
   wellName: "WW Farms 34-3-10HC 1 Alt",
@@ -214,7 +215,43 @@ export const WW_FARMS: WellInputs = {
   idDp1: 4.67,
 };
 
+
+export const WOOLWORTH: WellInputs = {
+  ...EMPTY_INPUTS,
+  wellName: "WoolWorth #11 HH",
+  client: "R Lacy",
+  date: "2026-07-26",
+  producedBy: "Tanner Hembling",
+  sectionType: "Production",
+  pillMode: "noSlug",
+  currentDepthMd: 11760,
+  anchorMd: 11580,
+  anchorTvd: 11073,
+  casingMd: 10405,
+  casingTvd: 10260,
+  spotMd: 4200,
+  spotTvd: 4200,
+  openHoleDia: 6.75,
+  odDp: 4.5,
+  idDp: 3.826,
+  idCasing: 6.875,
+  desiredEmw: 16.2,
+  currentMw: 15.2,
+  kmw: 18,
+  pumpDisp: 0.0625,
+  sbpConnection: 575,
+  fit: 17.5,
+  maxFlowRate: 250,
+  desiredResolution: 10,
+  initialFlowRate: 250,
+  overbalanceSlug: 200,
+  safevisionNoSlug: 15.59,
+  odDp1: 4.5,
+  idDp1: 3.826,
+};
+
 export const PRESETS: { id: string; label: string; inputs: WellInputs }[] = [
+  { id: "woolworth", label: "WoolWorth #11 HH", inputs: WOOLWORTH },
   { id: "ww-farms", label: "WW Farms 34-3-10HC 1 Alt", inputs: WW_FARMS },
   { id: "momentum", label: "Momentum 5-12-12 HU2", inputs: MOMENTUM },
   { id: "auburnia", label: "Auburnia 20-17 HC #4 ALT", inputs: AUBURNIA },
