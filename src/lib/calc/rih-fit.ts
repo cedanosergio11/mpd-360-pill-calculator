@@ -12,21 +12,41 @@ export type RihFitStage = {
   canReachBase: boolean;
 };
 
-function mdToTvd(md: number, casingMd: number, casingTvd: number): number {
+/** TVD at md. Vertical (or linear) to spot when spot is shallower than the shoe; else linear MD→TVD to casing. */
+function mdToTvd(
+  md: number,
+  casingMd: number,
+  casingTvd: number,
+  spotMd?: number,
+  spotTvd?: number,
+): number {
   if (!isNum(casingMd) || casingMd <= 0 || !isNum(casingTvd)) return md;
+  if (isNum(spotMd) && isNum(spotTvd) && spotMd > 0 && spotMd < casingMd) {
+    if (md <= spotMd) return (md * spotTvd) / spotMd;
+    if (md >= casingMd) return casingTvd;
+    return spotTvd + ((md - spotMd) * (casingTvd - spotTvd)) / (casingMd - spotMd);
+  }
   return (md * casingTvd) / casingMd;
 }
 
-/** Shoe ESD with KMW from topMd down to the shoe, pipe out. Linear MD→TVD to casing shoe. */
-export function shoeEsdFromPillTop(topMd: number, inputs: WellInputs): number {
+/**
+ * Shoe ESD with KMW only from topMd down to pill base (spot), MW from there to the shoe.
+ * When spot is the shoe this matches the old top-to-shoe column.
+ */
+export function shoeEsdFromPillTop(topMd: number, inputs: WellInputs, pillBaseMd?: number): number {
   const mw = asNum(inputs.currentMw);
   const kmw = asNum(inputs.kmw);
   const casingMd = asNum(inputs.casingMd);
   const casingTvd = asNum(inputs.casingTvd);
+  const spotMd = asNum(inputs.spotMd);
+  const spotTvd = asNum(inputs.spotTvd);
   if (![mw, kmw, casingMd, casingTvd].every(isNum) || casingTvd <= 0) return Number.NaN;
-  const clamped = Math.max(0, Math.min(topMd, casingMd));
-  const topTvd = mdToTvd(clamped, casingMd, casingTvd);
-  const h = Math.max(0, casingTvd - topTvd);
+  const baseMd = isNum(pillBaseMd) ? pillBaseMd : isNum(spotMd) ? spotMd : casingMd;
+  const topClamped = Math.max(0, Math.min(topMd, casingMd));
+  const baseClamped = Math.max(topClamped, Math.min(baseMd, casingMd));
+  const topTvd = mdToTvd(topClamped, casingMd, casingTvd, spotMd, spotTvd);
+  const baseTvd = mdToTvd(baseClamped, casingMd, casingTvd, spotMd, spotTvd);
+  const h = Math.max(0, baseTvd - topTvd);
   return mw + ((kmw - mw) * h) / casingTvd;
 }
 
@@ -82,20 +102,22 @@ export function buildRihFitStops(
   if (![fit, odDp, idCasing, pillBase, startTop, casingCap, annularCap].every(isNum)) return empty;
   if (annularCap <= 1e-12 || pillBase <= startTop) return empty;
 
+  const esd = (top: number) => shoeEsdFromPillTop(top, inputs, pillBase);
+
   const stages: RihFitStage[] = [];
   let pillTop = startTop;
   for (let i = 0; i < 8; i++) {
-    const shoeEsdStart = shoeEsdFromPillTop(pillTop, inputs);
+    const shoeEsdStart = esd(pillTop);
     let stopBit: number | null = null;
     let shoeEsdAtStop = shoeEsdStart;
     const start = Math.max(0, Math.ceil(pillTop));
     const end = Math.floor(pillBase);
     for (let d = start; d <= end; d++) {
       const top = pillTopWithPipe(pillTop, pillBase, d, casingCap, annularCap);
-      const esd = shoeEsdFromPillTop(top, inputs);
-      if (isNum(esd) && esd >= fit) {
+      const next = esd(top);
+      if (isNum(next) && next >= fit) {
         stopBit = d;
-        shoeEsdAtStop = esd;
+        shoeEsdAtStop = next;
         break;
       }
     }
@@ -106,7 +128,9 @@ export function buildRihFitStops(
       pillBase,
       shoeEsdStart,
       stopBit,
-      shoeEsdAtStop: canReachBase ? shoeEsdFromPillTop(pillTopWithPipe(pillTop, pillBase, pillBase, casingCap, annularCap), inputs) : shoeEsdAtStop,
+      shoeEsdAtStop: canReachBase
+        ? esd(pillTopWithPipe(pillTop, pillBase, pillBase, casingCap, annularCap))
+        : shoeEsdAtStop,
       canReachBase,
     });
     if (canReachBase) break;
