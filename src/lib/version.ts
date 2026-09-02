@@ -10,7 +10,7 @@
  * Always prepend a ReleaseNote and mirror it in CHANGELOG.md.
  */
 
-export const APP_VERSION = "1.0.6.3";
+export const APP_VERSION = "1.0.6.4";
 
 export type ReleaseNote = {
   version: string;
@@ -20,6 +20,14 @@ export type ReleaseNote = {
 };
 
 export const RELEASES: ReleaseNote[] = [
+  {
+    version: "1.0.6.4",
+    date: "2026-09-01",
+    title: "RIH heading is stage count",
+    notes: [
+      "Displacement title is RIH - minimum X stages needed.",
+    ],
+  },
   {
     version: "1.0.6.3",
     date: "2026-09-01",
