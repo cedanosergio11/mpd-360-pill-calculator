@@ -10,7 +10,7 @@
  * Always prepend a ReleaseNote and mirror it in CHANGELOG.md.
  */
 
-export const APP_VERSION = "1.0.6.2";
+export const APP_VERSION = "1.0.6.3";
 
 export type ReleaseNote = {
   version: string;
@@ -20,6 +20,14 @@ export type ReleaseNote = {
 };
 
 export const RELEASES: ReleaseNote[] = [
+  {
+    version: "1.0.6.3",
+    date: "2026-09-01",
+    title: "RIH pill base is spot",
+    notes: [
+      "Displacement shoe ESD uses KMW only from pill top to spot, not the casing shoe. WW Farms stops unchanged.",
+    ],
+  },
   {
     version: "1.0.6.2",
     date: "2026-09-01",
