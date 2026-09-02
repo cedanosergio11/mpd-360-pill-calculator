@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { calculate } from "./engine";
-import { WW_FARMS } from "./examples";
+import { WOOLWORTH, WW_FARMS } from "./examples";
 import { round } from "../utils";
 import { buildRihFitStops, pillTopWithPipe, shoeEsdFromPillTop } from "./rih-fit";
 import { annularBblFt, capBblFt } from "../utils";
@@ -37,5 +37,21 @@ describe("RIH stop vs FIT at shoe — WW Farms", () => {
     expect(stages[0].pillTop).toBe(5445);
     expect(stages[0].stopBit).toBeGreaterThan(6500);
     expect(stages[0].stopBit).toBeLessThan(7000);
+  });
+});
+
+describe("RIH stop vs FIT — WoolWorth shallow spot", () => {
+  const r = calculate(WOOLWORTH);
+
+  it("pill sits 240–4200, shoe ESD 16.28, never hits FIT 17.5", () => {
+    expect(r.topOfPillNoDp).toBe(240);
+    expect(round(shoeEsdFromPillTop(240, WOOLWORTH), 2)).toBe(16.28);
+    expect(round(shoeEsdFromPillTop(0, WOOLWORTH), 2)).toBe(16.35);
+    const { stages, pillBase } = buildRihFitStops(WOOLWORTH, r);
+    expect(pillBase).toBe(4200);
+    expect(stages).toHaveLength(1);
+    expect(stages[0].canReachBase).toBe(true);
+    expect(stages[0].stopBit).toBeNull();
+    expect(round(stages[0].shoeEsdAtStop, 2)).toBeLessThan(16.4);
   });
 });
