@@ -97,7 +97,7 @@ export function SimulatorView({
       <StatsStrip state={state} model={model} equalized={sim.equalized} anchorMd={anchorMd} />
       <SimToolbar state={state} model={model} inputs={inputs} results={results} />
       <div className="grid min-w-0 items-start gap-4 sm:grid-cols-2">
-        <div className="min-w-0 rounded-xl border border-border bg-card p-3 sm:p-4">
+        <div className="min-w-0 overflow-x-auto rounded-xl border border-border bg-card p-3 sm:p-4">
           <div className="mb-2 flex min-h-11 flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-medium tracking-wide text-foreground">Wellbore</h2>
             <span className="text-xs text-muted-foreground">
