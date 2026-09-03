@@ -10,7 +10,7 @@
  * Always prepend a ReleaseNote and mirror it in CHANGELOG.md.
  */
 
-export const APP_VERSION = "1.0.6.4";
+export const APP_VERSION = "1.0.7.0";
 
 export type ReleaseNote = {
   version: string;
@@ -20,6 +20,14 @@ export type ReleaseNote = {
 };
 
 export const RELEASES: ReleaseNote[] = [
+  {
+    version: "1.0.7.0",
+    date: "2026-09-03",
+    title: "Phone-friendly shell",
+    notes: [
+      "Load well, inputs drawer, and tabs work on a phone. Procedure and Displacement scroll instead of overflowing. Calc unchanged.",
+    ],
+  },
   {
     version: "1.0.6.4",
     date: "2026-09-01",
