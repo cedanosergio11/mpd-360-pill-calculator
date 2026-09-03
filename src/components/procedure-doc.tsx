@@ -60,7 +60,7 @@ export function ProcedureDoc({
   const shoeEq = esdCasingWithDp(results);
 
   return (
-    <article className="procedure-sheet mx-auto max-w-4xl rounded-2xl border border-border bg-card p-5 text-card-foreground shadow-sm sm:p-8">
+    <article className="procedure-sheet mx-auto max-w-4xl overflow-x-auto rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-8">
       <header className="procedure-letterhead border-b-2 border-foreground/30 pb-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -69,7 +69,7 @@ export function ProcedureDoc({
             </p>
             <h2 className="mt-0.5 text-xl font-semibold tracking-tight text-balance sm:text-2xl">{title}</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {isNum(hole) ? `${hole}"` : "—"} {inputs.sectionType} · MPD 360 pill program
+              {isNum(hole) ? `${hole}" ` : "— "}{inputs.sectionType} · MPD 360 pill program
             </p>
           </div>
           <div className="text-right text-xs leading-relaxed">
