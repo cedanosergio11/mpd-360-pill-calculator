@@ -126,7 +126,7 @@ export function AppShell() {
         toastOptions={{ className: "border-border bg-card text-card-foreground" }}
       />
       <div className="flex min-h-dvh flex-col bg-background text-foreground">
-        <header className="print:hidden sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
+        <header className="print:hidden sticky top-0 z-30 border-b border-border bg-background/90 pt-[env(safe-area-inset-top)] backdrop-blur">
           <div className="flex items-center gap-3 px-3 py-2.5 sm:px-4">
             <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setDrawer(true)} aria-label="Open inputs">
               <Menu />
@@ -162,7 +162,7 @@ export function AppShell() {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="secondary" size="sm" className="hidden sm:inline-flex">
+                  <Button variant="secondary" size="sm" className="shrink-0">
                     Load well
                     <ChevronDown className="opacity-60" />
                   </Button>
@@ -217,7 +217,7 @@ export function AppShell() {
                 </DropdownMenuContent>
               </DropdownMenu>
 
-              <ExcelPasteButton compact />
+              <span className="hidden sm:inline-flex"><ExcelPasteButton compact /></span>
 
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -237,7 +237,7 @@ export function AppShell() {
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="secondary" size="icon" aria-label="Export CSV" onClick={exportCsv}>
+                  <Button variant="secondary" size="icon" className="hidden sm:inline-flex" aria-label="Export CSV" onClick={exportCsv}>
                     <Download />
                   </Button>
                 </TooltipTrigger>
@@ -309,7 +309,7 @@ export function AppShell() {
                   <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
                     {inputs.client || "Client"} · {inputs.date}
                   </p>
-                  <h1 className="text-2xl font-semibold tracking-tight text-balance sm:text-3xl">
+                  <h1 className="text-xl font-semibold tracking-tight text-balance sm:text-3xl">
                     {inputs.wellName || "Pill procedure"}
                   </h1>
                 </div>
@@ -331,7 +331,7 @@ export function AppShell() {
 
               {tab === "simulator" ? null : <KpiBar inputs={inputs} results={results} />}
 
-              <div className="flex gap-1 overflow-x-auto rounded-xl bg-muted p-1">
+              <div className="flex gap-1 overflow-x-auto overscroll-x-contain rounded-xl bg-muted p-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {TABS.map((t) => (
                   <button
                     key={t.id}
@@ -340,8 +340,8 @@ export function AppShell() {
                     data-workspace-tab={t.id}
                     className={
                       tab === t.id
-                        ? "rounded-lg bg-background px-3 py-2 text-sm font-medium shadow-sm"
-                        : "rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
+                        ? "min-h-11 shrink-0 rounded-lg bg-background px-3 py-2 text-sm font-medium shadow-sm"
+                        : "min-h-11 shrink-0 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground"
                     }
                   >
                     {t.label}
@@ -382,7 +382,7 @@ export function AppShell() {
         </div>
 
         <Sheet open={drawer} onOpenChange={setDrawer}>
-          <SheetContent side="left" className="overflow-y-auto pt-12">
+          <SheetContent side="left" className="w-full overflow-y-auto pt-12 pb-[env(safe-area-inset-bottom)] sm:w-[min(100%,22rem)]">
             <InputPanel />
           </SheetContent>
         </Sheet>
