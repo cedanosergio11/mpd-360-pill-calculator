@@ -9,6 +9,30 @@ Version scheme: `major.minor.patch.build` (shown in-app as `v 1.0.0.0`).
 
 ---
 
+## 1.0.7.0 — 2026-09-03
+
+Phone-friendly shell
+
+- Load well, inputs drawer, and tabs work on a phone. Procedure and Displacement scroll instead of overflowing. Calc unchanged.
+
+## 1.0.6.4 — 2026-09-01
+
+RIH heading is stage count
+
+- Displacement title is RIH - minimum X stages needed.
+
+## 1.0.6.3 — 2026-09-01
+
+RIH pill base is spot
+
+- Displacement shoe ESD uses KMW only from pill top to spot, not the casing shoe. WW Farms stops unchanged.
+
+## 1.0.6.2 — 2026-09-01
+
+WoolWorth Load well
+
+- Load well includes WoolWorth #11 HH (R Lacy, Tanner Hembling, 2026-07-26).
+
 ## 1.0.6.1 — 2026-09-01
 
 Displacement wellbore ladder
