@@ -77,8 +77,8 @@ export function DisplacementView({ inputs, results }: { inputs: WellInputs; resu
           </p>
         ) : (
           <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(200px,260px)_1fr]">
-            <div className="rounded-xl border border-border bg-background/40 p-3">
-              <div className="relative h-[28rem]">
+            <div className="overflow-x-auto rounded-xl border border-border bg-background/40 p-3">
+              <div className="relative h-64 sm:h-[28rem]">
                 <div className="absolute inset-y-0 left-16 right-3 overflow-hidden rounded-full border border-border">
                   <div className="absolute inset-0 bg-fluid/70" />
                   {isNum(firstTop) ? (
