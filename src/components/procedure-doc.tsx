@@ -69,7 +69,7 @@ export function ProcedureDoc({
             </p>
             <h2 className="mt-0.5 text-xl font-semibold tracking-tight text-balance sm:text-2xl">{title}</h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {isNum(hole) ? `${hole}" ` : "— "}{inputs.sectionType} · MPD 360 pill program
+              {isNum(hole) ? `${hole}"` : "—"} {inputs.sectionType} · MPD 360 pill program
             </p>
           </div>
           <div className="text-right text-xs leading-relaxed">
