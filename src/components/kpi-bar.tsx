@@ -17,7 +17,7 @@ function Kpi({
   return (
     <div className="min-w-0 rounded-xl border border-border bg-card px-3.5 py-3">
       <div className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground whitespace-nowrap">{label}</div>
-      <div className={`mt-1 font-mono text-xl tabular-nums leading-none ${warn ? "text-destructive" : "text-foreground"}`}>
+      <div className={`mt-1 font-mono text-lg tabular-nums leading-none sm:text-xl ${warn ? "text-destructive" : "text-foreground"}`}>
         {value}
         {unit ? <span className="ml-1 text-[11px] font-sans font-medium text-muted-foreground">{unit}</span> : null}
       </div>
