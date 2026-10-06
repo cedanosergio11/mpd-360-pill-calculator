@@ -137,12 +137,29 @@ export function calcEqualizeExtraPpg(inputs: WellInputs, caps: WellCaps, pill: N
   });
   const minHeightWithDp = eq.equalizedAnnularHeightMd;
   const balancedAdditionalPsi = eq.extraPsi;
-  const addPpgCsg = safeDiv(balancedAdditionalPsi, 0.052 * casingTvd);
   const addPpgTarget = safeDiv(balancedAdditionalPsi, 0.052 * anchorTvd);
-  const esdCasingNoDp =
-    spotMd <= caps.casingMd
-      ? safeDiv(targetPressure, 0.052 * casingTvd) + currentMw
-      : ((heightPillNoDp - spotTvd + casingTvd) * (kmw - currentMw)) / casingTvd + currentMw;
+  // Shoe sees only the KMW column standing above it. Pill heights here are vertical
+  // (heightPillNoDp comes from psi / gradient; the equalize model also uses the
+  // annular height as vertical), so pill top TVD = spotTvd - height.
+  const spotBelowShoe = spotMd > caps.casingMd;
+  const kmwAboveShoe = (height: number) =>
+    Math.min(casingTvd, Math.max(0, height - spotTvd + casingTvd));
+  const aboveShoeNoDp = spotBelowShoe ? kmwAboveShoe(heightPillNoDp) : Number.NaN;
+  const aboveShoeWithDp = spotBelowShoe ? kmwAboveShoe(minHeightWithDp) : Number.NaN;
+  const esdCasingNoDp = spotBelowShoe
+    ? (aboveShoeNoDp * (kmw - currentMw)) / casingTvd + currentMw
+    : safeDiv(targetPressure, 0.052 * casingTvd) + currentMw;
+  // Share of the equalize dump column that lands above the shoe: all of it when the
+  // as-pumped pill already reaches the shoe (or spot is in casing), none when the
+  // equalized pill top is still below the shoe, the crossing part otherwise.
+  const dumpHeight = minHeightWithDp - heightPillNoDp;
+  const shoeDumpShare =
+    !spotBelowShoe || aboveShoeNoDp > 0
+      ? 1
+      : dumpHeight > 0
+        ? Math.min(1, Math.max(0, aboveShoeWithDp / dumpHeight))
+        : 0;
+  const addPpgCsg = safeDiv(balancedAdditionalPsi, 0.052 * casingTvd) * shoeDumpShare;
   const balancedEsdCasing = esdCasingNoDp + addPpgCsg;
   const anchorPointEsd = desiredEmw + addPpgTarget;
   return {

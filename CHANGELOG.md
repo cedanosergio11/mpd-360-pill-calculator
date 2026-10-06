@@ -9,6 +9,12 @@ Version scheme: `major.minor.patch.build` (shown in-app as `v 1.0.0.0`).
 
 ---
 
+## 1.0.7.1 — 2026-10-05
+
+Shoe ESD counts only KMW above the shoe
+
+- Shoe ESD no longer drops below MW when the pill top is below the casing shoe. With DP, only the part of the equalized pill above the shoe adds to shoe ESD. Unchanged when the pill already reaches into casing (Auburnia, Momentum, WW Farms, WoolWorth, examples).
+
 ## 1.0.7.0 — 2026-09-03
 
 Phone-friendly shell

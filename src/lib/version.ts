@@ -10,7 +10,7 @@
  * Always prepend a ReleaseNote and mirror it in CHANGELOG.md.
  */
 
-export const APP_VERSION = "1.0.7.0";
+export const APP_VERSION = "1.0.7.1";
 
 export type ReleaseNote = {
   version: string;
@@ -20,6 +20,14 @@ export type ReleaseNote = {
 };
 
 export const RELEASES: ReleaseNote[] = [
+  {
+    version: "1.0.7.1",
+    date: "2026-10-05",
+    title: "Shoe ESD counts only KMW above the shoe",
+    notes: [
+      "Shoe ESD no longer drops below MW when the pill top is below the casing shoe. With DP, only the part of the equalized pill above the shoe adds to shoe ESD. Unchanged when the pill already reaches into casing (Auburnia, Momentum, WW Farms, WoolWorth, examples).",
+    ],
+  },
   {
     version: "1.0.7.0",
     date: "2026-09-03",
