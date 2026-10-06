@@ -25,7 +25,7 @@ export const RELEASES: ReleaseNote[] = [
     date: "2026-10-05",
     title: "Shoe ESD counts only KMW above the shoe",
     notes: [
-      "Shoe ESD no longer drops below MW when the pill top is below the casing shoe. With DP, only the part of the equalized pill above the shoe adds to shoe ESD. Unchanged when the pill already reaches into casing (Auburnia, Momentum, WW Farms, WoolWorth, examples).",
+      "Shoe ESD no longer drops below MW when the pill top is below the casing shoe. With DP, only the part of the equalized pill above the shoe adds to shoe ESD. Unchanged when the pill already reaches into casing (Auburnia, Momentum, WW Farms, WoolWorth, examples). Steel displacement table shoe EMW follows each row's pill top and base, same column model as the RIH / FIT stops (was all KMW above the shoe, could read above KMW).",
     ],
   },
   {

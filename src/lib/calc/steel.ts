@@ -1,5 +1,6 @@
 import { asNum, capBblFt, annularBblFt, isNum, roundUp, ceilingMath } from "@/lib/utils";
 import { lookupSurge, pickSurgeTable } from "./tables";
+import { pillTopWithPipe, shoeEsdFromPillTop } from "./rih-fit";
 import type { CalcResults, SteelRow, WellInputs } from "./types";
 
 function hydrostaticEmw(interfaceMd: number, kmw: number, mw: number, anchorTvd: number): number {
@@ -26,7 +27,6 @@ export function buildSteelSchedule(inputs: WellInputs, results: CalcResults): {
   const kmw = asNum(inputs.kmw);
   const mw = asNum(inputs.currentMw);
   const anchorTvd = asNum(inputs.anchorTvd);
-  const casingTvd = asNum(inputs.casingTvd);
   const spotMd = asNum(inputs.spotMd);
   const topNoDp = isNum(results.topOfPillNoDp) ? Math.max(0, results.topOfPillNoDp) : Number.NaN;
 
@@ -53,6 +53,7 @@ export function buildSteelSchedule(inputs: WellInputs, results: CalcResults): {
     return empty;
   }
 
+  const pillVolume = isNum(topNoDp) ? Math.max(0, spotMd - topNoDp) * casingCap : Number.NaN;
   const table = pickSurgeTable(hole, windowPpg);
   const needsSafevision = !table;
   const step = 500;
@@ -70,8 +71,15 @@ export function buildSteelSchedule(inputs: WellInputs, results: CalcResults): {
     const surge = table ? lookupSurge(table, Math.max(bitDepth, 6500)) : { tripSpeed: 0, surgePpg: 0, depth: bitDepth };
     const emwStatic = hydrostaticEmw(interfaceDepth, kmw, mw, anchorTvd);
     const emwDynamic = emwStatic + (surge.surgePpg || 0);
-    const emwShoeStatic =
-      ((emwStatic * anchorTvd * 0.052) - (anchorTvd - casingTvd) * 0.052 * mw) / (0.052 * casingTvd);
+    // Shoe sees only the KMW standing above it. Follow this row's pill: the no-DP pill
+    // (topNoDp..spot) rises as closed-end steel enters it; below spot the whole pill is
+    // pushed up with its base at interfaceDepth. Same column model as the RIH / FIT stops.
+    const pillBase = bitDepth > spotMd ? interfaceDepth : spotMd;
+    const pillTop =
+      bitDepth > spotMd
+        ? Math.max(0, interfaceDepth - pillVolume / annularCap)
+        : pillTopWithPipe(topNoDp, spotMd, bitDepth, casingCap, annularCap);
+    const emwShoeStatic = shoeEsdFromPillTop(pillTop, inputs, pillBase);
     const sbpStatic = Math.max(0, roundUp((target - emwStatic) * 0.052 * anchorTvd, -1));
     const sbpDynamic = Math.max(0, roundUp(sbpStatic - surge.surgePpg * 0.052 * anchorTvd, -1));
 

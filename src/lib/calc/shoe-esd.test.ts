@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { calculate, esdCasingWithDp, esdTargetWithDp, pillHeightWithDp } from "./engine";
-import { EMPTY_INPUTS } from "./examples";
+import { AUBURNIA, EMPTY_INPUTS } from "./examples";
+import { buildSteelSchedule } from "./steel";
 import type { WellInputs } from "./types";
 import { round } from "../utils";
 
@@ -99,5 +100,35 @@ describe("shoe ESD — only the equalized pill crosses the shoe", () => {
     expect(above).toBeLessThan(r.minHeightWithDp - r.heightPillNoDp);
     expect(r.balancedEsdCasing).toBeCloseTo(11.4 + (above * 2.6) / 8033, 9);
     expect(r.balancedEsdCasing).toBeLessThan(11.4 + r.balancedAdditionalPsi / (0.052 * 8033));
+  });
+});
+
+describe("steel displacement — shoe EMW follows each row's pill", () => {
+  it("Lock Sub 1H: pill stays below the shoe on every row -> 11.40", () => {
+    const steel = buildSteelSchedule(LOCK_SUB_1H, calculate(LOCK_SUB_1H));
+    expect(steel.rows.map((row) => row.bitDepth)).toEqual([0, 8060, 10480]);
+    for (const row of steel.rows) expect(row.emwShoeStatic).toBe(11.4);
+  });
+
+  it("Auburnia: pill crosses the shoe (hand calc)", () => {
+    const steel = buildSteelSchedule(AUBURNIA, calculate(AUBURNIA));
+    const at = (bit: number) => steel.rows.find((row) => row.bitDepth === bit)!;
+    const casingCap = 6.875 ** 2 / 1029.4;
+    const annularCap = (6.875 ** 2 - 4.5 ** 2) / 1029.4;
+    const pillWithPipe = (3730 * casingCap) / annularCap; // 6525.9 ft of no-DP pill around pipe
+    const shoe = (topMd: number) => 15.3 + (3.2 * (10426 - (topMd * 10426) / 10785)) / 10426;
+
+    // Before steel: pill 7951..11681 MD, top 7686 TVD -> 2740 ft of KMW above the 10426 TVD shoe.
+    expect(at(0).emwShoeStatic).toBeCloseTo(shoe(7951), 9);
+    expect(round(at(0).emwShoeStatic, 4)).toBe(16.1409);
+    // Bit at spot: pill top rises to 11681 - 6525.9 = 5155 MD.
+    expect(at(11681).emwShoeStatic).toBeCloseTo(shoe(11681 - pillWithPipe), 9);
+    expect(round(at(11681).emwShoeStatic, 4)).toBe(16.9704);
+    // Bit 12500: base pushed up to the interface, top = interface - 6525.9.
+    const row = at(12500);
+    expect(row.emwShoeStatic).toBeCloseTo(shoe(row.interfaceDepth - pillWithPipe), 9);
+    expect(round(row.emwShoeStatic, 4)).toBe(17.1526);
+    // Never above KMW (old formula gave 18.89 > 18.5).
+    for (const r of steel.rows) expect(r.emwShoeStatic).toBeLessThanOrEqual(18.5 + 1e-9);
   });
 });
