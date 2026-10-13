@@ -1,5 +1,5 @@
 import type { WellInputs } from "./types";
-import { DEFAULT_CUSTOM_SWAB } from "./tables";
+import { DEFAULT_CLINGING, DEFAULT_TRIP_SPEEDS } from "./rp13d";
 
 export const EMPTY_INPUTS: WellInputs = {
   wellName: "",
@@ -47,7 +47,19 @@ export const EMPTY_INPUTS: WellInputs = {
   newCasingId: "",
   cementMw: "",
   tdDepth: "",
-  customSwab: [...DEFAULT_CUSTOM_SWAB],
+  currentDepthTvd: "",
+  fann600: "",
+  fann300: "",
+  fann200: "",
+  fann100: "",
+  fann6: "",
+  fann3: "",
+  gel10: "",
+  circSbp: "",
+  tripSpeeds: [...DEFAULT_TRIP_SPEEDS],
+  pipeEnd: "closed",
+  clingingFactor: DEFAULT_CLINGING,
+  eccentricity: 0,
 };
 
 /** Live values from MPD 360 (2026) Master Procedure Template — AUBURNIA 20-17 HC #4 ALT. */
