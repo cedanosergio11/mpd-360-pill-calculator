@@ -10,7 +10,7 @@
  * Always prepend a ReleaseNote and mirror it in CHANGELOG.md.
  */
 
-export const APP_VERSION = "1.0.7.1";
+export const APP_VERSION = "1.0.8.0";
 
 export type ReleaseNote = {
   version: string;
@@ -20,6 +20,15 @@ export type ReleaseNote = {
 };
 
 export const RELEASES: ReleaseNote[] = [
+  {
+    version: "1.0.8.0",
+    date: "2026-10-13",
+    title: "API RP 13D swab/surge and ECD replace the SafeVision tables",
+    notes: [
+      "Swab (trip speed table, dynamic SBP, slug at 200 ft/min) and steel-displacement surge now come from API RP 13D Herschel-Bulkley hydraulics (Fann 600/300/6/3, clinging factor 0.45, closed pipe by default, open pipe Eq 101 optional). The SafeVision swab/surge lookup tables and the custom swab table are removed. Without Fann readings no swab is calculated and a warning shows.",
+      "New RP 13D ECD and swab/surge EMW at shoe, anchor and bit / TD: ECD = MW + (annular friction above the point + circulating SBP) / (0.052 · TVD). Warnings when surge EMW at the shoe is above FIT or swab EMW at the anchor is below desired EMW. Surface rheology, no temperature / pressure correction, uniform string OD, no tool joints. Verified against RP 13D Annex C (within 1 psi, ECD 13.60 ppg) and Annex D effective velocities.",
+    ],
+  },
   {
     version: "1.0.7.1",
     date: "2026-10-05",

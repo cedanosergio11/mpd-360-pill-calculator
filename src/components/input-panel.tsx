@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useAppStore } from "@/lib/store";
 import { calculate } from "@/lib/calc";
 import { formatNumber, isNum } from "@/lib/utils";
-import { TRIP_TABLES } from "@/lib/calc/tables";
+import { DEFAULT_CLINGING, DEFAULT_TRIP_SPEEDS, tripSpeeds } from "@/lib/calc/rp13d";
 
 export function InputPanel() {
   const inputs = useAppStore((s) => s.inputs);
@@ -43,6 +43,7 @@ export function InputPanel() {
 
       <Section title="Geometry">
         <NumberField label="Current well depth" unit="ft MD" value={inputs.currentDepthMd} onChange={(v) => setField("currentDepthMd", v)} />
+        <NumberField label="Current well depth" unit="ft TVD" value={inputs.currentDepthTvd ?? ""} onChange={(v) => setField("currentDepthTvd", v)} hint="Bit / TD point for RP 13D ECD and swab/surge." />
         <NumberField label="Anchor / BOC" unit="ft MD" value={inputs.anchorMd} onChange={(v) => setField("anchorMd", v)} />
         <NumberField label="Anchor / BOC" unit="ft TVD" value={inputs.anchorTvd} onChange={(v) => setField("anchorTvd", v)} />
         <NumberField label="Casing depth" unit="ft MD" value={inputs.casingMd} onChange={(v) => setField("casingMd", v)} />
@@ -62,7 +63,8 @@ export function InputPanel() {
         <NumberField label="Pump displacement" unit="bbl/stk" value={inputs.pumpDisp} onChange={(v) => setField("pumpDisp", v)} step="0.0001" />
         <NumberField label="SBP on connection" unit="psi" value={inputs.sbpConnection} onChange={(v) => setField("sbpConnection", v)} />
         <NumberField label="FIT" unit="ppge" value={inputs.fit} onChange={(v) => setField("fit", v)} />
-        <NumberField label="Max flow rate" unit="gpm" value={inputs.maxFlowRate} onChange={(v) => setField("maxFlowRate", v)} />
+        <NumberField label="Max flow rate" unit="gpm" value={inputs.maxFlowRate} onChange={(v) => setField("maxFlowRate", v)} hint="Also the pumps-on rate for RP 13D ECD." />
+        <NumberField label="SBP while circulating" unit="psi" value={inputs.circSbp ?? ""} onChange={(v) => setField("circSbp", v)} hint="Pumps-on SBP added to RP 13D ECD. Blank = 0." />
       </Section>
 
       <Section title="Operational settings">
@@ -149,24 +151,52 @@ export function InputPanel() {
         <NumberField label="TD depth" unit="ft" value={inputs.tdDepth} onChange={(v) => setField("tdDepth", v)} />
       </Section>
 
-      <Section title="Custom swab table" defaultOpen={false}>
+      <Section title="Rheology & tripping (API RP 13D)" defaultOpen={false}>
         <p className="text-[11px] text-muted-foreground">
-          Used when hole size is not 6.75, 7.875, or 8.5 in. Speeds: {TRIP_TABLES.other.map((r) => r[0]).join(" / ")} ft/min.
+          Fann readings at surface (no temperature / pressure correction). Herschel-Bulkley, steady state, uniform
+          string OD, no tool joints. Swab/surge and ECD are checked at shoe, anchor and bit / TD.
         </p>
-        {TRIP_TABLES.other.map(([speed], i) => (
-          <Field key={speed} label={`${speed} ft/min`} unit="ppge">
-            <Input
-              type="number"
-              step="0.01"
-              value={inputs.customSwab[i] ?? ""}
-              onChange={(e) => {
-                const next = [...inputs.customSwab];
-                next[i] = Number(e.target.value);
-                setField("customSwab", next);
-              }}
-            />
-          </Field>
+        {(
+          [
+            ["fann600", "Fann 600"],
+            ["fann300", "Fann 300"],
+            ["fann200", "Fann 200"],
+            ["fann100", "Fann 100"],
+            ["fann6", "Fann 6"],
+            ["fann3", "Fann 3"],
+          ] as const
+        ).map(([key, label]) => (
+          <NumberField key={key} label={label} unit="°" value={inputs[key] ?? ""} onChange={(v) => setField(key, v)} />
         ))}
+        <NumberField label="10-min gel" unit="lbf/100ft²" value={inputs.gel10 ?? ""} onChange={(v) => setField("gel10", v)} />
+        <Field label="Trip speeds" unit="ft/min">
+          <Input
+            type="text"
+            inputMode="decimal"
+            key={tripSpeeds(inputs).join(",")}
+            defaultValue={tripSpeeds(inputs).join(", ")}
+            onBlur={(e) => {
+              const next = e.target.value
+                .split(/[\s,/]+/)
+                .map(Number)
+                .filter((v) => Number.isFinite(v) && v > 0);
+              setField("tripSpeeds", next.length ? next : [...DEFAULT_TRIP_SPEEDS]);
+            }}
+          />
+        </Field>
+        <Field label="Pipe end">
+          <Select value={inputs.pipeEnd ?? "closed"} onValueChange={(v) => setField("pipeEnd", v as "closed" | "open")}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="closed">Closed (float) — Eq 100</SelectItem>
+              <SelectItem value="open">Open, simplified — Eq 101</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <NumberField label="Clinging factor" unit="–" value={inputs.clingingFactor ?? DEFAULT_CLINGING} onChange={(v) => setField("clingingFactor", v)} hint="0.45 is the RP 13D conservative default." />
+        <NumberField label="Eccentricity" unit="0–1" value={inputs.eccentricity ?? 0} onChange={(v) => setField("eccentricity", v)} hint="0 = concentric, 1 = fully eccentric (Eqs 87–88)." />
       </Section>
 
       <div className="px-4 py-3 text-[11px] text-muted-foreground">

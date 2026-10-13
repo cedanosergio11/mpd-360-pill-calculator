@@ -33,7 +33,7 @@ export function ScheduleView({
         <div className="mb-3 flex items-center justify-between gap-2">
           <h3 className="text-sm font-semibold">Trip speed pressure table</h3>
           <span className="text-[11px] text-muted-foreground">
-            Auto: {results.selectedTripTable === "other" ? "custom" : `${results.selectedTripTable} in`}
+            API RP 13D · swab at anchor · {results.rp13d.pipeEnd === "open" ? "open pipe" : "closed pipe"} · Cg {results.rp13d.clinging}
           </span>
         </div>
         <div className="overflow-x-auto">
@@ -59,10 +59,13 @@ export function ScheduleView({
           </table>
         </div>
         <p className="mt-3 text-[11px] text-muted-foreground">
-          Highlighted high speeds increase operational risk and are not recommended. Dynamic SBP = static
-          stripping + swab.
+          {results.rp13d.available
+            ? "Highlighted high speeds increase operational risk and are not recommended. Dynamic SBP = static stripping + swab."
+            : results.rp13d.reason}
         </p>
       </section>
+
+      {results.rp13d.available ? <Rp13dChecks results={results} /> : null}
 
       {schedule.rows.length ? <ScheduleSbpChart rows={schedule.rows} /> : null}
 
@@ -123,4 +126,71 @@ export function ScheduleView({
 
 function asNumSafe(v: number | ""): number | string {
   return typeof v === "number" ? v : "—";
+}
+
+function Rp13dChecks({ results }: { results: CalcResults }) {
+  const rp = results.rp13d;
+  return (
+    <section className="rounded-2xl border border-border bg-card p-4">
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">RP 13D ECD and swab / surge EMW</h3>
+        <span className="text-[11px] text-muted-foreground">
+          {formatNumber(rp.flowRate, 0)} gpm · SBP {formatNumber(rp.circSbp, 0)} psi
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+            <tr>
+              <th className="pb-2 font-medium">Point</th>
+              <th className="pb-2 font-medium">Depth</th>
+              <th className="pb-2 font-medium">Ann. friction</th>
+              <th className="pb-2 font-medium">ECD</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rp.ecd.map((p) => (
+              <tr key={p.key} className="border-t border-border/70">
+                <td className="py-1.5">{p.label}</td>
+                <td className="py-1.5 font-mono tabular-nums">{formatNumber(p.md, 0)} ft MD / {formatNumber(p.tvd, 0)} TVD</td>
+                <td className="py-1.5 font-mono tabular-nums">{formatNumber(p.pa, 0)} psi</td>
+                <td className="py-1.5 font-mono tabular-nums">{p.ecd.toFixed(2)} ppge</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full min-w-[480px] text-left text-xs">
+          <thead className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+            <tr>
+              <th className="pb-2 font-medium">Speed</th>
+              {rp.pois.map((p) => (
+                <th key={p.key} className="pb-2 font-medium">
+                  {p.label} swab / surge
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rp.trips.map((row) => (
+              <tr key={row.speed} className="border-t border-border/70">
+                <td className="py-1.5 font-mono tabular-nums">{row.speed} ft/min</td>
+                {row.points.map((p) => (
+                  <td key={p.key} className="py-1.5 font-mono tabular-nums">
+                    {p.swabEmw.toFixed(2)} / {p.surgeEmw.toFixed(2)} ppge
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-3 text-[11px] text-muted-foreground">
+        ECD = MW + (annular friction above the point + SBP) / (0.052 · TVD). Swab / surge EMW = MW ± ΔP with connection
+        SBP held, pumps off. Steady-state estimate: surface rheology, no temperature / pressure correction, no tool
+        joints, no rotation, uniform string OD{rp.eccentricity > 0 ? `, eccentricity ${rp.eccentricity}` : ", concentric"}.
+      </p>
+    </section>
+  );
 }
