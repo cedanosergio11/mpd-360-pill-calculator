@@ -1,3 +1,5 @@
+import type { Rp13dResults } from "./rp13d";
+
 export type SectionType = "Production" | "Intermediate";
 export type PillMode = "noSlug" | "withSlug";
 export type ProcedureKind =
@@ -59,7 +61,20 @@ export interface WellInputs {
   cementMw: number | "";
   tdDepth: number | "";
 
-  customSwab: number[];
+  /** API RP 13D rheology and tripping (replaces the SafeVision swab/surge tables). */
+  currentDepthTvd: number | "";
+  fann600: number | "";
+  fann300: number | "";
+  fann200: number | "";
+  fann100: number | "";
+  fann6: number | "";
+  fann3: number | "";
+  gel10: number | "";
+  circSbp: number | "";
+  tripSpeeds: number[];
+  pipeEnd: "closed" | "open";
+  clingingFactor: number | "";
+  eccentricity: number | "";
 }
 
 export interface TripPressure {
@@ -140,8 +155,8 @@ export interface CalcResults {
   staticStrippingPressure: number;
   maxDynamicSbp: number;
   maxSwabPressure: number;
-  selectedTripTable: "6.75" | "7.875" | "8.5" | "other";
   tripPressures: TripPressure[];
+  rp13d: Rp13dResults;
   slugPressure: number;
   slugPillVol: number;
   strokesToPumpSlug: number;
@@ -198,6 +213,8 @@ export interface SteelRow {
   emwStatic: number;
   emwDynamic: number;
   emwShoeStatic: number;
+  surgeShoePpg: number;
+  emwShoeDynamic: number;
   sbpStatic: number;
   sbpDynamic: number;
   comment: string;
