@@ -108,7 +108,7 @@ function emwAtSpeed(
 
 const MAX_STEP_FT = 500;
 
-/** Even splits so each span between geometry stations is at most `maxStep` ft. */
+/** Even splits so each span between breakpoints is at most `maxStep` ft. */
 function subdivide(points: number[], maxStep: number): number[] {
   const sorted = uniqueSorted(points, 0.5);
   if (sorted.length < 2) return sorted;
@@ -124,22 +124,27 @@ function subdivide(points: number[], maxStep: number): number[] {
   return uniqueSorted(out, 0.05);
 }
 
-function stations(job: Job, pillTop: number | null, pillBottom: number | null): number[] {
+/**
+ * Stops the bit must hit before each span is split into even steps of at most
+ * 500 ft: surface, bit, casing ends, shoe, anchor, pill top, and spot depth.
+ */
+function breakpoints(job: Job, pillTop: number | null, spotMd: number | null): number[] {
   const bit = job.well.bitMd_ft;
   const marks = [0, bit, job.well.shoeMd_ft, job.well.anchorMd_ft];
   if (pillTop != null) marks.push(pillTop);
-  if (pillBottom != null) marks.push(pillBottom);
+  if (spotMd != null) marks.push(spotMd);
   for (const interval of job.well.casing) marks.push(interval.topMd_ft, interval.bottomMd_ft);
-  return subdivide(
-    marks.filter((mark) => mark >= -1e-6 && mark <= bit + 1e-3),
-    MAX_STEP_FT,
-  );
+  return marks.filter((mark) => mark >= -1e-6 && mark <= bit + 1e-3);
+}
+
+function stations(job: Job, pillTop: number | null, spotMd: number | null): number[] {
+  return subdivide(breakpoints(job, pillTop, spotMd), MAX_STEP_FT);
 }
 
 /**
- * Trip rows in POOH-then-RIH order. Stations include the shoe and the anchor
- * (where the bit crosses them) plus casing and pill boundaries, then split so
- * no step exceeds 500 ft. Each step is evaluated at its deeper end.
+ * Trip rows in POOH-then-RIH order. Breakpoints are geometry stations, the shoe,
+ * the anchor, the pill top, and the spot depth. Each of those spans is then
+ * split into even steps of at most 500 ft. Each step is evaluated at its deeper end.
  *
  * The pill is not migrated along the trip. Surge and swab use the static column.
  *
@@ -150,14 +155,14 @@ function stations(job: Job, pillTop: number | null, pillBottom: number | null): 
 export function buildTripSchedule(
   job: Job,
   pillTop: number | null,
-  pillBottom: number | null,
+  spotMd: number | null,
   stages: DisplacementStage[],
   issues: Issue[],
 ): TripScheduleRow[] {
   const speeds = [...new Set(job.trip.speeds_ftmin.filter((speed) => speed > 0))].sort(
     (a, b) => b - a,
   );
-  const path = stations(job, pillTop, pillBottom);
+  const path = stations(job, pillTop, spotMd);
   if (path.length < 2) return [];
 
   const anchorTvd = resolvedAnchorTvd(job.well);

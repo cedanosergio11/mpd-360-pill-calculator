@@ -382,10 +382,18 @@ describe("Auburnia tripSchedule — 500 ft steps", () => {
   const rih = result.tripSchedule.filter((row) => row.direction === "RIH");
   const pooh = result.tripSchedule.filter((row) => row.direction === "POOH");
 
-  it("has 76 rows, static ESD, and no step over 500 ft", () => {
-    // The attached generator splits each geometry span evenly at a 500 ft cap:
-    // 38 POOH + 38 RIH. (A 78-row count double-counts the station list.)
-    expect(result.tripSchedule).toHaveLength(76);
+  it("breaks at pill top and spot, then even-splits into the attached rows", () => {
+    // Breakpoints: surface, pill top 7951, shoe 10785, spot 11681, anchor 12675, TD.
+    // Even splits of those spans are 16+6+2+2+12 = 38 intervals, 39 depths.
+    // The attached file has one row per interval: 38 POOH and 38 RIH.
+    const ends = result.tripSchedule.flatMap((row) => [row.fromBitMd_ft, row.toBitMd_ft]);
+    for (const knot of [0, 7951, 10785, 11681, 12675, 18359]) {
+      expect(ends.some((md) => Math.abs(md - knot) < 0.2)).toBe(true);
+    }
+    const depths = [...new Set(ends.map((md) => Math.round(md * 10) / 10))].sort((a, b) => a - b);
+    expect(depths).toHaveLength(39);
+    expect(auburniaExpected.rows).toHaveLength(76);
+    expect(result.tripSchedule).toHaveLength(auburniaExpected.rows.length);
     expect(pooh).toHaveLength(38);
     expect(rih).toHaveLength(38);
     within(result.depths.shoe.esd_ppg, 16.1409, 0.001);
@@ -394,9 +402,13 @@ describe("Auburnia tripSchedule — 500 ft steps", () => {
     for (const row of result.tripSchedule) {
       expect(Math.abs(row.toBitMd_ft - row.fromBitMd_ft)).toBeLessThanOrEqual(500 + 1e-6);
     }
-    const ends = result.tripSchedule.flatMap((row) => [row.fromBitMd_ft, row.toBitMd_ft]);
-    expect(ends.some((md) => Math.abs(md - 10785) < 0.2)).toBe(true);
-    expect(ends.some((md) => Math.abs(md - 12675) < 0.2)).toBe(true);
+    for (let i = 0; i < result.tripSchedule.length; i++) {
+      const row = result.tripSchedule[i];
+      const expected = auburniaExpected.rows[i];
+      expect(row.direction).toBe(expected.direction);
+      within(row.fromBitMd_ft, expected.fromBitMd_ft, 0.051);
+      within(row.toBitMd_ft, expected.toBitMd_ft, 0.051);
+    }
   });
 
   it("matches the RIH check within 0.001 ppg and 0.1 psi", () => {
