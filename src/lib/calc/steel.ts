@@ -1,5 +1,5 @@
 import { asNum, capBblFt, annularBblFt, isNum, roundUp, ceilingMath } from "@/lib/utils";
-import { lookupSurge, pickSurgeTable } from "./tables";
+import { rheologyFrom, tripDp, tripSpeeds } from "./rp13d";
 import { pillTopWithPipe, shoeEsdFromPillTop } from "./rih-fit";
 import type { CalcResults, SteelRow, WellInputs } from "./types";
 
@@ -11,7 +11,7 @@ function hydrostaticEmw(interfaceMd: number, kmw: number, mw: number, anchorTvd:
 export function buildSteelSchedule(inputs: WellInputs, results: CalcResults): {
   rows: SteelRow[];
   windowPpg: number;
-  needsSafevision: boolean;
+  needsRheology: boolean;
   kmwLength: number;
   kmwVolume: number;
   closedDisp: number;
@@ -41,7 +41,7 @@ export function buildSteelSchedule(inputs: WellInputs, results: CalcResults): {
   const empty = {
     rows: [] as SteelRow[],
     windowPpg,
-    needsSafevision: true,
+    needsRheology: true,
     kmwLength,
     kmwVolume,
     closedDisp,
@@ -54,8 +54,14 @@ export function buildSteelSchedule(inputs: WellInputs, results: CalcResults): {
   }
 
   const pillVolume = isNum(topNoDp) ? Math.max(0, spotMd - topNoDp) * casingCap : Number.NaN;
-  const table = pickSurgeTable(hole, windowPpg);
-  const needsSafevision = !table;
+  // API RP 13D closed-pipe (float) surge, Eq 100, POI at the anchor and at the shoe (replaces SafeVision surge tables).
+  const rh = rheologyFrom(inputs);
+  const needsRheology = !rh;
+  const anchorMd = asNum(inputs.anchorMd);
+  const shoeMd = asNum(inputs.casingMd);
+  const shoeTvd = asNum(inputs.casingTvd);
+  const closedInputs: WellInputs = { ...inputs, pipeEnd: "closed" };
+  const speeds = [...tripSpeeds(inputs)].sort((a, b) => b - a);
   const step = 500;
 
   const depths: number[] = [];
@@ -68,9 +74,8 @@ export function buildSteelSchedule(inputs: WellInputs, results: CalcResults): {
   const rows: SteelRow[] = unique.map((bitDepth) => {
     const belowSpot = Math.max(0, bitDepth - spotMd);
     const interfaceDepth = Math.max(0, spotMd - belowSpot * (closedDisp / annularCap));
-    const surge = table ? lookupSurge(table, Math.max(bitDepth, 6500)) : { tripSpeed: 0, surgePpg: 0, depth: bitDepth };
     const emwStatic = hydrostaticEmw(interfaceDepth, kmw, mw, anchorTvd);
-    const emwDynamic = emwStatic + (surge.surgePpg || 0);
+
     // Shoe sees only the KMW standing above it. Follow this row's pill: the no-DP pill
     // (topNoDp..spot) rises as closed-end steel enters it; below spot the whole pill is
     // pushed up with its base at interfaceDepth. Same column model as the RIH / FIT stops.
@@ -81,23 +86,46 @@ export function buildSteelSchedule(inputs: WellInputs, results: CalcResults): {
         : pillTopWithPipe(topNoDp, spotMd, bitDepth, casingCap, annularCap);
     const emwShoeStatic = shoeEsdFromPillTop(pillTop, inputs, pillBase);
     const sbpStatic = Math.max(0, roundUp((target - emwStatic) * 0.052 * anchorTvd, -1));
-    const sbpDynamic = Math.max(0, roundUp(sbpStatic - surge.surgePpg * 0.052 * anchorTvd, -1));
-
+    // Surge at a POI counts only annular friction above the bit (bit above POI → friction to the bit).
+    const surgeAt = (speed: number) => {
+      if (!rh || bitDepth <= 0) return { anchor: 0, shoe: 0 };
+      const pa = tripDp(closedInputs, rh, Math.min(bitDepth, anchorMd), speed, bitDepth);
+      const ps = isNum(shoeMd) ? tripDp(closedInputs, rh, Math.min(bitDepth, shoeMd), speed, bitDepth) : 0;
+      return { anchor: pa / (0.052 * anchorTvd), shoe: isNum(shoeTvd) ? ps / (0.052 * shoeTvd) : 0 };
+    };
+    // Fastest grid speed that keeps anchor and shoe surge EMW at or below FIT (SBP held at sbpStatic).
+    const sbpPpg = sbpStatic / (0.052 * anchorTvd);
+    const sbpShoePpg = isNum(shoeTvd) ? sbpStatic / (0.052 * shoeTvd) : 0;
+    let tripSpeed = speeds.at(-1) ?? 40;
+    let surge = surgeAt(tripSpeed);
+    for (const sp of speeds) {
+      const sg = surgeAt(sp);
+      if (emwStatic + sbpPpg + sg.anchor <= fit && emwShoeStatic + sbpShoePpg + sg.shoe <= fit) {
+        tripSpeed = sp;
+        surge = sg;
+        break;
+      }
+    }
+    const emwDynamic = emwStatic + surge.anchor;
+    const emwShoeDynamic = emwShoeStatic + surge.shoe;
+    const sbpDynamic = Math.max(0, roundUp(sbpStatic - surge.anchor * 0.052 * anchorTvd, -1));
     let comment = "";
     if (bitDepth === 0) comment = "Surface — RCD installed";
     else if (isNum(topNoDp) && Math.abs(bitDepth - topNoDp) < 6) comment = "Top of pill — install RCD / begin steel displacement";
     else if (Math.abs(bitDepth - spotMd) < 6) comment = `Bottom of mud cap at ${Math.round(spotMd)} ft MD`;
     else if (interfaceDepth <= 1) comment = "KMW displaced out of the hole";
-    else if (surge.tripSpeed) comment = `Trip ${surge.tripSpeed} ft/min`;
+    else if (rh) comment = `Trip ≤ ${tripSpeed} ft/min (RP 13D)`;
 
     return {
       bitDepth,
       interfaceDepth,
-      tripSpeed: surge.tripSpeed || 60,
-      surgePpg: surge.surgePpg || 0,
+      tripSpeed: rh ? tripSpeed : 0,
+      surgePpg: surge.anchor,
       emwStatic,
       emwDynamic,
       emwShoeStatic,
+      surgeShoePpg: surge.shoe,
+      emwShoeDynamic,
       sbpStatic,
       sbpDynamic,
       comment,
@@ -107,7 +135,7 @@ export function buildSteelSchedule(inputs: WellInputs, results: CalcResults): {
   return {
     rows,
     windowPpg,
-    needsSafevision,
+    needsRheology,
     kmwLength,
     kmwVolume,
     closedDisp,

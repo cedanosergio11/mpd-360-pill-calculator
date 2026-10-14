@@ -114,7 +114,7 @@ export function calculate(inputs: WellInputs): CalcResults {
     staticStrippingPressure: pressures.staticStrippingPressure,
     maxDynamicSbp: pressures.maxDynamicSbp,
     maxSwabPressure: pressures.maxSwabPressure,
-    selectedTripTable: pressures.selectedTripTable,
+    rp13d: pressures.rp13d,
     tripPressures: pressures.tripPressures,
     slugPressure: slug.slugPressure,
     slugPillVol: slug.slugPillVol,
@@ -214,11 +214,39 @@ export function collectWarnings(inputs: WellInputs, results: CalcResults): Warni
       text: `Only ${round(results.spottedKmwVol, 0)} bbl of KMW fits with pipe in the hole; ${round(results.totalPillVol, 0)} bbl is needed for the anchor EMW. Backfill ${round(results.bblBackfill, 0)} bbl of KMW while tripping out.`,
     });
   }
-  if (results.selectedTripTable === "other") {
-    warnings.push({
-      level: "info",
-      text: "Open-hole size is not 6.75 / 7.875 / 8.5 in. Using the custom swab table — verify values in SafeVision.",
-    });
+  const rp = results.rp13d;
+  if (!rp.available) {
+    warnings.push({ level: "warn", text: `API RP 13D swab/surge not calculated: ${rp.reason ?? "inputs incomplete"}` });
+  } else {
+    const fitV = n(inputs, "fit");
+    const desired = n(inputs, "desiredEmw");
+    for (const row of rp.trips) {
+      const shoe = row.points.find((p) => p.key === "shoe");
+      if (shoe && isNum(fitV) && shoe.surgeEmw > fitV) {
+        warnings.push({
+          level: "warn",
+          text: `RP 13D surge at ${row.speed} ft/min: shoe EMW ${round(shoe.surgeEmw, 2)} ppge is above FIT (${fitV} ppge).`,
+        });
+        break;
+      }
+    }
+    for (const row of rp.trips) {
+      const anc = row.points.find((p) => p.key === "anchor");
+      if (anc && isNum(desired) && anc.swabEmw < desired) {
+        warnings.push({
+          level: "warn",
+          text: `RP 13D swab at ${row.speed} ft/min: anchor EMW ${round(anc.swabEmw, 2)} ppge is below desired EMW (${desired} ppge) with connection SBP only. Hold dynamic SBP.`,
+        });
+        break;
+      }
+    }
+    const shoeEcd = rp.ecd.find((p) => p.key === "shoe");
+    if (shoeEcd && isNum(fitV) && shoeEcd.ecd > fitV) {
+      warnings.push({ level: "warn", text: `RP 13D ECD at the shoe (${round(shoeEcd.ecd, 2)} ppge) is above FIT (${fitV} ppge).` });
+    }
+    if (!rp.pois.some((p) => p.key === "td")) {
+      warnings.push({ level: "info", text: "Enter current well depth MD and TVD to check RP 13D ECD and swab/surge at bit / TD." });
+    }
   }
   if (isNum(n(inputs, "initialFlowRate")) && isNum(n(inputs, "maxFlowRate")) && n(inputs, "initialFlowRate") > n(inputs, "maxFlowRate")) {
     warnings.push({
@@ -229,7 +257,7 @@ export function collectWarnings(inputs: WellInputs, results: CalcResults): Warni
   if (isNum(n(inputs, "fit")) && isNum(n(inputs, "desiredEmw")) && n(inputs, "fit") - n(inputs, "desiredEmw") < 0.6) {
     warnings.push({
       level: "warn",
-      text: "FIT − target EMW window is under 0.6 ppge. Steel-displacement automations are not valid — model surge in SafeVision.",
+      text: "FIT − target EMW window is under 0.6 ppge. Steel-displacement trip speeds are tight — check the RP 13D surge EMW at shoe and anchor.",
     });
   }
   if (inputs.taperedOn) {

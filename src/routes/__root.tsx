@@ -3,7 +3,7 @@ import { AuthProvider } from "@/lib/auth/provider";
 import { PreviewHostBridge } from "@/components/preview-host-bridge";
 import appCss from "../styles.css?url";
 
-const APP_NAME = "PillView";
+const APP_NAME = "PillView 2.0";
 
 /** Prefix public asset hrefs with Vite `base` so GitHub Pages project URLs resolve. */
 function publicAsset(path: string): string {

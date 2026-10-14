@@ -18,7 +18,16 @@ describe("calculate — Auburnia", () => {
     expect(r.topOfPillNoDp).toBe(7951);
     expect(round(r.pressureDifferential, 1)).toBe(241.6);
     expect(r.procedurePossible).toBe(true);
-    expect(round(r.slugPillVol, 1)).toBe(111);
+    // 1.0.8.0: slug volume follows the RP 13D swab at 200 ft/min (SafeVision table removed; was 111 bbl
+    // from the 6.75 in table 0.60 ppge). No Fann readings in this preset → slug is not calculated.
+    expect(Number.isNaN(r.slugPillVol)).toBe(true);
+  });
+
+  it("slug at 200 ft/min uses the RP 13D swab when Fann readings are given", () => {
+    const withFann = calculate({ ...AUBURNIA, fann600: 80, fann300: 48, fann6: 9.2, fann3: 8.2 });
+    const dyn200 = withFann.tripPressures.find((t) => t.speed === 200)!.dynamicPressure;
+    const grad = (Number(AUBURNIA.kmw) - Number(AUBURNIA.currentMw)) * 0.052;
+    expect(withFann.slugPillVol).toBeCloseTo(((dyn200 + Number(AUBURNIA.overbalanceSlug)) / grad) * withFann.drillStringCap, 6);
   });
 
   it("builds a spotting schedule", () => {
