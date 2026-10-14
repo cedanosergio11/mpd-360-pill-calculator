@@ -55,8 +55,8 @@ if (existsSync(grokDir) && !existsSync(manifestPath)) {
   writeFileSync(
     manifestPath,
     JSON.stringify({
-      name: "PillView",
-      short_name: "PillView",
+      name: "PillView 2.0",
+      short_name: "PillView 2.0",
       start_url: base,
       display: "standalone",
       background_color: "#0e1116",

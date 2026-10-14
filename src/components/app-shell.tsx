@@ -4,6 +4,7 @@ import type { Job } from "@/contract";
 import { DisplacementScreen, ExportScreen, FitBanner, FluidsScreen, TripScreen, WellScreen } from "@/components/screens";
 import { seeds } from "@/lib/seeds";
 import { useOutOfDate, useStore, worst } from "@/lib/store";
+import { APP_VERSION } from "@/lib/version";
 
 const tabs = [
   { id: "well", label: "1 Well setup", C: WellScreen },
@@ -43,7 +44,8 @@ export function AppShell() {
       <div className="bg-danger px-3 py-1 text-center text-xs font-bold tracking-wide text-white print:hidden" role="alert">EXAMPLE inputs, calc under review, not for field use</div>
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur print:hidden">
         <div className="flex items-center gap-2 px-3 py-2 text-xs">
-          <span className="font-semibold text-primary">PillView</span>
+          <span className="font-semibold text-primary">PillView 2.0</span>
+          <span className="font-mono text-muted-foreground">{APP_VERSION}</span>
           <span className="truncate font-semibold">{job.name}</span>
           <span className={`rounded px-1.5 py-0.5 ${saved ? "bg-backfill/20 text-backfill" : "bg-warn/20 text-warn"}`}>{saved ? "Saved" : "Unsaved"}</span>
           {outOfDate && <button onClick={run} className="rounded bg-warn px-1.5 py-0.5 font-semibold text-black">Out of date · recalc</button>}
@@ -74,7 +76,7 @@ export function AppShell() {
             </Drawer.Content>
           </Drawer.Portal>
         </Drawer.Root>
-        <span className="hidden font-mono text-muted-foreground sm:inline">calc {result?.calcVersion} · #{result?.inputHash}</span>
+        <span className="hidden font-mono text-muted-foreground sm:inline">{APP_VERSION} · calc {result?.calcVersion} · #{result?.inputHash}</span>
       </footer>
     </main>
   );

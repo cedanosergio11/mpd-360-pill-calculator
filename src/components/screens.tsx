@@ -4,6 +4,7 @@ import type { DepthKey, Result, TripLimit, TripScheduleRow } from "@/contract";
 import { HAS_PIPE_COLUMN } from "@/contract";
 import { Card, fmt, Grid, IssueList, NumField } from "@/components/fields";
 import { issuesFor, useStore } from "@/lib/store";
+import { APP_VERSION } from "@/lib/version";
 
 export function WellScreen() {
   const job = useStore((s) => s.job);
@@ -341,7 +342,7 @@ export function ExportScreen() {
         <FitBanner />
         <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2 border-b pb-2">
           <div><div className="text-base font-semibold">{job.name}</div><div className="text-xs text-danger">EXAMPLE inputs, calc under review, not for field use</div></div>
-          <div className="text-right font-mono text-[11px] text-muted-foreground">SDS-FRM-087 · calc {result?.calcVersion ?? "—"}<br />inputs #{result?.inputHash ?? "—"}</div>
+          <div className="text-right font-mono text-[11px] text-muted-foreground">PillView 2.0 · {APP_VERSION}<br />SDS-FRM-087 · calc {result?.calcVersion ?? "—"}<br />inputs #{result?.inputHash ?? "—"}</div>
         </header>
         {result && <>
           <h3 className="mb-1 font-semibold">RIH - minimum {result.displacement.minStagesRih ?? "—"} stages needed</h3>
@@ -350,7 +351,7 @@ export function ExportScreen() {
         </>}
         <h3 className="mb-1 font-semibold">Inputs used</h3>
         <InputsTable />
-        <footer className="mt-3 border-t pt-2 font-mono text-[10px] text-muted-foreground">PillView rebuild UI · {result?.calcVersion} · saved {job.savedAt || "not saved"}</footer>
+        <footer className="mt-3 border-t pt-2 font-mono text-[10px] text-muted-foreground">PillView 2.0 · {APP_VERSION} · saved {job.savedAt || "not saved"}</footer>
       </article>
     </div>
   );

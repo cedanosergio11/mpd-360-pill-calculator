@@ -10,7 +10,7 @@
  * Always prepend a ReleaseNote and mirror it in CHANGELOG.md.
  */
 
-export const APP_VERSION = "1.0.8.0";
+export const APP_VERSION = "2.0.0";
 
 export type ReleaseNote = {
   version: string;
@@ -20,6 +20,12 @@ export type ReleaseNote = {
 };
 
 export const RELEASES: ReleaseNote[] = [
+  {
+    version: "2.0.0",
+    date: "2026-10-14",
+    title: "PillView 2.0",
+    notes: ["Displayed version is PillView 2.0 (2.0.0)."],
+  },
   {
     version: "1.0.8.0",
     date: "2026-10-13",

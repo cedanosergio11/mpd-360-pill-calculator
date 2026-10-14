@@ -9,6 +9,12 @@ Version scheme: `major.minor.patch.build` (shown in-app as `v 1.0.0.0`).
 
 ---
 
+## 2.0.0 — 2026-10-14
+
+PillView 2.0
+
+- Displayed version is PillView 2.0 (2.0.0).
+
 ## 1.0.8.0 — 2026-10-13
 
 API RP 13D swab/surge and ECD replace the SafeVision tables
