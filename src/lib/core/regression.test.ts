@@ -10,7 +10,8 @@ import {
   type Rheology,
 } from "@/lib/calc/rp13d";
 import { calculate } from "./calculate";
-import { exampleJob } from "./example-job";
+import { columnDisplacedByPipe } from "./column";
+import { EXAMPLE_FANN, exampleJob } from "./example-job";
 import { balanceFloat } from "./equalize";
 import { auburniaJob } from "./fixtures/auburnia";
 import { lockSubDryJob, lockSubSpotJob } from "./fixtures/lock-sub";
@@ -186,7 +187,8 @@ describe("Lock Sub 1H shoe ESD — real shoe, pill never reaches it", () => {
       for (const stage of result.displacement.stages) {
         expect(stage.shoeEsd_ppg).toBeCloseTo(11.4, 4);
         expect(stage.shoeEsd_ppg!).toBeGreaterThanOrEqual(11.4 - 1e-6);
-        expect(stage.pumped_bbl).toBeNull();
+        expect(stage.pumped_bbl).not.toBeNull();
+        expect(stage.pumped_bbl!).toBeGreaterThanOrEqual(0);
       }
     }
   });
@@ -261,8 +263,106 @@ describe("EXAMPLE column — pill stands above the shoe", () => {
     for (const stage of withDp.displacement.stages) {
       expect(stage.shoeEsd_ppg!).toBeGreaterThanOrEqual(11.4 - 1e-6);
       expect(stage.shoeEsd_ppg!).toBeLessThanOrEqual(14 + 1e-6);
-      expect(stage.pumped_bbl).toBeNull();
+      expect(stage.pumped_bbl).not.toBeNull();
+      expect(stage.pumped_bbl!).toBeGreaterThanOrEqual(0);
     }
+  });
+});
+
+describe("RIH pipe displacement — slug and multi-fluid columns", () => {
+  const full = 8.5 ** 2 / 1029.4;
+  const annular = (8.5 ** 2 - 5 ** 2) / 1029.4;
+  const ratio = full / annular;
+
+  function stacked(column: Job["column"]): Job {
+    const job = exampleJob();
+    job.name = "EXAMPLE stacked column";
+    job.mode = "noDP";
+    job.well.mdTd_ft = 10000;
+    job.well.tvdTd_ft = 10000;
+    job.well.bitMd_ft = 10000;
+    job.well.shoeMd_ft = 6000;
+    job.well.shoeTvd_ft = 6000;
+    job.well.anchorMd_ft = 9000;
+    job.well.anchorTvd_ft = 9000;
+    job.well.fit_ppg = 18;
+    job.well.targetEmw_ppg = 12;
+    job.well.casing = [{ topMd_ft: 0, bottomMd_ft: 6000, id_in: 8.5 }];
+    job.well.survey = [6000, 9000, 10000].map((md) => ({ md_ft: md, tvd_ft: md }));
+    job.fluids = [
+      { id: "mud", label: "EXAMPLE mud", density_ppg: 12, fann: EXAMPLE_FANN },
+      { id: "slug", label: "EXAMPLE slug", density_ppg: 14, fann: EXAMPLE_FANN },
+      { id: "pill", label: "EXAMPLE pill", density_ppg: 16, fann: EXAMPLE_FANN },
+    ];
+    job.column = column;
+    job.pipeColumn = [{ fluidId: "mud", topMd_ft: 0, bottomMd_ft: 10000 }];
+    job.trip.speeds_ftmin = [];
+    return job;
+  }
+
+  it("moves a multi-fluid pill up by the closed-pipe displacement", () => {
+    const job = stacked([
+      { fluidId: "mud", topMd_ft: 0, bottomMd_ft: 7000 },
+      { fluidId: "slug", topMd_ft: 7000, bottomMd_ft: 8000 },
+      { fluidId: "pill", topMd_ft: 8000, bottomMd_ft: 10000 },
+    ]);
+    const pillTop = 10000 - 2000 * ratio;
+    const slugTop = pillTop - 1000 * ratio;
+    const shifted = columnDisplacedByPipe(job, 10000);
+    expect(shifted).not.toBeNull();
+    const slug = shifted!.column.find((segment) => segment.fluidId === "slug")!;
+    const pill = shifted!.column.find((segment) => segment.fluidId === "pill")!;
+    expect(pill.bottomMd_ft).toBeCloseTo(10000, 2);
+    expect(pill.topMd_ft).toBeCloseTo(pillTop, 2);
+    expect(slug.bottomMd_ft).toBeCloseTo(pillTop, 2);
+    expect(slug.topMd_ft).toBeCloseTo(slugTop, 2);
+    expect(slug.topMd_ft).toBeLessThan(7000);
+
+    const result = calculate(job);
+    expect(result.issues.some((item) => item.code === "RELEASE_BLOCKER")).toBe(false);
+    expect(result.displacement.stages[0].shoeEsd_ppg).toBeCloseTo(12, 4);
+    expect(result.displacement.stages[0].pumped_bbl).toBe(0);
+    const slugAboveShoe = 6000 - slugTop;
+    expect(result.displacement.stages.at(-1)!.shoeEsd_ppg).toBeCloseTo(
+      12 + (2 * slugAboveShoe) / 6000,
+      3,
+    );
+    expect(result.displacement.stages.at(-1)!.pumped_bbl).toBeCloseTo(
+      2000 * (4.276 ** 2 / 1029.4),
+      4,
+    );
+  });
+
+  it("moves a slug that sits above a mud spacer", () => {
+    const job = stacked([
+      { fluidId: "mud", topMd_ft: 0, bottomMd_ft: 5000 },
+      { fluidId: "slug", topMd_ft: 5000, bottomMd_ft: 6000 },
+      { fluidId: "mud", topMd_ft: 6000, bottomMd_ft: 7000 },
+      { fluidId: "pill", topMd_ft: 7000, bottomMd_ft: 10000 },
+    ]);
+    const pillTop = 10000 - 3000 * ratio;
+    const spacerTop = pillTop - 1000 * ratio;
+    const slugTop = spacerTop - 1000 * ratio;
+    const shifted = columnDisplacedByPipe(job, 10000);
+    expect(shifted).not.toBeNull();
+    const slug = shifted!.column.find((segment) => segment.fluidId === "slug")!;
+    expect(slug.topMd_ft).toBeCloseTo(slugTop, 2);
+    expect(slug.bottomMd_ft).toBeCloseTo(spacerTop, 2);
+    expect(slug.topMd_ft).toBeLessThan(5000);
+    const result = calculate(job);
+    expect(result.issues.some((item) => item.code === "RELEASE_BLOCKER")).toBe(false);
+    const slugHeight = spacerTop - slugTop;
+    const pillAboveShoe = 6000 - pillTop;
+    expect(result.displacement.stages.at(-1)!.shoeEsd_ppg).toBeCloseTo(
+      12 + ((14 - 12) * slugHeight + (16 - 12) * pillAboveShoe) / 6000,
+      3,
+    );
+    expect(result.displacement.slugVolume_bbl).toBeCloseTo(1000 * full, 3);
+    expect(result.displacement.stages[0].pumped_bbl).toBe(0);
+    expect(result.displacement.stages.at(-1)!.pumped_bbl).toBeCloseTo(
+      3000 * (4.276 ** 2 / 1029.4),
+      4,
+    );
   });
 });
 
@@ -495,9 +595,17 @@ describe("Lock Sub 1H — MPGenie shoe 8033 and the real shoe", () => {
     within(result.displacement.stages[1].shoeEsd_ppg, 11.4, 0.001);
     within(result.displacement.stages[2].shoeEsd_ppg, 11.4046, 0.001);
     expect(result.issues.some((item) => item.code === "EQUALIZE_PENDING")).toBe(false);
+    const pill = job.column.find((segment) => segment.fluidId === "pill")!;
+    const pipeCap = job.well.stringId_in ** 2 / 1029.4;
+    expect(result.displacement.stages[0].pumped_bbl).toBe(0);
+    expect(result.displacement.stages[1].pumped_bbl).toBe(0);
+    expect(result.displacement.stages[2].pumped_bbl).toBeCloseTo(
+      (pill.bottomMd_ft - pill.topMd_ft) * pipeCap,
+      4,
+    );
     expect(
       result.issues.some((item) => item.code === "RELEASE_BLOCKER" && item.level === "error"),
-    ).toBe(true);
+    ).toBe(false);
 
     const real = calculate(lockSubSpotJob("3187"));
     within(real.depths.shoe.esd_ppg, 11.4, 0.001);
@@ -512,7 +620,10 @@ describe("Lock Sub 1H — MPGenie shoe 8033 and the real shoe", () => {
     within(stages[0].shoeEsd_ppg, 11.4, 0.001);
     within(stages[1].shoeEsd_ppg, 11.4, 0.001);
     within(stages[2].shoeEsd_ppg, 11.5829, 0.001);
-    expect(stages[2].pumped_bbl).toBeNull();
+    const pipeCap = 4.778 ** 2 / 1029.4;
+    expect(stages[0].pumped_bbl).toBe(0);
+    expect(stages[1].pumped_bbl).toBe(0);
+    expect(stages[2].pumped_bbl).toBeCloseTo(2420 * pipeCap, 4);
 
     const real = calculate(lockSubDryJob("noDP", "3187"));
     expect(real.displacement.stages.map((stage) => stage.bitMd_ft)).toEqual([0, 8060, 10480]);

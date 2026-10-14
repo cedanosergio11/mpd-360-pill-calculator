@@ -1,4 +1,6 @@
-import type { ColumnSegment, Fluid, Job } from "./job.schema";
+import { capBblFt } from "@/lib/utils";
+import type { ColumnSegment, Fluid, Job, Well } from "./job.schema";
+import { intervalVolume } from "./geometry";
 import { PSI_PER_PPG_FT } from "./result";
 import { tvdAt } from "./tvd";
 
@@ -121,6 +123,109 @@ export function esdAtMd(job: Job, md: number): number | null {
   const psi = hydrostaticPsi(job, md);
   if (psi == null) return null;
   return psi / (PSI_PER_PPG_FT * tvd);
+}
+
+interface FluidSlice {
+  fluidId: string;
+  volume: number;
+}
+
+/**
+ * Closed-pipe RIH column. Pipe displacement (OD capacity × bit depth) leaves
+ * at the surface. What remains is packed from TD upward: full hole below the
+ * bit, annulus around the pipe above it. Every fluid interface moves with that
+ * displacement, including a slug or a multi-fluid pill.
+ */
+export function columnDisplacedByPipe(job: Job, bitMd: number): Job | null {
+  const td = job.well.mdTd_ft;
+  const bit = Math.max(0, Math.min(bitMd, td));
+  const segments = [...job.column].sort((a, b) => a.topMd_ft - b.topMd_ft);
+  if (!segments.length) return null;
+  const slices: FluidSlice[] = [];
+  for (const segment of segments) {
+    const volume = intervalVolume(job.well, segment.topMd_ft, segment.bottomMd_ft, "full");
+    if (volume == null) return null;
+    if (volume > 1e-8) slices.push({ fluidId: segment.fluidId, volume });
+  }
+  const pipeVol = capBblFt(job.well.stringOd_in) * bit;
+  if (!Number.isFinite(pipeVol) || pipeVol < 0) return null;
+  let remove = pipeVol;
+  const kept: FluidSlice[] = [];
+  for (const slice of slices) {
+    if (remove >= slice.volume - 1e-8) {
+      remove -= slice.volume;
+      continue;
+    }
+    kept.push({ fluidId: slice.fluidId, volume: slice.volume - Math.max(0, remove) });
+    remove = 0;
+  }
+  if (remove > 1e-4) return null;
+
+  let cursor = td;
+  const placed: ColumnSegment[] = [];
+  for (let i = kept.length - 1; i >= 0; i--) {
+    const top = riseByVolume(job.well, cursor, kept[i].volume, bit);
+    if (top == null) return null;
+    if (cursor - top > 1e-3) {
+      placed.push({ fluidId: kept[i].fluidId, topMd_ft: top, bottomMd_ft: cursor });
+    }
+    cursor = top;
+  }
+  if (cursor > 0.05) return null;
+  placed.reverse();
+  if (!placed.length) return null;
+  placed[0].topMd_ft = 0;
+  placed[placed.length - 1].bottomMd_ft = td;
+  return { ...job, column: mergeSegments(placed) };
+}
+
+/** Walk `volume` bbl upward from `bottom`. Full hole below the bit, annulus above it. */
+function riseByVolume(well: Well, bottom: number, volume: number, bit: number): number | null {
+  let cursor = bottom;
+  let need = volume;
+  while (need > 1e-6 && cursor > 1e-6) {
+    const aboveBit = cursor > bit + 1e-4;
+    const floor = aboveBit ? bit : 0;
+    const kind = aboveBit ? "full" : "annular";
+    const chunk = intervalVolume(well, floor, cursor, kind);
+    if (chunk == null) return null;
+    if (chunk <= need + 1e-4) {
+      need -= chunk;
+      cursor = floor;
+      continue;
+    }
+    let lo = floor;
+    let hi = cursor;
+    for (let i = 0; i < 50; i++) {
+      const mid = (lo + hi) / 2;
+      const span = intervalVolume(well, mid, cursor, kind);
+      if (span == null) return null;
+      if (span > need) lo = mid;
+      else hi = mid;
+    }
+    cursor = (lo + hi) / 2;
+    need = 0;
+  }
+  if (need > 1e-3) return null;
+  return cursor;
+}
+
+function mergeSegments(segments: ColumnSegment[]): ColumnSegment[] {
+  const sorted = [...segments].sort((a, b) => a.topMd_ft - b.topMd_ft);
+  const out: ColumnSegment[] = [];
+  for (const segment of sorted) {
+    const last = out[out.length - 1];
+    if (
+      last &&
+      last.fluidId === segment.fluidId &&
+      Math.abs(last.bottomMd_ft - segment.topMd_ft) < 0.05
+    ) {
+      last.bottomMd_ft = Math.max(last.bottomMd_ft, segment.bottomMd_ft);
+    } else {
+      out.push({ ...segment });
+    }
+  }
+  return out;
 }
 
 /**

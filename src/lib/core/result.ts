@@ -37,7 +37,11 @@ export interface DisplacementStage {
   /** 0-based. 0 is the static column before trip-in. `tripSchedule[].stage` points here. */
   n: number;
   bitMd_ft: number;
-  /** Release blocker. Null until circulated volume per stage exists — never a placeholder 0. */
+  /**
+   * Pill volume pumped, bbl: length of the deepest pill fluid the bit has
+   * covered, times pipe capacity (`stringId`² / 1029.4). 0 when the bit has
+   * not entered that fluid. Null only when pipe capacity cannot be computed.
+   */
   pumped_bbl: number | null;
   sbp_psi: number | null;
   shoeEsd_ppg: number | null;

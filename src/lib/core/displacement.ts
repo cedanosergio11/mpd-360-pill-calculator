@@ -1,4 +1,5 @@
-import { columnWithRaisedPill, esdAtMd, pillPlacement, type Span } from "./column";
+import { capBblFt } from "@/lib/utils";
+import { columnDisplacedByPipe, esdAtMd, pillPlacement, type Span } from "./column";
 import { balanceFloat, pipePillBbl } from "./equalize";
 import { intervalVolume, uniqueSorted } from "./geometry";
 import { issue, type Issue } from "./issues";
@@ -19,42 +20,6 @@ function blankDisplacement(): Displacement {
   };
 }
 
-/**
- * Pill top after closed-end pipe is run to `bitMd`, conserving pipe-out pill volume.
- * Below the bit the pill sits in the open hole; around the pipe it sits in the annulus.
- * Base stays at the spotted pill bottom (RIH stops do not push the pill deeper than spot).
- */
-export function raisedPillTop(
-  job: Job,
-  pill: Span,
-  bitMd: number,
-  pipeOutVolume: number,
-): number | null {
-  if (bitMd <= pill.topMd + 1e-3) return pill.topMd;
-  const bit = Math.min(bitMd, pill.bottomMd);
-  const volumeAt = (top: number): number | null => {
-    const aroundPipe = intervalVolume(job.well, top, bit, "annular");
-    const belowBit = intervalVolume(job.well, bit, pill.bottomMd, "full");
-    if (aroundPipe == null || belowBit == null) return null;
-    return aroundPipe + belowBit;
-  };
-  const atSpot = volumeAt(pill.topMd);
-  const atSurface = volumeAt(0);
-  if (atSpot == null || atSurface == null) return null;
-  if (atSpot >= pipeOutVolume - 1e-3) return pill.topMd;
-  if (atSurface < pipeOutVolume - 1e-3) return 0;
-  let lo = 0;
-  let hi = pill.topMd;
-  for (let i = 0; i < 40; i++) {
-    const mid = (lo + hi) / 2;
-    const volume = volumeAt(mid);
-    if (volume == null) return null;
-    if (volume > pipeOutVolume) lo = mid;
-    else hi = mid;
-  }
-  return (lo + hi) / 2;
-}
-
 function sbpHold(job: Job, columnJob: Job): number | null {
   const anchorTvd = resolvedAnchorTvd(job.well);
   const esd = esdAtMd(columnJob, job.well.anchorMd_ft);
@@ -62,11 +27,37 @@ function sbpHold(job: Job, columnJob: Job): number | null {
   return Math.max(0, (job.well.targetEmw_ppg - esd) * PSI_PER_PPG_FT * anchorTvd);
 }
 
-function stageFromColumn(job: Job, columnJob: Job, n: number, bitMd: number): DisplacementStage {
+/**
+ * Pill volume pumped by the time the bit reaches `bitMd`.
+ * Pill length covered (deepest pill fluid only) times pipe capacity.
+ * 0 when the bit has not entered that fluid — a computed zero, not a placeholder.
+ */
+export function pumpedPillBbl(job: Job, pill: Span, bitMd: number): number | null {
+  const cap = capBblFt(job.well.stringId_in);
+  if (!Number.isFinite(cap) || cap <= 0) return null;
+  const own = job.column.filter(
+    (segment) =>
+      segment.fluidId === pill.fluidId &&
+      segment.bottomMd_ft > pill.topMd - 0.1 &&
+      segment.topMd_ft < pill.bottomMd + 0.1,
+  );
+  const top = own.length ? Math.min(...own.map((segment) => segment.topMd_ft)) : pill.topMd;
+  const bottom = own.length ? Math.max(...own.map((segment) => segment.bottomMd_ft)) : pill.bottomMd;
+  const covered = Math.max(0, Math.min(bitMd, bottom) - top);
+  return covered * cap;
+}
+
+function stageFromColumn(
+  job: Job,
+  columnJob: Job,
+  n: number,
+  bitMd: number,
+  pill: Span,
+): DisplacementStage {
   return {
     n,
     bitMd_ft: bitMd,
-    pumped_bbl: null,
+    pumped_bbl: pumpedPillBbl(job, pill, bitMd),
     sbp_psi: sbpHold(job, columnJob),
     shoeEsd_ppg: esdAtMd(columnJob, job.well.shoeMd_ft),
     anchorEsd_ppg: esdAtMd(columnJob, job.well.anchorMd_ft),
@@ -87,13 +78,7 @@ function stageBits(pill: Span, bitMd: number): number[] {
  * the pipe-out pill upward. withDP with pill in `pipeColumn`: the spot stage
  * is the float balance, not that dry-pipe displacement.
  */
-function stagesFor(
-  job: Job,
-  pill: Span,
-  volume: number,
-  canShift: boolean,
-  issues: Issue[],
-): DisplacementStage[] {
+function stagesFor(job: Job, pill: Span, issues: Issue[]): DisplacementStage[] {
   const bits = stageBits(pill, job.well.bitMd_ft);
   const utube = job.mode === "withDP" && pipePillBbl(job, pill.fluidId) > 0.05;
   const balance = utube ? balanceFloat(job) : null;
@@ -112,11 +97,9 @@ function stagesFor(
     let columnJob: Job | null = null;
     if (utube) {
       columnJob = balance && bit >= pill.bottomMd - 0.5 ? balance.columnJob : job;
-    } else if (!canShift) {
-      columnJob = job;
     } else {
-      const top = raisedPillTop(job, pill, bit, volume);
-      if (top == null) {
+      columnJob = columnDisplacedByPipe(job, bit);
+      if (!columnJob) {
         issues.push(
           issue(
             "error",
@@ -127,17 +110,16 @@ function stagesFor(
         );
         break;
       }
-      columnJob = columnWithRaisedPill(job, pill, top);
     }
-    stages.push(stageFromColumn(job, columnJob, stages.length, bit));
+    stages.push(stageFromColumn(job, columnJob, stages.length, bit, pill));
   }
   return stages;
 }
 
 /**
  * Displacement from the annulus column.
- * `pumped_bbl` and slug movement are release blockers: the barrels stay null
- * and a slug column is not shifted.
+ * `pumped_bbl` is pill length covered times pipe capacity.
+ * RIH steel displacement shifts every fluid interface, including a slug.
  */
 export function buildDisplacement(job: Job, issues: Issue[]): Displacement {
   const place = pillPlacement(job);
@@ -180,31 +162,9 @@ export function buildDisplacement(job: Job, issues: Issue[]): Displacement {
     return displacement;
   }
 
-  const canShift = !place.multiFluidPill && !place.slug && !place.extraRuns;
-  if (!canShift) {
-    issues.push(
-      issue(
-        "error",
-        "RELEASE_BLOCKER",
-        "Release blocker: slug column shift is not implemented. A slug or multi-fluid column is not moved when the pipe is run in.",
-        "column",
-      ),
-    );
-  }
-
-  const stages = stagesFor(job, pill, volume, canShift, issues);
+  const stages = stagesFor(job, pill, issues);
   displacement.stages = stages;
   displacement.minStagesRih = stages.length > 0 ? stages.length : null;
-  if (stages.length > 0) {
-    issues.push(
-      issue(
-        "error",
-        "RELEASE_BLOCKER",
-        "Release blocker: pumped_bbl is not implemented. Circulated volume per RIH stage stays null.",
-        "displacement.stages",
-      ),
-    );
-  }
 
   if (job.mode === "withDP" && pipePillBbl(job, pill.fluidId) > 0.05) {
     const balance = balanceFloat(job);
