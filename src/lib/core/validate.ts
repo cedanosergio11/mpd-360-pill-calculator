@@ -1,5 +1,5 @@
 import { issue, type Issue } from "./issues";
-import type { FannReading, Job } from "./job.schema";
+import type { ColumnSegment, FannReading, Job } from "./job.schema";
 import { interpolationHow, onSurveyStation, resolvedAnchorTvd } from "./tvd";
 
 const COLUMN_EPS = 0.1;
@@ -8,6 +8,115 @@ const FANN_KEYS = ["r600", "r300", "r200", "r100", "r6", "r3"] as const;
 
 function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function checkStackedColumn(
+  issues: Issue[],
+  segments: ColumnSegment[] | undefined,
+  path: string,
+  noun: string,
+  endMd: number | undefined,
+  endLabel: string,
+  fluidIds: Set<string>,
+) {
+  const column = segments ?? [];
+  column.forEach((segment, index) => {
+    if (!fluidIds.has(segment.fluidId)) {
+      issues.push(
+        issue(
+          "error",
+          "UNKNOWN_FLUID",
+          `${noun} fluid "${segment.fluidId}" is not in fluids.`,
+          `${path}[${index}].fluidId`,
+        ),
+      );
+    }
+    if (
+      !finite(segment.topMd_ft) ||
+      !finite(segment.bottomMd_ft) ||
+      segment.bottomMd_ft <= segment.topMd_ft + 1e-6
+    ) {
+      issues.push(
+        issue(
+          "error",
+          "COLUMN_ORDER",
+          `${noun} segment bottom must be deeper than its top.`,
+          `${path}[${index}].bottomMd_ft`,
+        ),
+      );
+    }
+  });
+
+  const indexed = column
+    .map((segment, index) => ({ segment, index }))
+    .filter(
+      ({ segment }) =>
+        finite(segment.topMd_ft) &&
+        finite(segment.bottomMd_ft) &&
+        segment.bottomMd_ft > segment.topMd_ft,
+    )
+    .sort((a, b) => a.segment.topMd_ft - b.segment.topMd_ft || a.index - b.index);
+
+  // A pipe that has not entered the hole (bit at surface) may be empty.
+  if (!indexed.length) {
+    if (path === "pipeColumn" && !(finite(endMd) && endMd > COLUMN_EPS)) return;
+    issues.push(issue("error", "COLUMN_GAP", `${noun} is empty.`, path));
+    return;
+  }
+  if (indexed[0].segment.topMd_ft > COLUMN_EPS) {
+    issues.push(
+      issue(
+        "error",
+        "COLUMN_GAP",
+        `${noun} does not start at surface.`,
+        `${path}[${indexed[0].index}].topMd_ft`,
+      ),
+    );
+  }
+  for (let i = 1; i < indexed.length; i++) {
+    const prev = indexed[i - 1];
+    const cur = indexed[i];
+    const gap = cur.segment.topMd_ft - prev.segment.bottomMd_ft;
+    if (gap > COLUMN_EPS) {
+      issues.push(
+        issue(
+          "error",
+          "COLUMN_GAP",
+          `Gap in the ${noun.toLowerCase()} between ${prev.segment.bottomMd_ft} and ${cur.segment.topMd_ft} ft.`,
+          `${path}[${cur.index}].topMd_ft`,
+        ),
+      );
+    } else if (gap < -COLUMN_EPS) {
+      issues.push(
+        issue(
+          "error",
+          "COLUMN_OVERLAP",
+          `${noun} overlaps at ${cur.segment.topMd_ft} ft.`,
+          `${path}[${cur.index}].topMd_ft`,
+        ),
+      );
+    }
+  }
+  const last = indexed[indexed.length - 1];
+  if (finite(endMd) && last.segment.bottomMd_ft < endMd - COLUMN_EPS) {
+    issues.push(
+      issue(
+        "error",
+        "COLUMN_GAP",
+        `${noun} does not reach ${endLabel}.`,
+        `${path}[${last.index}].bottomMd_ft`,
+      ),
+    );
+  } else if (finite(endMd) && last.segment.bottomMd_ft > endMd + COLUMN_EPS) {
+    issues.push(
+      issue(
+        "error",
+        "COLUMN_OVERLAP",
+        `${noun} extends past ${endLabel}.`,
+        `${path}[${last.index}].bottomMd_ft`,
+      ),
+    );
+  }
 }
 
 function rheologyNeeded(job: Job): boolean {
@@ -38,8 +147,8 @@ function checkTvd(
  * Structural checks for a v1 job.
  * Errors: column gaps/overlaps, unknown fluidId, TVD > MD, missing or unusable
  * Fann where ECD or swab/surge needs it.
- * Warning TVD_INTERPOLATED names shoe and/or anchor when that point is not a
- * survey station (linear MD→TVD when there is no survey).
+ * Warning TVD_INTERPOLATED names the anchor (`well.anchorMd_ft`) when its TVD
+ * is interpolated. An entered shoe or anchor TVD does not warn.
  */
 export function validate(job: Job): Issue[] {
   const issues: Issue[] = [];
@@ -59,16 +168,21 @@ export function validate(job: Job): Issue[] {
     });
 
     const how = interpolationHow(well);
-    // A point that is not a survey station uses piecewise-linear TVD
-    // (the TD ratio when the survey array is empty).
-    if (!onSurveyStation(well, well.shoeMd_ft)) {
+    // An entered shoe or anchor TVD is the value used. It is not an
+    // interpolation, including when the survey array is empty.
+    if (
+      (well.anchorTvd_ft == null || !finite(well.anchorTvd_ft)) &&
+      !onSurveyStation(well, well.anchorMd_ft)
+    ) {
+      const tvd = resolvedAnchorTvd(well);
+      const shown = tvd == null ? "unknown" : String(Math.round(tvd * 100) / 100);
       issues.push(
-        issue("warn", "TVD_INTERPOLATED", `Shoe TVD interpolated (${how}).`, "well.shoeTvd_ft"),
-      );
-    }
-    if (!onSurveyStation(well, well.anchorMd_ft)) {
-      issues.push(
-        issue("warn", "TVD_INTERPOLATED", `Anchor TVD interpolated (${how}).`, "well.anchorTvd_ft"),
+        issue(
+          "warn",
+          "TVD_INTERPOLATED",
+          `Anchor TVD interpolated (${how}): ${shown} ft.`,
+          "well.anchorMd_ft",
+        ),
       );
     }
   }
@@ -77,105 +191,19 @@ export function validate(job: Job): Issue[] {
   const column = job.column ?? [];
   const fluidIds = new Set(fluids.map((fluid) => fluid.id));
 
-  column.forEach((segment, index) => {
-    if (!fluidIds.has(segment.fluidId)) {
-      issues.push(
-        issue(
-          "error",
-          "UNKNOWN_FLUID",
-          `Column fluid "${segment.fluidId}" is not in fluids.`,
-          `column[${index}].fluidId`,
-        ),
-      );
-    }
-    if (
-      !finite(segment.topMd_ft) ||
-      !finite(segment.bottomMd_ft) ||
-      segment.bottomMd_ft <= segment.topMd_ft + 1e-6
-    ) {
-      issues.push(
-        issue(
-          "error",
-          "COLUMN_ORDER",
-          "Column segment bottom must be deeper than its top.",
-          `column[${index}].bottomMd_ft`,
-        ),
-      );
-    }
-  });
-
-  const indexed = column
-    .map((segment, index) => ({ segment, index }))
-    .filter(
-      ({ segment }) =>
-        finite(segment.topMd_ft) &&
-        finite(segment.bottomMd_ft) &&
-        segment.bottomMd_ft > segment.topMd_ft,
-    )
-    .sort((a, b) => a.segment.topMd_ft - b.segment.topMd_ft || a.index - b.index);
-
-  const td = well?.mdTd_ft;
-  if (!indexed.length) {
-    issues.push(issue("error", "COLUMN_GAP", "Fluid column is empty.", "column"));
-  } else {
-    if (indexed[0].segment.topMd_ft > COLUMN_EPS) {
-      issues.push(
-        issue(
-          "error",
-          "COLUMN_GAP",
-          "Fluid column does not start at surface.",
-          `column[${indexed[0].index}].topMd_ft`,
-        ),
-      );
-    }
-    for (let i = 1; i < indexed.length; i++) {
-      const prev = indexed[i - 1];
-      const cur = indexed[i];
-      const gap = cur.segment.topMd_ft - prev.segment.bottomMd_ft;
-      if (gap > COLUMN_EPS) {
-        issues.push(
-          issue(
-            "error",
-            "COLUMN_GAP",
-            `Gap in the fluid column between ${prev.segment.bottomMd_ft} and ${cur.segment.topMd_ft} ft.`,
-            `column[${cur.index}].topMd_ft`,
-          ),
-        );
-      } else if (gap < -COLUMN_EPS) {
-        issues.push(
-          issue(
-            "error",
-            "COLUMN_OVERLAP",
-            `Fluid column overlaps at ${cur.segment.topMd_ft} ft.`,
-            `column[${cur.index}].topMd_ft`,
-          ),
-        );
-      }
-    }
-    const last = indexed[indexed.length - 1];
-    if (finite(td) && last.segment.bottomMd_ft < td - COLUMN_EPS) {
-      issues.push(
-        issue(
-          "error",
-          "COLUMN_GAP",
-          "Fluid column does not reach TD.",
-          `column[${last.index}].bottomMd_ft`,
-        ),
-      );
-    } else if (finite(td) && last.segment.bottomMd_ft > td + COLUMN_EPS) {
-      issues.push(
-        issue(
-          "error",
-          "COLUMN_OVERLAP",
-          "Fluid column extends past TD.",
-          `column[${last.index}].bottomMd_ft`,
-        ),
-      );
-    }
-  }
+  checkStackedColumn(issues, column, "column", "Fluid column", well?.mdTd_ft, "TD", fluidIds);
+  checkStackedColumn(
+    issues,
+    job.pipeColumn,
+    "pipeColumn",
+    "Pipe column",
+    well?.bitMd_ft,
+    "the bit",
+    fluidIds,
+  );
 
   if (rheologyNeeded(job)) {
-    const used = new Set(column.map((segment) => segment.fluidId));
+    const used = new Set([...column, ...(job.pipeColumn ?? [])].map((segment) => segment.fluidId));
     fluids.forEach((fluid, index) => {
       if (!used.has(fluid.id)) return;
       if (!fluid.fann) {

@@ -1,10 +1,17 @@
 import { esdAtMd, pillPlacement } from "./column";
 import { buildDisplacement } from "./displacement";
+import { staticColumnJob } from "./equalize";
 import { inputHash } from "./hash";
 import { ecdPpg, emwFromParts, frictionPsi } from "./hydraulics";
-import { fannBlocked, hasStructureError, issue } from "./issues";
+import { fannBlocked, hasStructureError, issue, type Issue } from "./issues";
 import type { Job } from "./job.schema";
-import { CALC_VERSION, type DepthKey, type DepthResult, type Result } from "./result";
+import {
+  CALC_VERSION,
+  type DepthKey,
+  type DepthResult,
+  type DisplacementStage,
+  type Result,
+} from "./result";
 import { buildTripSchedule } from "./trip-schedule";
 import { resolvedAnchorTvd, tvdAt } from "./tvd";
 import { validate } from "./validate";
@@ -51,26 +58,77 @@ function blankResult(job: Job, issues: Result["issues"]): Result {
   };
 }
 
+function flagShoeAtFit(
+  job: Job,
+  depths: Result["depths"],
+  stages: DisplacementStage[],
+  issues: Issue[],
+) {
+  const fit = job.well.fit_ppg;
+  if (!Number.isFinite(fit)) return;
+  const over = (value: number | null | undefined) => value != null && value >= fit - 1e-9;
+  const shoe = depths.shoe;
+  if (over(shoe.esd_ppg)) {
+    issues.push(
+      issue(
+        "error",
+        "SHOE_ESD_AT_FIT",
+        `Shoe ESD ${shoe.esd_ppg!.toFixed(4)} ppg is at or above FIT ${fit} ppg. Not issuable on SDS-FRM-087.`,
+        "depths.shoe.esd_ppg",
+      ),
+    );
+  }
+  if (over(shoe.ecd_ppg)) {
+    issues.push(
+      issue(
+        "error",
+        "SHOE_ESD_AT_FIT",
+        `Shoe ECD ${shoe.ecd_ppg!.toFixed(4)} ppg is at or above FIT ${fit} ppg. Not issuable on SDS-FRM-087.`,
+        "depths.shoe.ecd_ppg",
+      ),
+    );
+  }
+  stages.forEach((stage, index) => {
+    if (!over(stage.shoeEsd_ppg)) return;
+    issues.push(
+      issue(
+        "error",
+        "SHOE_ESD_AT_FIT",
+        `Stage ${stage.n} shoe ESD ${stage.shoeEsd_ppg!.toFixed(4)} ppg is at or above FIT ${fit} ppg.`,
+        `displacement.stages[${index}].shoeEsd_ppg`,
+      ),
+    );
+  });
+  for (const point of shoe.surge) {
+    if (!over(point.emw_ppg)) continue;
+    issues.push(
+      issue(
+        "error",
+        "SHOE_ESD_AT_FIT",
+        `Shoe surge ${point.emw_ppg.toFixed(4)} ppg at ${point.speed_ftmin} ft/min is at or above FIT ${fit} ppg.`,
+        "depths.shoe.surge",
+      ),
+    );
+  }
+}
+
 /**
- * Step-1 PillView core.
+ * PillView calculation core.
  *
- * Validates first. Hydrostatic ESD comes from the single fluid column.
- * ECD and swab/surge adapt API RP 13D (`segmentDp`, Eq 98, Eq 100/101) with
- * each column slice at its own density and Fann readings. Friction stops at
- * the bit, which is separate from TD.
+ * Validates first. Hydrostatic ESD comes from the annulus column. withDP
+ * replaces that column with the float U-tube balance when `pipeColumn` holds
+ * pill. ECD and swab/surge adapt API RP 13D. Friction stops at the bit.
  *
  * Shoe ESD (1.0.7.1): only pill fluid standing above the shoe counts. A pill
- * whose top is below the shoe leaves shoe ESD at mud weight, in both modes.
- * withDP does not add float-equalize psi — job v1 has no pipe-side column
- * (TODO EQUALIZE_PENDING). Missing inputs stay null or empty, never 0.
- *
- * TODO(MPGenie): full single-column migration (pipe inventory, equalize dump,
- * circulated stage volume, pill movement along the trip schedule).
+ * that never reaches the shoe adds nothing, and shoe ESD does not fall below
+ * mud weight. Pore is the entered value only — no depth gradient.
+ * Missing inputs stay null or empty, never 0.
  */
 export function calculate(job: Job): Result {
   const issues = validate(job);
   if (hasStructureError(issues)) return blankResult(job, issues);
 
+  const hydro = staticColumnJob(job);
   const depths = emptyDepths(job);
   const points: { key: DepthKey; md: number }[] = [
     { key: "shoe", md: job.well.shoeMd_ft },
@@ -78,7 +136,7 @@ export function calculate(job: Job): Result {
     { key: "td", md: job.well.mdTd_ft },
   ];
   for (const point of points) {
-    depths[point.key].esd_ppg = esdAtMd(job, point.md);
+    depths[point.key].esd_ppg = esdAtMd(hydro, point.md);
   }
 
   const blocked = fannBlocked(issues);
@@ -92,7 +150,7 @@ export function calculate(job: Job): Result {
     const depth = depths[point.key];
     const tvd = depth.tvd_ft;
     if (!blocked && job.trip.flow_gpm > 0) {
-      const friction = frictionPsi(job, point.md, bit, { kind: "flow" });
+      const friction = frictionPsi(hydro, point.md, bit, { kind: "flow" });
       if (friction == null) geometryMiss = true;
       else depth.ecd_ppg = ecdPpg(depth.esd_ppg, friction, tvd, job.trip.sbpCirc_psi);
     } else if (!(job.trip.flow_gpm > 0)) {
@@ -101,7 +159,7 @@ export function calculate(job: Job): Result {
 
     if (blocked) continue;
     for (const speed of speeds) {
-      const pair = emwFromParts(job, point.md, bit, speed, job.trip.sbpConn_psi);
+      const pair = emwFromParts(hydro, point.md, bit, speed, job.trip.sbpConn_psi);
       if (!pair) {
         geometryMiss = true;
         continue;
@@ -125,12 +183,13 @@ export function calculate(job: Job): Result {
   const place = pillPlacement(job);
   const displacement = buildDisplacement(job, issues);
   const tripSchedule = buildTripSchedule(
-    job,
+    hydro,
     place?.pill?.topMd ?? null,
     place?.pill?.bottomMd ?? null,
     displacement.stages,
     issues,
   );
+  flagShoeAtFit(job, depths, displacement.stages, issues);
 
   return {
     calcVersion: CALC_VERSION,

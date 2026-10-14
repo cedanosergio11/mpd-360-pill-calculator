@@ -1,5 +1,6 @@
 import { columnWithRaisedPill, esdAtMd, pillPlacement, type Span } from "./column";
-import { intervalVolume } from "./geometry";
+import { balanceFloat, pipePillBbl } from "./equalize";
+import { intervalVolume, uniqueSorted } from "./geometry";
 import { issue, type Issue } from "./issues";
 import type { Job } from "./job.schema";
 import type { Displacement, DisplacementStage } from "./result";
@@ -73,80 +74,70 @@ function stageFromColumn(job: Job, columnJob: Job, n: number, bitMd: number): Di
   };
 }
 
-function staticStage(job: Job, pill: Span): DisplacementStage[] {
-  return [stageFromColumn(job, job, 1, pill.bottomMd)];
+/** Surface, the bit at the pill top, and the bit at the pill base. */
+function stageBits(pill: Span, bitMd: number): number[] {
+  const end = Math.min(Math.max(bitMd, 0), pill.bottomMd);
+  const top = Math.min(Math.max(pill.topMd, 0), end);
+  return uniqueSorted([0, top, end], 0.5);
 }
 
 /**
- * Closed-end RIH from the pill top toward the pill base. Shoe ESD at each
- * stop is the fluid column with the pill raised around the pipe — KMW counts
- * only where it stands above the shoe, so a pill that stays below the shoe
- * leaves shoe ESD at mud weight.
+ * RIH shoe ESD.
+ * Dry pipe (noDP, or withDP with no pill in the string): closed pipe displaces
+ * the pipe-out pill upward. withDP with pill in `pipeColumn`: the spot stage
+ * is the float balance, not that dry-pipe displacement.
  */
-function stagesRaised(job: Job, pill: Span, volume: number, issues: Issue[]): DisplacementStage[] {
-  const base = pill.bottomMd;
-  const fit = job.well.fit_ppg;
-  let cursor = pill.topMd;
+function stagesFor(
+  job: Job,
+  pill: Span,
+  volume: number,
+  canShift: boolean,
+  issues: Issue[],
+): DisplacementStage[] {
+  const bits = stageBits(pill, job.well.bitMd_ft);
+  const utube = job.mode === "withDP" && pipePillBbl(job, pill.fluidId) > 0.05;
+  const balance = utube ? balanceFloat(job) : null;
+  if (utube && !balance) {
+    issues.push(
+      issue(
+        "error",
+        "EQUALIZE_PENDING",
+        "withDP float U-tube could not be balanced from pipeColumn. Shoe ESD does not include pipe-side pill weight.",
+        "pipeColumn",
+      ),
+    );
+  }
   const stages: DisplacementStage[] = [];
-
-  const columnAt = (bit: number): Job | null => {
-    const top = raisedPillTop(job, pill, bit, volume);
-    if (top == null) return null;
-    return columnWithRaisedPill(job, pill, top);
-  };
-  const shoeAt = (bit: number): number | null => {
-    const column = columnAt(bit);
-    return column ? esdAtMd(column, job.well.shoeMd_ft) : null;
-  };
-
-  for (let n = 1; n <= 8; n++) {
-    const atBase = shoeAt(base);
-    if (atBase == null) {
-      issues.push(
-        issue(
-          "error",
-          "GEOMETRY",
-          "Could not place the pill around the pipe for shoe ESD.",
-          "well.stringOd_in",
-        ),
-      );
-      break;
-    }
-    let stop = base;
-    if (atBase >= fit && cursor < base - 0.5) {
-      let lo = cursor;
-      let hi = base;
-      for (let i = 0; i < 24; i++) {
-        const mid = (lo + hi) / 2;
-        const esd = shoeAt(mid);
-        if (esd == null || esd >= fit) hi = mid;
-        else lo = mid;
+  for (const bit of bits) {
+    let columnJob: Job | null = null;
+    if (utube) {
+      columnJob = balance && bit >= pill.bottomMd - 0.5 ? balance.columnJob : job;
+    } else if (!canShift) {
+      columnJob = job;
+    } else {
+      const top = raisedPillTop(job, pill, bit, volume);
+      if (top == null) {
+        issues.push(
+          issue(
+            "error",
+            "GEOMETRY",
+            "Could not place the pill around the pipe for shoe ESD.",
+            "well.stringOd_in",
+          ),
+        );
+        break;
       }
-      stop = hi;
+      columnJob = columnWithRaisedPill(job, pill, top);
     }
-    const column = columnAt(stop);
-    if (!column) break;
-    stages.push(stageFromColumn(job, column, n, stop));
-    if (atBase < fit || stop >= base - 0.5 || stop <= cursor + 1) break;
-    cursor = stop;
+    stages.push(stageFromColumn(job, columnJob, stages.length + 1, bit));
   }
   return stages;
 }
 
-function pillReachesShoe(job: Job, pill: Span, volume: number, canShift: boolean): boolean {
-  if (pill.topMd < job.well.shoeMd_ft - 0.05) return true;
-  if (!canShift) return false;
-  const top = raisedPillTop(job, pill, pill.bottomMd, volume);
-  return top != null && top < job.well.shoeMd_ft - 0.05;
-}
-
 /**
- * Displacement from the single fluid column.
- *
- * TODO(MPGenie): the full single-column model (pipe-side inventory, float
- * U-tube equalize psi, and circulated barrels per stage) is not in job v1.
- * `pumped_bbl` stays null. withDP shoe ESD uses the raised fluid column only;
- * no equalize psi is added when the pill never reaches the shoe.
+ * Displacement from the annulus column.
+ * `pumped_bbl` and slug movement are release blockers: the barrels stay null
+ * and a slug column is not shifted.
  */
 export function buildDisplacement(job: Job, issues: Issue[]): Displacement {
   const place = pillPlacement(job);
@@ -190,43 +181,37 @@ export function buildDisplacement(job: Job, issues: Issue[]): Displacement {
   }
 
   const canShift = !place.multiFluidPill && !place.slug && !place.extraRuns;
-  if (job.mode === "withDP" && !canShift) {
+  if (!canShift) {
     issues.push(
       issue(
-        "warn",
-        "COLUMN_SHIFT_PENDING",
-        "TODO(MPGenie): shifting a multi-fluid or slug column while running in is not implemented. Stages use the column as given.",
+        "error",
+        "RELEASE_BLOCKER",
+        "Release blocker: slug column shift is not implemented. A slug or multi-fluid column is not moved when the pipe is run in.",
         "column",
       ),
     );
   }
 
-  // noDP: pipe-out column, pill does not climb. withDP: closed-end steel raises the pill.
-  const stages =
-    job.mode === "withDP" && canShift
-      ? stagesRaised(job, pill, volume, issues)
-      : staticStage(job, pill);
+  const stages = stagesFor(job, pill, volume, canShift, issues);
   displacement.stages = stages;
   displacement.minStagesRih = stages.length > 0 ? stages.length : null;
   if (stages.length > 0) {
     issues.push(
       issue(
-        "warn",
-        "STAGE_VOLUME_PENDING",
-        "TODO(MPGenie): circulated volume per RIH stage is not in the v1 single-column model. pumped_bbl is null.",
+        "error",
+        "RELEASE_BLOCKER",
+        "Release blocker: pumped_bbl is not implemented. Circulated volume per RIH stage stays null.",
+        "displacement.stages",
       ),
     );
   }
 
-  if (job.mode === "withDP" && pillReachesShoe(job, pill, volume, canShift)) {
-    issues.push(
-      issue(
-        "warn",
-        "EQUALIZE_PENDING",
-        "TODO(MPGenie): withDP float equalize psi needs a pipe-side column, which job v1 does not carry. Shoe ESD includes only pill fluid standing above the shoe. No equalized pill pressure is added when the pill never reaches the shoe.",
-        "mode",
-      ),
-    );
+  if (job.mode === "withDP" && pipePillBbl(job, pill.fluidId) > 0.05) {
+    const balance = balanceFloat(job);
+    if (balance) {
+      displacement.pillTopMd_ft = balance.pillTopMd_ft;
+      displacement.pillTopTvd_ft = balance.pillTopTvd_ft;
+    }
   }
   return displacement;
 }

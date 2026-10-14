@@ -49,6 +49,7 @@ export function exampleJob(): Job {
       { fluidId: "pill", topMd_ft: 7000, bottomMd_ft: 9000 },
       { fluidId: "mud", topMd_ft: 9000, bottomMd_ft: 10000 },
     ],
+    pipeColumn: [{ fluidId: "mud", topMd_ft: 0, bottomMd_ft: 10000 }],
     trip: {
       speeds_ftmin: [40, 80],
       pipeEnd: "closed",

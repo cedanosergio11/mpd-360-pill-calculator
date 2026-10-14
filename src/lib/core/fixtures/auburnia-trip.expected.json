@@ -1,0 +1,1759 @@
+{
+  "rows": [
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 18359,
+      "toBitMd_ft": 17885.3,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.04735223227646,
+          "swab_ppg": 15.891395681285129
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 17885.3,
+      "toBitMd_ft": 17411.7,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.06414246693707,
+          "swab_ppg": 15.918427822470893
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 17411.7,
+      "toBitMd_ft": 16938.0,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.08157393196595,
+          "swab_ppg": 15.94649233933204
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 16938.0,
+      "toBitMd_ft": 16464.3,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.09968407598652,
+          "swab_ppg": 15.97564952384758
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 16464.3,
+      "toBitMd_ft": 15990.7,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.118513321575794,
+          "swab_ppg": 16.00596445603759
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 15990.7,
+      "toBitMd_ft": 15517.0,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.13810536646201,
+          "swab_ppg": 16.037507488888966
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 15517.0,
+      "toBitMd_ft": 15043.3,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.158507522084875,
+          "swab_ppg": 16.07035479343469
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 15043.3,
+      "toBitMd_ft": 14569.7,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.17977109503981,
+          "swab_ppg": 16.104588972875913
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 14569.7,
+      "toBitMd_ft": 14096.0,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.201951817880015,
+          "swab_ppg": 16.14029975616981
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 14096.0,
+      "toBitMd_ft": 13622.3,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.225110336891888,
+          "swab_ppg": 16.177584783344017
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 13622.3,
+      "toBitMd_ft": 13148.7,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.2493127658324,
+          "swab_ppg": 16.216550497009305
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 13148.7,
+      "toBitMd_ft": 12675.0,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.274631316275062,
+          "swab_ppg": 16.25731315721146
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 12675.0,
+      "toBitMd_ft": 12178.0,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 12178.0,
+      "toBitMd_ft": 11681.0,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 398.9582850592312,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.497706725665886,
+          "swab_ppg": 16.25579448575453
+        },
+        "anchor": {
+          "surge_ppg": 17.5415046701032,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.598425034885885,
+          "swab_ppg": 16.3253938194026
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 11681.0,
+      "toBitMd_ft": 11233.0,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 381.8839296074914,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.466213057005177,
+          "swab_ppg": 16.224300817093823
+        },
+        "anchor": {
+          "surge_ppg": 17.486374886782762,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.60030892522136,
+          "swab_ppg": 16.352110934463873
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 11233.0,
+      "toBitMd_ft": 10785.0,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 366.49296131296535,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.43782439793074,
+          "swab_ppg": 16.195912158019382
+        },
+        "anchor": {
+          "surge_ppg": 17.436680434212224,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.508804242443993,
+          "swab_ppg": 16.263619643185578
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 10785.0,
+      "toBitMd_ft": 10312.7,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 351.1019930184394,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.4094357388563,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.38698598164169,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.4094357388563,
+          "swab_ppg": 16.16752349894494
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 10312.7,
+      "toBitMd_ft": 9840.3,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 336.3581593752751,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.3550457019546,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.339381001391764,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.302605329586306,
+          "swab_ppg": 16.060693089674952
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 9840.3,
+      "toBitMd_ft": 9368.0,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 321.61432573211084,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.300655665052904,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.291776021141843,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.185519258927094,
+          "swab_ppg": 15.94360701901574
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 9368.0,
+      "toBitMd_ft": 8895.7,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 306.8704920889466,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.246265628151207,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.244171040891917,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.056626259565626,
+          "swab_ppg": 15.814714019654271
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 8895.7,
+      "toBitMd_ft": 8423.3,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 292.12665844578225,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.191875591249513,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.196566060641995,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 16.91404559354285,
+          "swab_ppg": 15.672133353631493
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 8423.3,
+      "toBitMd_ft": 7951.0,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 277.382824802618,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.137485554347816,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.14896108039207,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 16.75547467791546,
+          "swab_ppg": 15.513562438004104
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 7951.0,
+      "toBitMd_ft": 7454.1,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 262.6389911594537,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.083095517446118,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.101356100142148,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 16.57806378514104,
+          "swab_ppg": 15.336151545229685
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 7454.1,
+      "toBitMd_ft": 6957.1,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 247.1271411290022,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.025872266289795,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.051271343883265,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 16.58047388815635,
+          "swab_ppg": 15.338561648244998
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 6957.1,
+      "toBitMd_ft": 6460.2,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 360.23468122621983,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.443126247081963,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.41647366118843,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.31876731764615,
+          "swab_ppg": 15.341316051691066
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 6460.2,
+      "toBitMd_ft": 5963.2,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 335.5357319009348,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.352011765072177,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.336725542532115,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.321945475468542,
+          "swab_ppg": 15.34449420951346
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 5963.2,
+      "toBitMd_ft": 5466.3,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 310.83678257564975,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.260897283062388,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.256977423875796,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.325653326261328,
+          "swab_ppg": 15.348202060306246
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 5466.3,
+      "toBitMd_ft": 4969.4,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 286.1378332503647,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.1697828010526,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.17722930521948,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.330035331743716,
+          "swab_ppg": 15.352584065788633
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 4969.4,
+      "toBitMd_ft": 4472.4,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 261.43888392507967,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.078668319042816,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.097481186563165,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.335293738322576,
+          "swab_ppg": 15.357842472367494
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 4472.4,
+      "toBitMd_ft": 3975.5,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 236.7399345997946,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.987553837033026,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.01773306790685,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.341720679696746,
+          "swab_ppg": 15.364269413741662
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 3975.5,
+      "toBitMd_ft": 3478.6,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 212.04098527450952,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.89643935502324,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.93798494925053,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.34975435641445,
+          "swab_ppg": 15.372303090459368
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 3478.6,
+      "toBitMd_ft": 2981.6,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 187.34203594922445,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.805324873013454,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.858236830594215,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.360083369337218,
+          "swab_ppg": 15.382632103382134
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 2981.6,
+      "toBitMd_ft": 2484.7,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 162.64308662393938,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.714210391003665,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.7784887119379,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.373855386567577,
+          "swab_ppg": 15.396404120612491
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 2484.7,
+      "toBitMd_ft": 1987.8,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 137.94413729865437,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.62309590899388,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.69874059328158,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.393136210690074,
+          "swab_ppg": 15.415684944734988
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 1987.8,
+      "toBitMd_ft": 1490.8,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 113.2451879733693,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.531981426984093,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.618992474625266,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.422057446873822,
+          "swab_ppg": 15.444606180918736
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 1490.8,
+      "toBitMd_ft": 993.9,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 88.54623864808423,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.440866944974303,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.53924435596895,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.470259507180067,
+          "swab_ppg": 15.492808241224981
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 993.9,
+      "toBitMd_ft": 496.9,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 63.84728932279918,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.349752462964517,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.459496237312635,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.566663627792558,
+          "swab_ppg": 15.589212361837474
+        }
+      }
+    },
+    {
+      "direction": "POOH",
+      "fromBitMd_ft": 496.9,
+      "toBitMd_ft": 0.0,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 39.148339997514114,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.25863798095473,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.379748118656316,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.85587598963003,
+          "swab_ppg": 15.878424723674945
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 0.0,
+      "toBitMd_ft": 496.9,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 39.148339997514114,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.25863798095473,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.379748118656316,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.85587598963003,
+          "swab_ppg": 15.878424723674945
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 496.9,
+      "toBitMd_ft": 993.9,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 63.84728932279918,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.349752462964517,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.459496237312635,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.566663627792558,
+          "swab_ppg": 15.589212361837474
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 993.9,
+      "toBitMd_ft": 1490.8,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 88.54623864808423,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.440866944974303,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.53924435596895,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.470259507180067,
+          "swab_ppg": 15.492808241224981
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 1490.8,
+      "toBitMd_ft": 1987.8,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 113.2451879733693,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.531981426984093,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.618992474625266,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.422057446873822,
+          "swab_ppg": 15.444606180918736
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 1987.8,
+      "toBitMd_ft": 2484.7,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 137.94413729865437,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.62309590899388,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.69874059328158,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.393136210690074,
+          "swab_ppg": 15.415684944734988
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 2484.7,
+      "toBitMd_ft": 2981.6,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 162.64308662393938,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.714210391003665,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.7784887119379,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.373855386567577,
+          "swab_ppg": 15.396404120612491
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 2981.6,
+      "toBitMd_ft": 3478.6,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 187.34203594922445,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.805324873013454,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.858236830594215,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.360083369337218,
+          "swab_ppg": 15.382632103382134
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 3478.6,
+      "toBitMd_ft": 3975.5,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 212.04098527450952,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.89643935502324,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 16.93798494925053,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.34975435641445,
+          "swab_ppg": 15.372303090459368
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 3975.5,
+      "toBitMd_ft": 4472.4,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 236.7399345997946,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 16.987553837033026,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.01773306790685,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.341720679696746,
+          "swab_ppg": 15.364269413741662
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 4472.4,
+      "toBitMd_ft": 4969.4,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 261.43888392507967,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.078668319042816,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.097481186563165,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.335293738322576,
+          "swab_ppg": 15.357842472367494
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 4969.4,
+      "toBitMd_ft": 5466.3,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 286.1378332503647,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.1697828010526,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.17722930521948,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.330035331743716,
+          "swab_ppg": 15.352584065788633
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 5466.3,
+      "toBitMd_ft": 5963.2,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 310.83678257564975,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.260897283062388,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.256977423875796,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.325653326261328,
+          "swab_ppg": 15.348202060306246
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 5963.2,
+      "toBitMd_ft": 6460.2,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 335.5357319009348,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.352011765072177,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.336725542532115,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.321945475468542,
+          "swab_ppg": 15.34449420951346
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 6460.2,
+      "toBitMd_ft": 6957.1,
+      "maxSpeed_ftmin": 200,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 360.23468122621983,
+      "limitedBy": "none",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.443126247081963,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.41647366118843,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.31876731764615,
+          "swab_ppg": 15.341316051691066
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 6957.1,
+      "toBitMd_ft": 7454.1,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 247.1271411290022,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.025872266289795,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.051271343883265,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 16.58047388815635,
+          "swab_ppg": 15.338561648244998
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 7454.1,
+      "toBitMd_ft": 7951.0,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 262.6389911594537,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.083095517446118,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.101356100142148,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 16.57806378514104,
+          "swab_ppg": 15.336151545229685
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 7951.0,
+      "toBitMd_ft": 8423.3,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 277.382824802618,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.137485554347816,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.14896108039207,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 16.75547467791546,
+          "swab_ppg": 15.513562438004104
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 8423.3,
+      "toBitMd_ft": 8895.7,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 292.12665844578225,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.191875591249513,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.196566060641995,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 16.91404559354285,
+          "swab_ppg": 15.672133353631493
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 8895.7,
+      "toBitMd_ft": 9368.0,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 306.8704920889466,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.246265628151207,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.244171040891917,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.056626259565626,
+          "swab_ppg": 15.814714019654271
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 9368.0,
+      "toBitMd_ft": 9840.3,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 321.61432573211084,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.300655665052904,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.291776021141843,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.185519258927094,
+          "swab_ppg": 15.94360701901574
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 9840.3,
+      "toBitMd_ft": 10312.7,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 336.3581593752751,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.3550457019546,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.339381001391764,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.302605329586306,
+          "swab_ppg": 16.060693089674952
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 10312.7,
+      "toBitMd_ft": 10785.0,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 351.1019930184394,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.4094357388563,
+          "swab_ppg": 16.16752349894494
+        },
+        "anchor": {
+          "surge_ppg": 17.38698598164169,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.4094357388563,
+          "swab_ppg": 16.16752349894494
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 10785.0,
+      "toBitMd_ft": 11233.0,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 366.49296131296535,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.43782439793074,
+          "swab_ppg": 16.195912158019382
+        },
+        "anchor": {
+          "surge_ppg": 17.436680434212224,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.508804242443993,
+          "swab_ppg": 16.263619643185578
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 11233.0,
+      "toBitMd_ft": 11681.0,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 381.8839296074914,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.466213057005177,
+          "swab_ppg": 16.224300817093823
+        },
+        "anchor": {
+          "surge_ppg": 17.486374886782762,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.60030892522136,
+          "swab_ppg": 16.352110934463873
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 11681.0,
+      "toBitMd_ft": 12178.0,
+      "maxSpeed_ftmin": 80,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 398.9582850592312,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.497706725665886,
+          "swab_ppg": 16.25579448575453
+        },
+        "anchor": {
+          "surge_ppg": 17.5415046701032,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.598425034885885,
+          "swab_ppg": 16.3253938194026
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 12178.0,
+      "toBitMd_ft": 12675.0,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 12675.0,
+      "toBitMd_ft": 13148.7,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.274631316275062,
+          "swab_ppg": 16.25731315721146
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 13148.7,
+      "toBitMd_ft": 13622.3,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.2493127658324,
+          "swab_ppg": 16.216550497009305
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 13622.3,
+      "toBitMd_ft": 14096.0,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.225110336891888,
+          "swab_ppg": 16.177584783344017
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 14096.0,
+      "toBitMd_ft": 14569.7,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.201951817880015,
+          "swab_ppg": 16.14029975616981
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 14569.7,
+      "toBitMd_ft": 15043.3,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.17977109503981,
+          "swab_ppg": 16.104588972875913
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 15043.3,
+      "toBitMd_ft": 15517.0,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.158507522084875,
+          "swab_ppg": 16.07035479343469
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 15517.0,
+      "toBitMd_ft": 15990.7,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.13810536646201,
+          "swab_ppg": 16.037507488888966
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 15990.7,
+      "toBitMd_ft": 16464.3,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.118513321575794,
+          "swab_ppg": 16.00596445603759
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 16464.3,
+      "toBitMd_ft": 16938.0,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.09968407598652,
+          "swab_ppg": 15.97564952384758
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 16938.0,
+      "toBitMd_ft": 17411.7,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.08157393196595,
+          "swab_ppg": 15.94649233933204
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 17411.7,
+      "toBitMd_ft": 17885.3,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.06414246693707,
+          "swab_ppg": 15.918427822470893
+        }
+      }
+    },
+    {
+      "direction": "RIH",
+      "fromBitMd_ft": 17885.3,
+      "toBitMd_ft": 18359,
+      "maxSpeed_ftmin": 40,
+      "sbpStatic_psi": 14.449390672229057,
+      "sbpRequired_psi": 324.5160162459222,
+      "limitedBy": "targetEmw",
+      "emwAt": {
+        "shoe": {
+          "surge_ppg": 17.219763095528993,
+          "swab_ppg": 16.25912041158227
+        },
+        "anchor": {
+          "surge_ppg": 17.30114501722146,
+          "swab_ppg": 16.3
+        },
+        "bit": {
+          "surge_ppg": 17.04735223227646,
+          "swab_ppg": 15.891395681285129
+        }
+      }
+    }
+  ],
+  "tvdTd": 15285.802816901409,
+  "esd": {
+    "shoe": 16.140871580899397,
+    "anchor": 16.27667285950782,
+    "td": 16.061106710705005
+  },
+  "sbpStatic": 14.449390672229057
+}

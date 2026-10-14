@@ -26,6 +26,7 @@ export interface DepthResult {
   ecd_ppg: number | null;
   /** Present at the shoe only. Null at anchor and TD. */
   fit_ppg: number | null;
+  /** Entered pore, copied to each depth. Not a gradient. */
   pore_ppg: number | null;
   targetEmw_ppg: number;
   surge: SpeedEmw[];
@@ -36,7 +37,7 @@ export interface DisplacementStage {
   /** 1-based. `tripSchedule[].stage` points at this value. */
   n: number;
   bitMd_ft: number;
-  /** TODO(MPGenie): circulated volume per stage. Null until that model exists — never a placeholder 0. */
+  /** Release blocker. Null until circulated volume per stage exists — never a placeholder 0. */
   pumped_bbl: number | null;
   sbp_psi: number | null;
   shoeEsd_ppg: number | null;

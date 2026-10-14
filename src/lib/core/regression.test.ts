@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   ecd,
@@ -8,11 +9,13 @@ import {
   vel,
   type Rheology,
 } from "@/lib/calc/rp13d";
-import { calculate as calculateLegacy } from "@/lib/calc/engine";
-import { AUBURNIA } from "@/lib/calc/examples";
 import { calculate } from "./calculate";
-import { EXAMPLE_FANN, exampleJob } from "./example-job";
+import { exampleJob } from "./example-job";
+import { balanceFloat } from "./equalize";
+import { auburniaJob } from "./fixtures/auburnia";
+import { lockSubDryJob, lockSubSpotJob } from "./fixtures/lock-sub";
 import type { FannReading, Job, PillMode } from "./job.schema";
+import type { TripScheduleRow } from "./result";
 
 const rh = (r600: number, r300: number, r6: number, r3: number): Rheology => ({
   r600,
@@ -106,6 +109,7 @@ describe("API RP 13D Annex C — wired through the core hydraulics", () => {
         topMd_ft: section[0],
         bottomMd_ft: section[1],
       })),
+      pipeColumn: [{ fluidId: "f0", topMd_ft: 0, bottomMd_ft: 21490 }],
       trip: {
         speeds_ftmin: [40],
         pipeEnd: "closed",
@@ -159,63 +163,9 @@ describe("API RP 13D Annex D — effective velocity used by the core trip model"
   });
 });
 
-/**
- * Lock Sub 1H geometry already in shoe-esd.test.ts.
- * Pill top 8060 MD is below the 3199 MD shoe, so both modes stay at mud weight.
- * Fann on the fluids is synthetic EXAMPLE rheology, not a field reading.
- * TD TVD is scaled from the repo anchor tie — the sheet has no TD TVD.
- */
-function lockSubJob(mode: PillMode): Job {
-  return {
-    schemaVersion: 1,
-    name: "Lock Sub 1H",
-    savedAt: "2026-10-05T00:00:00.000Z",
-    mode,
-    well: {
-      mdTd_ft: 10530,
-      tvdTd_ft: 10516,
-      bitMd_ft: 10480,
-      shoeMd_ft: 3199,
-      shoeTvd_ft: 3187,
-      anchorMd_ft: 10480,
-      anchorTvd_ft: 10466,
-      fit_ppg: 12.6,
-      targetEmw_ppg: 12,
-      casing: [{ topMd_ft: 0, bottomMd_ft: 3199, id_in: 12.515 }],
-      openHoleId_in: 12.25,
-      stringOd_in: 5.5,
-      stringId_in: 4.778,
-      survey: [
-        { md_ft: 3199, tvd_ft: 3187 },
-        { md_ft: 8060, tvd_ft: 8046 },
-        { md_ft: 10480, tvd_ft: 10466 },
-        { md_ft: 10530, tvd_ft: 10516 },
-      ],
-    },
-    fluids: [
-      { id: "mud", label: "mud", density_ppg: 11.4, fann: { ...EXAMPLE_FANN } },
-      { id: "pill", label: "pill", density_ppg: 14, fann: { ...EXAMPLE_FANN } },
-    ],
-    column: [
-      { fluidId: "mud", topMd_ft: 0, bottomMd_ft: 8060 },
-      { fluidId: "pill", topMd_ft: 8060, bottomMd_ft: 10480 },
-      { fluidId: "mud", topMd_ft: 10480, bottomMd_ft: 10530 },
-    ],
-    trip: {
-      speeds_ftmin: [40, 80, 100, 150, 200, 250, 300],
-      pipeEnd: "closed",
-      clinging: 0.45,
-      eccentricity: 0,
-      sbpConn_psi: 325,
-      sbpCirc_psi: 0,
-      flow_gpm: 300,
-    },
-  };
-}
-
-describe("Lock Sub 1H shoe ESD — pill top below the shoe, both modes", () => {
-  const noDp = calculate(lockSubJob("noDP"));
-  const withDp = calculate(lockSubJob("withDP"));
+describe("Lock Sub 1H shoe ESD — real shoe, pill never reaches it", () => {
+  const noDp = calculate(lockSubDryJob("noDP"));
+  const withDp = calculate(lockSubDryJob("withDP"));
 
   it("shoe ESD equals mud weight and never drops below it", () => {
     for (const result of [noDp, withDp]) {
@@ -278,6 +228,7 @@ describe("EXAMPLE column — pill stands above the shoe", () => {
       { fluidId: "pill", topMd_ft: 7000, bottomMd_ft: 11000 },
       { fluidId: "mud", topMd_ft: 11000, bottomMd_ft: 12000 },
     ];
+    job.pipeColumn = [{ fluidId: "mud", topMd_ft: 0, bottomMd_ft: 11000 }];
     return job;
   }
 
@@ -292,10 +243,10 @@ describe("EXAMPLE column — pill stands above the shoe", () => {
     }
   });
 
-  it("withDP flags the missing pipe-side equalize term once the pill reaches the shoe", () => {
+  it("withDP without pipe-side pill matches the column and does not invent equalize pressure", () => {
     const withDp = calculate(crossing("withDP"));
     const noDp = calculate(crossing("noDP"));
-    expect(withDp.issues.some((item) => item.code === "EQUALIZE_PENDING")).toBe(true);
+    expect(withDp.issues.some((item) => item.code === "EQUALIZE_PENDING")).toBe(false);
     expect(noDp.issues.some((item) => item.code === "EQUALIZE_PENDING")).toBe(false);
     expect(withDp.depths.shoe.esd_ppg!).toBeGreaterThanOrEqual(noDp.depths.shoe.esd_ppg! - 1e-6);
     for (const stage of withDp.displacement.stages) {
@@ -347,7 +298,7 @@ describe("trip schedule", () => {
     expect(result.tripSchedule.every((row) => row.limitedBy === "FIT")).toBe(true);
   });
 
-  it("names pore or target EMW when that floor, not FIT at zero SBP, rejects every speed", () => {
+  it("names pore, or FIT when the anchor floor and FIT cannot both hold", () => {
     const pore = exampleJob();
     pore.trip.speeds_ftmin = [10];
     pore.well.fit_ppg = 14;
@@ -363,7 +314,7 @@ describe("trip schedule", () => {
     target.well.targetEmw_ppg = 20;
     const targetResult = calculate(target);
     expect(targetResult.tripSchedule.every((row) => row.maxSpeed_ftmin === null)).toBe(true);
-    expect(targetResult.tripSchedule.every((row) => row.limitedBy === "targetEmw")).toBe(true);
+    expect(targetResult.tripSchedule.every((row) => row.limitedBy === "FIT")).toBe(true);
     expect(
       targetResult.issues.some(
         (item) => item.code === "NO_SAFE_TRIP_SPEED" && item.level === "error",
@@ -387,76 +338,9 @@ describe("trip schedule", () => {
   });
 });
 
-describe("Auburnia — existing workbook geometry", () => {
-  function auburniaJob(mode: PillMode): Job {
-    const legacy = calculateLegacy(AUBURNIA);
-    if (typeof legacy.topOfPillNoDp !== "number") {
-      throw new Error("Auburnia pill top was not numeric");
-    }
-    const top = legacy.topOfPillNoDp;
-    const spot = Number(AUBURNIA.spotMd);
-    const td = Number(AUBURNIA.currentDepthMd);
-    const anchorMd = Number(AUBURNIA.anchorMd);
-    const anchorTvd = Number(AUBURNIA.anchorTvd);
-    const spotTvd = Number(AUBURNIA.spotTvd);
-    const shoeMd = Number(AUBURNIA.casingMd);
-    const shoeTvd = Number(AUBURNIA.casingTvd);
-    // The workbook has no TD TVD. Extend the spot→anchor slope already in the repo.
-    const tvdTd = anchorTvd + ((td - anchorMd) * (anchorTvd - spotTvd)) / (anchorMd - spot);
-    return {
-      schemaVersion: 1,
-      name: String(AUBURNIA.wellName),
-      savedAt: "2026-08-10T00:00:00.000Z",
-      mode,
-      well: {
-        mdTd_ft: td,
-        tvdTd_ft: tvdTd,
-        bitMd_ft: td,
-        shoeMd_ft: shoeMd,
-        shoeTvd_ft: shoeTvd,
-        anchorMd_ft: anchorMd,
-        anchorTvd_ft: anchorTvd,
-        fit_ppg: Number(AUBURNIA.fit),
-        targetEmw_ppg: Number(AUBURNIA.desiredEmw),
-        casing: [{ topMd_ft: 0, bottomMd_ft: shoeMd, id_in: Number(AUBURNIA.idCasing) }],
-        openHoleId_in: Number(AUBURNIA.openHoleDia),
-        stringOd_in: Number(AUBURNIA.odDp),
-        stringId_in: Number(AUBURNIA.idDp),
-        survey: [
-          { md_ft: shoeMd, tvd_ft: shoeTvd },
-          { md_ft: spot, tvd_ft: spotTvd },
-          { md_ft: anchorMd, tvd_ft: anchorTvd },
-          { md_ft: td, tvd_ft: tvdTd },
-        ],
-      },
-      fluids: [
-        {
-          id: "mud",
-          label: "mud",
-          density_ppg: Number(AUBURNIA.currentMw),
-          fann: { ...EXAMPLE_FANN },
-        },
-        { id: "pill", label: "pill", density_ppg: Number(AUBURNIA.kmw), fann: { ...EXAMPLE_FANN } },
-      ],
-      column: [
-        { fluidId: "mud", topMd_ft: 0, bottomMd_ft: top },
-        { fluidId: "pill", topMd_ft: top, bottomMd_ft: spot },
-        { fluidId: "mud", topMd_ft: spot, bottomMd_ft: td },
-      ],
-      trip: {
-        speeds_ftmin: [40, 80, 200],
-        pipeEnd: "closed",
-        clinging: 0.45,
-        eccentricity: 0,
-        sbpConn_psi: Number(AUBURNIA.sbpConnection),
-        sbpCirc_psi: 0,
-        flow_gpm: Number(AUBURNIA.maxFlowRate),
-      },
-    };
-  }
-
-  const mud = Number(AUBURNIA.currentMw);
-  const kmw = Number(AUBURNIA.kmw);
+describe("Auburnia — fixture copied into the core", () => {
+  const mud = 15.3;
+  const kmw = 18.5;
 
   it("keeps shoe ESD between mud weight and pill weight in both modes", () => {
     for (const mode of ["noDP", "withDP"] as const) {
@@ -472,17 +356,154 @@ describe("Auburnia — existing workbook geometry", () => {
     }
     expect(
       calculate(auburniaJob("withDP")).issues.some((item) => item.code === "EQUALIZE_PENDING"),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       calculate(auburniaJob("noDP")).issues.some((item) => item.code === "EQUALIZE_PENDING"),
     ).toBe(false);
   });
-
-  it.todo("Auburnia tripSchedule rows — MPGenie has not supplied expected values yet");
 });
 
-describe("pending MPGenie cases", () => {
-  it.todo(
-    "Lock Sub shoe at 8033 ft TVD — withDP counts only the equalized slice above the shoe (needs pipe-side inventory)",
-  );
+interface ExpectedTrip {
+  rows: TripScheduleRow[];
+}
+
+const auburniaExpected = JSON.parse(
+  readFileSync(new URL("./fixtures/auburnia-trip.expected.json", import.meta.url), "utf8"),
+) as ExpectedTrip;
+
+function within(actual: number | null, expected: number, tol: number) {
+  expect(actual).not.toBeNull();
+  expect(Math.abs((actual ?? 0) - expected)).toBeLessThanOrEqual(tol);
+}
+
+describe("Auburnia tripSchedule — 500 ft steps", () => {
+  const result = calculate(auburniaJob("noDP"));
+  const expectedRih = auburniaExpected.rows.filter((row) => row.direction === "RIH");
+  const rih = result.tripSchedule.filter((row) => row.direction === "RIH");
+  const pooh = result.tripSchedule.filter((row) => row.direction === "POOH");
+
+  it("has 76 rows, static ESD, and no step over 500 ft", () => {
+    // The attached generator splits each geometry span evenly at a 500 ft cap:
+    // 38 POOH + 38 RIH. (A 78-row count double-counts the station list.)
+    expect(result.tripSchedule).toHaveLength(76);
+    expect(pooh).toHaveLength(38);
+    expect(rih).toHaveLength(38);
+    within(result.depths.shoe.esd_ppg, 16.1409, 0.001);
+    within(result.depths.anchor.esd_ppg, 16.2767, 0.001);
+    within(result.tripSchedule[0].sbpStatic_psi, 14.45, 0.1);
+    for (const row of result.tripSchedule) {
+      expect(Math.abs(row.toBitMd_ft - row.fromBitMd_ft)).toBeLessThanOrEqual(500 + 1e-6);
+    }
+    const ends = result.tripSchedule.flatMap((row) => [row.fromBitMd_ft, row.toBitMd_ft]);
+    expect(ends.some((md) => Math.abs(md - 10785) < 0.2)).toBe(true);
+    expect(ends.some((md) => Math.abs(md - 12675) < 0.2)).toBe(true);
+  });
+
+  it("matches the RIH check within 0.001 ppg and 0.1 psi", () => {
+    expect(rih).toHaveLength(expectedRih.length);
+    for (let i = 0; i < rih.length; i++) {
+      const row = rih[i];
+      const expected = expectedRih[i];
+      expect(row.maxSpeed_ftmin).toBe(expected.maxSpeed_ftmin);
+      expect(row.limitedBy).toBe(expected.limitedBy);
+      within(row.fromBitMd_ft, expected.fromBitMd_ft, 0.051);
+      within(row.toBitMd_ft, expected.toBitMd_ft, 0.051);
+      within(row.sbpRequired_psi, expected.sbpRequired_psi!, 0.1);
+      within(row.sbpStatic_psi, expected.sbpStatic_psi!, 0.1);
+      for (const key of ["shoe", "anchor", "bit"] as const) {
+        within(row.emwAt[key].surge_ppg, expected.emwAt[key].surge_ppg!, 0.001);
+        within(row.emwAt[key].swab_ppg, expected.emwAt[key].swab_ppg!, 0.001);
+      }
+    }
+    const deep = rih.find((row) => row.toBitMd_ft > 18000);
+    expect(deep?.maxSpeed_ftmin).toBe(40);
+    within(deep?.sbpRequired_psi ?? null, 324.5, 0.1);
+    const at12178 = rih.find((row) => Math.abs(row.toBitMd_ft - 12178) < 0.2);
+    expect(at12178?.maxSpeed_ftmin).toBe(80);
+    within(at12178?.emwAt.shoe.surge_ppg ?? null, 17.498, 0.001);
+    const shallow = rih.find((row) => row.toBitMd_ft > 0 && row.toBitMd_ft < 6957);
+    expect(shallow?.maxSpeed_ftmin).toBe(200);
+    expect(shallow?.limitedBy).toBe("none");
+    const aboveAnchor = rih.find((row) => row.toBitMd_ft < 12675);
+    within(aboveAnchor?.emwAt.anchor.swab_ppg ?? null, 16.3, 0.001);
+  });
+
+  it("treats POOH as swab-only and still holds the anchor target above the anchor", () => {
+    const shoeEsd = result.depths.shoe.esd_ppg!;
+    const shoeTvd = result.depths.shoe.tvd_ft!;
+    expect(pooh.length).toBe(rih.length);
+    for (let i = 0; i < rih.length; i++) {
+      const out = pooh[pooh.length - 1 - i];
+      within(out.fromBitMd_ft, rih[i].toBitMd_ft, 0.051);
+      const outSpeed = out.maxSpeed_ftmin ?? -1;
+      const inSpeed = rih[i].maxSpeed_ftmin ?? -1;
+      expect(outSpeed).toBeGreaterThanOrEqual(inSpeed);
+      if (out.sbpRequired_psi == null) continue;
+      const staticEmw = shoeEsd + out.sbpRequired_psi / (0.052 * shoeTvd);
+      expect(staticEmw).toBeLessThan(17.5);
+      within(out.emwAt.anchor.swab_ppg, 16.3, 0.001);
+    }
+  });
+});
+
+describe("Lock Sub 1H — MPGenie shoe 8033 and the real shoe", () => {
+  it("case A balances the float U-tube and raises shoe ESD only above the shoe", () => {
+    const job = lockSubSpotJob("8033");
+    const balance = balanceFloat(job);
+    expect(balance).not.toBeNull();
+    within(balance!.dumpBbl, 3.17, 0.01);
+    within(balance!.pillTopTvd_ft, 8018.7, 0.1);
+    within(balance!.bitPsi, 6535.1, 0.1);
+    within(balance!.shoeEsd_ppg, 11.4046, 0.001);
+    expect(balance!.shoeEsd_ppg).toBeGreaterThan(11.4);
+
+    const result = calculate(job);
+    within(result.depths.shoe.esd_ppg, 11.4046, 0.001);
+    within(result.displacement.pillTopTvd_ft, 8018.7, 0.1);
+    expect(result.displacement.stages.map((stage) => Math.round(stage.bitMd_ft))).toEqual([
+      0, 8057, 10480,
+    ]);
+    within(result.displacement.stages[0].shoeEsd_ppg, 11.4, 0.001);
+    within(result.displacement.stages[1].shoeEsd_ppg, 11.4, 0.001);
+    within(result.displacement.stages[2].shoeEsd_ppg, 11.4046, 0.001);
+    expect(result.issues.some((item) => item.code === "EQUALIZE_PENDING")).toBe(false);
+    expect(
+      result.issues.some((item) => item.code === "RELEASE_BLOCKER" && item.level === "error"),
+    ).toBe(true);
+
+    const real = calculate(lockSubSpotJob("3187"));
+    within(real.depths.shoe.esd_ppg, 11.4, 0.001);
+    for (const stage of real.displacement.stages) within(stage.shoeEsd_ppg, 11.4, 0.001);
+  });
+
+  it("case B trips a dry closed pipe into the pipe-out pill", () => {
+    const moved = calculate(lockSubDryJob("noDP", "8033"));
+    const stages = moved.displacement.stages;
+    expect(stages.map((stage) => stage.bitMd_ft)).toEqual([0, 8060, 10480]);
+    within(stages[0].shoeEsd_ppg, 11.4, 0.001);
+    within(stages[1].shoeEsd_ppg, 11.4, 0.001);
+    within(stages[2].shoeEsd_ppg, 11.5829, 0.001);
+    expect(stages[2].pumped_bbl).toBeNull();
+
+    const real = calculate(lockSubDryJob("noDP", "3187"));
+    expect(real.displacement.stages.map((stage) => stage.bitMd_ft)).toEqual([0, 8060, 10480]);
+    for (const stage of real.displacement.stages) within(stage.shoeEsd_ppg, 11.4, 0.001);
+    within(real.depths.shoe.esd_ppg, 11.4, 0.001);
+  });
+});
+
+describe("SHOE_ESD_AT_FIT", () => {
+  it("errors when shoe ESD is at or above FIT and stays quiet when it is not", () => {
+    const hot = exampleJob();
+    hot.well.fit_ppg = 12;
+    hot.trip.speeds_ftmin = [];
+    hot.trip.flow_gpm = 0;
+    const hotIssues = calculate(hot).issues.filter((item) => item.code === "SHOE_ESD_AT_FIT");
+    expect(hotIssues.length).toBeGreaterThan(0);
+    expect(hotIssues.every((item) => item.level === "error")).toBe(true);
+
+    const cold = exampleJob();
+    cold.well.fit_ppg = 100;
+    expect(calculate(cold).issues.some((item) => item.code === "SHOE_ESD_AT_FIT")).toBe(false);
+  });
 });

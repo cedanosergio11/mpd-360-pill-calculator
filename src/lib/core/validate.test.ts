@@ -65,20 +65,10 @@ describe("validate — TVD", () => {
     ]);
   });
 
-  it("warns TVD_INTERPOLATED naming shoe and anchor when there is no survey", () => {
+  it("does not warn when entered shoe and anchor TVDs are used with no survey", () => {
     const job = exampleJob();
     delete job.well.survey;
-    const warnings = issues(job, "TVD_INTERPOLATED");
-    expect(warnings.map((item) => item.field).sort()).toEqual([
-      "well.anchorTvd_ft",
-      "well.shoeTvd_ft",
-    ]);
-    expect(warnings.every((item) => item.level === "warn")).toBe(true);
-    expect(warnings.find((item) => item.field === "well.shoeTvd_ft")?.message).toMatch(/shoe/i);
-    expect(warnings.find((item) => item.field === "well.shoeTvd_ft")?.message).toMatch(
-      /linear when no survey/,
-    );
-    expect(warnings.find((item) => item.field === "well.anchorTvd_ft")?.message).toMatch(/anchor/i);
+    expect(issues(job, "TVD_INTERPOLATED")).toEqual([]);
   });
 
   it("does not warn when shoe and anchor are survey stations", () => {
@@ -94,13 +84,44 @@ describe("validate — TVD", () => {
       { md_ft: 10000, tvd_ft: 8000 },
     ];
     const anchor = issues(job, "TVD_INTERPOLATED").find(
-      (item) => item.field === "well.anchorTvd_ft",
+      (item) => item.field === "well.anchorMd_ft",
     );
+    expect(anchor?.level).toBe("warn");
     expect(anchor?.message).toMatch(/anchor/i);
     expect(anchor?.message).toMatch(/from survey/);
+    expect(anchor?.message).toMatch(/7400/);
+    expect(issues(job, "TVD_INTERPOLATED").some((item) => item.field === "well.shoeTvd_ft")).toBe(
+      false,
+    );
     const result = calculate(job);
     // 5000 ft TVD at 5000 MD, 8000 ft TVD at 10000 MD → 7400 ft TVD at 9000 MD.
     expect(result.depths.anchor.tvd_ft).toBeCloseTo(7400, 4);
+  });
+});
+
+describe("validate — pipe column", () => {
+  it("errors on a pipe-column gap with a dotted field path", () => {
+    const job = exampleJob();
+    job.pipeColumn = [
+      { fluidId: "mud", topMd_ft: 0, bottomMd_ft: 4000 },
+      { fluidId: "pill", topMd_ft: 4500, bottomMd_ft: 10000 },
+    ];
+    const gap = issues(job, "COLUMN_GAP");
+    expect(gap).toHaveLength(1);
+    expect(gap[0].field).toBe("pipeColumn[1].topMd_ft");
+  });
+
+  it("errors on an unknown pipe fluid and when the pipe column misses the bit", () => {
+    const unknown = exampleJob();
+    unknown.pipeColumn = [{ fluidId: "missing", topMd_ft: 0, bottomMd_ft: 10000 }];
+    expect(issues(unknown, "UNKNOWN_FLUID")[0]).toMatchObject({
+      level: "error",
+      field: "pipeColumn[0].fluidId",
+    });
+
+    const short = exampleJob();
+    short.pipeColumn = [{ fluidId: "mud", topMd_ft: 0, bottomMd_ft: 9000 }];
+    expect(issues(short, "COLUMN_GAP")[0].field).toBe("pipeColumn[0].bottomMd_ft");
   });
 });
 

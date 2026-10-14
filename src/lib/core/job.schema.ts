@@ -64,6 +64,11 @@ export interface Well {
   /** Omitted → derive from the survey, or linear MD→TVD when there is no survey. */
   anchorTvd_ft?: number;
   fit_ppg: number;
+  /**
+   * Entered pore pressure, ppg. v1 repeats this one value at shoe, anchor,
+   * and bit. It does not spread a pore or fracture gradient versus depth —
+   * that is a future enhancement.
+   */
   porePressure_ppg?: number;
   targetEmw_ppg: number;
   casing: CasingInterval[];
@@ -94,15 +99,18 @@ export interface Job {
   savedAt: string;
   well: Well;
   /**
-   * Shoe ESD differs by mode (1.0.7.1).
-   * `noDP`: hydrostatic of the fluid column only.
-   * `withDP`: same column, plus equalize pressure only for pill fluid that
-   * stands above the shoe. Step 1 does not invent that equalize term — see
-   * EQUALIZE_PENDING. A pill that never reaches the shoe adds nothing.
+   * Shoe ESD (1.0.7.1). Pill fluid counts only where it stands above the shoe,
+   * so a pill that never reaches the shoe adds nothing and shoe ESD does not
+   * fall below mud weight.
+   * `noDP`: pipe-out annulus. RIH stages run a dry closed pipe into that pill.
+   * `withDP`: `column` is the annulus and `pipeColumn` is the string. The
+   * float U-tube balances pipe-side pill weight into the annulus.
    */
   mode: PillMode;
   fluids: Fluid[];
-  /** Single fluid column from surface to TD. Contiguous, no gaps or overlaps. */
+  /** Annulus, surface to TD. Contiguous, no gaps or overlaps. */
   column: ColumnSegment[];
+  /** Fluids inside the string, surface to the bit. Same shape as `column`. */
+  pipeColumn: ColumnSegment[];
   trip: TripInputs;
 }
