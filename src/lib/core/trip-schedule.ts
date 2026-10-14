@@ -162,9 +162,10 @@ function stations(job: Job, pillTop: number | null, spotMd: number | null): numb
  * The pill is not migrated along the trip. Surge and swab use the static column.
  *
  * maxSpeed is the fastest `trip.speeds_ftmin` entry that passes. A speed whose
- * shoe surge reaches FIT is dropped from that band. When none pass, maxSpeed
- * is null (never 0) and the result carries NO_SAFE_TRIP_SPEED. If the anchor
- * swab floor and the shoe FIT cannot both hold, `limitedBy` is FIT.
+ * shoe surge reaches FIT is dropped from that band, and that row's `limitedBy`
+ * is FIT. When none pass, maxSpeed is null (never 0) and the result carries
+ * NO_SAFE_TRIP_SPEED. If the anchor swab floor and the shoe FIT cannot both
+ * hold, `limitedBy` is FIT. A pore floor that closes the window stays `pore`.
  */
 export function buildTripSchedule(
   job: Job,
@@ -241,7 +242,7 @@ export function buildTripSchedule(
         if (result.pass && result.sbpRequired != null) {
           chosen = speed;
           chosenSbp = result.sbpRequired;
-          limitedBy = i === 0 ? "none" : "FIT";
+          limitedBy = "none";
           if (i > 0) {
             const faster = speeds[i - 1];
             const fasterCheck = checkSpeed(
@@ -253,7 +254,12 @@ export function buildTripSchedule(
               bitPoint,
               (md) => friction(step.evalAt, md, faster),
             );
-            limitedBy = fasterCheck.limitedBy;
+            // A faster speed dropped because shoe surge reached FIT closes the window on FIT.
+            // Pore still wins when that faster speed failed the pore floor.
+            limitedBy =
+              fasterCheck.surgeAtFit && fasterCheck.limitedBy !== "pore"
+                ? "FIT"
+                : fasterCheck.limitedBy;
           }
           break;
         }

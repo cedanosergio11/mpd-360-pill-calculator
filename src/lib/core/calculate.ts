@@ -59,18 +59,55 @@ function blankResult(job: Job, issues: Result["issues"]): Result {
   };
 }
 
-/** Job inputs that set static shoe EMW and the FIT it is checked against. */
-const SHOE_FIT_JOB_FIELDS = [
-  "well.shoeMd_ft",
-  "well.shoeTvd_ft",
-  "well.fit_ppg",
-  "well.anchorMd_ft",
-  "well.anchorTvd_ft",
-  "well.targetEmw_ppg",
-  "column",
-  "fluids",
-  "trip.sbpConn_psi",
-];
+/** Exact job paths that set static shoe EMW and the FIT it is checked against. */
+function shoeFitJobFields(job: Job): string[] {
+  const fields = [
+    "well.shoeMd_ft",
+    "well.shoeTvd_ft",
+    "well.fit_ppg",
+    "well.anchorMd_ft",
+    "well.targetEmw_ppg",
+    "well.bitMd_ft",
+    "well.mdTd_ft",
+    "well.tvdTd_ft",
+    "well.openHoleId_in",
+    "well.stringOd_in",
+  ];
+  if (job.well.anchorTvd_ft != null) fields.push("well.anchorTvd_ft");
+  job.well.casing.forEach((_, index) => {
+    fields.push(
+      `well.casing[${index}].topMd_ft`,
+      `well.casing[${index}].bottomMd_ft`,
+      `well.casing[${index}].id_in`,
+    );
+  });
+  (job.well.survey ?? []).forEach((_, index) => {
+    fields.push(`well.survey[${index}].md_ft`, `well.survey[${index}].tvd_ft`);
+  });
+  const used = new Set<string>();
+  job.column.forEach((segment, index) => {
+    fields.push(
+      `column[${index}].fluidId`,
+      `column[${index}].topMd_ft`,
+      `column[${index}].bottomMd_ft`,
+    );
+    used.add(segment.fluidId);
+  });
+  if (job.mode === "withDP") {
+    job.pipeColumn.forEach((segment, index) => {
+      fields.push(
+        `pipeColumn[${index}].fluidId`,
+        `pipeColumn[${index}].topMd_ft`,
+        `pipeColumn[${index}].bottomMd_ft`,
+      );
+      used.add(segment.fluidId);
+    });
+  }
+  job.fluids.forEach((fluid, index) => {
+    if (used.has(fluid.id)) fields.push(`fluids[${index}].density_ppg`);
+  });
+  return fields;
+}
 
 /** Pumps-off SBP that holds anchor ESD at target EMW. */
 function staticSbpPsi(job: Job, anchorEsd: number | null, anchorTvd: number | null): number | null {
@@ -84,6 +121,24 @@ function staticShoeEmw(esd: number | null, tvd: number | null, sbp: number | nul
   return esd + sbp / (PSI_PER_PPG_FT * tvd);
 }
 
+function formatPpg(value: number): string {
+  return (Math.round(value * 100) / 100).toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function stageList(stages: number[]): string {
+  const sorted = [...stages].sort((a, b) => a - b);
+  if (sorted.length === 1) return `stage ${sorted[0]}`;
+  const contiguous = sorted.every((value, index) => index === 0 || value === sorted[index - 1] + 1);
+  if (contiguous) return `stages ${sorted[0]}–${sorted[sorted.length - 1]}`;
+  return `stages ${sorted.join(", ")}`;
+}
+
+interface ShoeFitHit {
+  stage: number | null;
+  emw: number;
+  depthFt: number;
+}
+
 function flagShoeAtFit(
   job: Job,
   depths: Result["depths"],
@@ -95,31 +150,38 @@ function flagShoeAtFit(
   const shoe = depths.shoe;
   const anchor = depths.anchor;
   const sbp = staticSbpPsi(job, anchor.esd_ppg, anchor.tvd_ft);
+  const hits: ShoeFitHit[] = [];
   const staticEmw = staticShoeEmw(shoe.esd_ppg, shoe.tvd_ft, sbp);
   if (staticEmw != null && staticEmw >= fit - 1e-9) {
-    issues.push(
-      issue(
-        "error",
-        "SHOE_ESD_AT_FIT",
-        `Static shoe ESD plus SBP is ${staticEmw.toFixed(4)} ppg, at or above FIT ${fit} ppg. Not issuable on SDS-FRM-087.`,
-        "depths.shoe.esd_ppg",
-        SHOE_FIT_JOB_FIELDS,
-      ),
-    );
+    hits.push({ stage: null, emw: staticEmw, depthFt: shoe.md_ft });
   }
-  stages.forEach((stage, index) => {
+  for (const stage of stages) {
     const stageEmw = staticShoeEmw(stage.shoeEsd_ppg, shoe.tvd_ft, stage.sbp_psi);
-    if (stageEmw == null || stageEmw < fit - 1e-9) return;
-    issues.push(
-      issue(
-        "error",
-        "SHOE_ESD_AT_FIT",
-        `Stage ${stage.n} static shoe ESD plus SBP is ${stageEmw.toFixed(4)} ppg, at or above FIT ${fit} ppg.`,
-        `displacement.stages[${index}].shoeEsd_ppg`,
-        SHOE_FIT_JOB_FIELDS,
-      ),
-    );
+    if (stageEmw == null || stageEmw < fit - 1e-9) continue;
+    hits.push({ stage: stage.n, emw: stageEmw, depthFt: shoe.md_ft });
+  }
+  if (!hits.length) return;
+
+  const stageNums = hits.flatMap((hit) => (hit.stage == null ? [] : [hit.stage]));
+  const worst = hits.reduce((best, hit) => {
+    if (hit.emw > best.emw + 1e-9) return hit;
+    if (best.emw > hit.emw + 1e-9) return best;
+    if (best.stage == null && hit.stage != null) return hit;
+    return best;
   });
+  const where = stageNums.length ? `in ${stageList(stageNums)}, ` : "";
+  const at =
+    worst.stage != null ? `at stage ${worst.stage}` : `at shoe ${formatPpg(worst.depthFt)} ft`;
+  const depth = worst.stage != null ? `, shoe ${formatPpg(worst.depthFt)} ft` : "";
+  const item = issue(
+    "error",
+    "SHOE_ESD_AT_FIT",
+    `Shoe ESD at or above FIT ${where}worst ${formatPpg(worst.emw)} ppg ${at} vs FIT ${formatPpg(fit)}${depth}. Not issuable on SDS-FRM-087.`,
+    "depths.shoe.esd_ppg",
+    shoeFitJobFields(job),
+  );
+  item.stages = stageNums;
+  issues.push(item);
 }
 
 /**

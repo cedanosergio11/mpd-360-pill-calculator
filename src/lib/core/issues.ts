@@ -8,8 +8,10 @@ export interface Issue {
    * problems, into the job (`fluids[1].fann.r300`).
    */
   field?: string;
-  /** Job input paths that drive this result issue. */
+  /** Job input paths that drive this result issue. Exact paths, never a whole section. */
   jobFields?: string[];
+  /** Displacement stage numbers where this issue fires. */
+  stages?: number[];
   message: string;
 }
 

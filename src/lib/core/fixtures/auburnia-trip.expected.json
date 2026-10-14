@@ -7,7 +7,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -30,7 +30,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -53,7 +53,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -76,7 +76,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -99,7 +99,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -122,7 +122,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -145,7 +145,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -168,7 +168,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -191,7 +191,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -214,7 +214,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -237,7 +237,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -260,7 +260,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -283,7 +283,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -306,7 +306,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 398.9582850592312,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.497706725665886,
@@ -329,7 +329,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 381.8839296074914,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.466213057005177,
@@ -352,7 +352,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 366.49296131296535,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.43782439793074,
@@ -375,7 +375,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 351.1019930184394,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.4094357388563,
@@ -398,7 +398,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 336.3581593752751,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.3550457019546,
@@ -421,7 +421,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 321.61432573211084,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.300655665052904,
@@ -444,7 +444,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 306.8704920889466,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.246265628151207,
@@ -467,7 +467,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 292.12665844578225,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.191875591249513,
@@ -490,7 +490,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 277.382824802618,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.137485554347816,
@@ -513,7 +513,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 262.6389911594537,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.083095517446118,
@@ -536,7 +536,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 247.1271411290022,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.025872266289795,
@@ -1203,7 +1203,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 247.1271411290022,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.025872266289795,
@@ -1226,7 +1226,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 262.6389911594537,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.083095517446118,
@@ -1249,7 +1249,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 277.382824802618,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.137485554347816,
@@ -1272,7 +1272,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 292.12665844578225,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.191875591249513,
@@ -1295,7 +1295,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 306.8704920889466,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.246265628151207,
@@ -1318,7 +1318,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 321.61432573211084,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.300655665052904,
@@ -1341,7 +1341,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 336.3581593752751,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.3550457019546,
@@ -1364,7 +1364,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 351.1019930184394,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.4094357388563,
@@ -1387,7 +1387,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 366.49296131296535,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.43782439793074,
@@ -1410,7 +1410,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 381.8839296074914,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.466213057005177,
@@ -1433,7 +1433,7 @@
       "maxSpeed_ftmin": 80,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 398.9582850592312,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.497706725665886,
@@ -1456,7 +1456,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -1479,7 +1479,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -1502,7 +1502,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -1525,7 +1525,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -1548,7 +1548,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -1571,7 +1571,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -1594,7 +1594,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -1617,7 +1617,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -1640,7 +1640,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -1663,7 +1663,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -1686,7 +1686,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -1709,7 +1709,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,
@@ -1732,7 +1732,7 @@
       "maxSpeed_ftmin": 40,
       "sbpStatic_psi": 14.449390672229057,
       "sbpRequired_psi": 324.5160162459222,
-      "limitedBy": "targetEmw",
+      "limitedBy": "FIT",
       "emwAt": {
         "shoe": {
           "surge_ppg": 17.219763095528993,

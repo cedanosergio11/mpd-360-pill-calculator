@@ -8,9 +8,9 @@ Pore pressure is the single entered value, reported on `depths.td.pore_ppg` only
 
 Displacement stages are numbered from 0. Stage 0 is the static column before trip-in.
 
-`SHOE_ESD_AT_FIT` (error) fires when static shoe EMW — shoe ESD plus the pumps-off SBP that holds the anchor at target EMW — is at or above FIT. That includes each displacement stage. It is the SDS-FRM-087 not-issuable banner and it blocks release. `field` is the result path. `jobFields` lists the job inputs that drive it (shoe depth and TVD, FIT, anchor, target EMW, column, fluids, connection SBP).
+`SHOE_ESD_AT_FIT` (error) fires once when static shoe EMW — shoe ESD plus the pumps-off SBP that holds the anchor at target EMW — is at or above FIT on the shoe or on any displacement stage. It is the SDS-FRM-087 not-issuable banner and it blocks release. `field` is `depths.shoe.esd_ppg`. `stages` lists every stage number where it fires. The message names that span, the worst stage, the shoe depth, the shoe EMW, and FIT. `jobFields` lists the exact job paths that drive it (`fluids[0].density_ppg`, `column[1].bottomMd_ft`), never a whole section such as `fluids` or `column`.
 
-A per-speed shoe surge that reaches FIT is not that error. The speed is dropped from the trip band and `maxSpeed` stays at the fastest speed that still passes. The result carries at most a `SHOE_SURGE_AT_FIT` warning. `NO_SAFE_TRIP_SPEED` (error) is the lock when a band has no passing speed and `maxSpeed` is null.
+A per-speed shoe surge that reaches FIT is not that error. The speed is dropped from the trip band, that row's `limitedBy` is `FIT`, and `maxSpeed` stays at the fastest speed that still passes. The result carries at most a `SHOE_SURGE_AT_FIT` warning. `NO_SAFE_TRIP_SPEED` (error) is the lock when a band has no passing speed and `maxSpeed` is null.
 
 `displacement.stages[].pumped_bbl` is the pill volume pumped: the length of the deepest pill fluid the bit has covered, times pipe capacity (`stringId`² / 1029.4). It is 0 before the bit enters that fluid. It is null only when pipe capacity cannot be computed.
 

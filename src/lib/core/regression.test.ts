@@ -638,24 +638,49 @@ describe("SHOE_ESD_AT_FIT", () => {
     hot.well.fit_ppg = 12;
     hot.trip.speeds_ftmin = [];
     hot.trip.flow_gpm = 0;
-    const hotIssues = calculate(hot).issues.filter((item) => item.code === "SHOE_ESD_AT_FIT");
-    expect(hotIssues.length).toBeGreaterThan(0);
-    expect(hotIssues.every((item) => item.level === "error")).toBe(true);
-    const shoe = hotIssues.find((item) => item.field === "depths.shoe.esd_ppg");
-    expect(shoe?.jobFields).toEqual(
+    const hotResult = calculate(hot);
+    const hotIssues = hotResult.issues.filter((item) => item.code === "SHOE_ESD_AT_FIT");
+    expect(hotIssues).toHaveLength(1);
+    expect(hotIssues[0].level).toBe("error");
+    expect(hotIssues[0].field).toBe("depths.shoe.esd_ppg");
+    expect(hotIssues[0].stages?.length).toBeGreaterThan(0);
+    expect(hotIssues[0].message).toMatch(
+      /Shoe ESD at or above FIT in stages? [\d,–]+, worst [\d.]+ ppg at stage \d+ vs FIT [\d.]+, shoe [\d.]+ ft/,
+    );
+    const fields = hotIssues[0].jobFields ?? [];
+    expect(fields).toEqual(
       expect.arrayContaining([
         "well.shoeMd_ft",
         "well.shoeTvd_ft",
         "well.fit_ppg",
-        "column",
-        "fluids",
-        "trip.sbpConn_psi",
+        "fluids[0].density_ppg",
+        "fluids[1].density_ppg",
+        "column[1].topMd_ft",
+        "column[1].bottomMd_ft",
+        "column[1].fluidId",
       ]),
     );
+    expect(fields).not.toContain("column");
+    expect(fields).not.toContain("fluids");
+    expect(fields.every((path) => path.includes("."))).toBe(true);
 
     const cold = exampleJob();
     cold.well.fit_ppg = 100;
     expect(calculate(cold).issues.some((item) => item.code === "SHOE_ESD_AT_FIT")).toBe(false);
+  });
+
+  it("emits one issue naming every stage and the worst shoe ESD", () => {
+    const job = lockSubDryJob("noDP", "8033");
+    job.well.fit_ppg = 11.5;
+    job.trip.speeds_ftmin = [];
+    job.trip.flow_gpm = 0;
+    const issues = calculate(job).issues.filter((item) => item.code === "SHOE_ESD_AT_FIT");
+    expect(issues).toHaveLength(1);
+    expect(issues[0].stages).toEqual([2]);
+    expect(issues[0].message).toBe(
+      "Shoe ESD at or above FIT in stage 2, worst 11.58 ppg at stage 2 vs FIT 11.5, shoe 8045 ft. Not issuable on SDS-FRM-087.",
+    );
+    expect(issues[0].field).toBe("depths.shoe.esd_ppg");
   });
 
   it("drops a surge speed from the band and warns instead of locking the sheet", () => {
@@ -668,6 +693,12 @@ describe("SHOE_ESD_AT_FIT", () => {
     expect(rih.some((row) => row.maxSpeed_ftmin === 40)).toBe(true);
     expect(rih.every((row) => row.maxSpeed_ftmin !== 0)).toBe(true);
     expect(rih.find((row) => row.toBitMd_ft > 18000)?.maxSpeed_ftmin).toBe(40);
+    const dropped = rih.filter((row) => row.maxSpeed_ftmin != null && row.maxSpeed_ftmin < 200);
+    expect(dropped.length).toBeGreaterThan(0);
+    expect(dropped.every((row) => row.limitedBy === "FIT")).toBe(true);
+    expect(
+      rih.filter((row) => row.maxSpeed_ftmin === 200).every((row) => row.limitedBy === "none"),
+    ).toBe(true);
   });
 });
 
