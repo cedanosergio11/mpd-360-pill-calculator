@@ -41,7 +41,7 @@ export function AppShell() {
 
   return (
     <main className="min-h-screen pb-24">
-      <div className="bg-danger px-3 py-1 text-center text-xs font-bold tracking-wide text-white print:hidden" role="alert">EXAMPLE inputs, calc under review, not for field use</div>
+      <div className="bg-danger px-3 py-1 text-center text-xs font-bold tracking-wide text-white print:hidden" role="alert">EXAMPLE inputs, math checked against API RP 13D examples, pending Sergio's field review</div>
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur print:hidden">
         <div className="flex items-center gap-2 px-3 py-2 text-xs">
           <span className="font-semibold text-primary">PillView 2.0</span>

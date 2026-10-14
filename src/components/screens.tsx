@@ -341,7 +341,7 @@ export function ExportScreen() {
       <article className="procedure-sheet rounded-lg border bg-card p-4 text-sm">
         <FitBanner />
         <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2 border-b pb-2">
-          <div><div className="text-base font-semibold">{job.name}</div><div className="text-xs text-danger">EXAMPLE inputs, calc under review, not for field use</div></div>
+          <div><div className="text-base font-semibold">{job.name}</div><div className="text-xs text-danger">EXAMPLE inputs, math checked against API RP 13D examples, pending Sergio's field review</div></div>
           <div className="text-right font-mono text-[11px] text-muted-foreground">PillView 2.0 · {APP_VERSION}<br />SDS-FRM-087 · calc {result?.calcVersion ?? "—"}<br />inputs #{result?.inputHash ?? "—"}</div>
         </header>
         {result && <>
