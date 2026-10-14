@@ -14,8 +14,16 @@ import { exampleJob } from "./example-job";
 import { balanceFloat } from "./equalize";
 import { auburniaJob } from "./fixtures/auburnia";
 import { lockSubDryJob, lockSubSpotJob } from "./fixtures/lock-sub";
+import type { SpeedEmw, TripEmw, TripPointKey } from "./index";
 import type { FannReading, Job, PillMode } from "./job.schema";
 import type { TripScheduleRow } from "./result";
+
+const _exported: [TripPointKey, TripEmw, SpeedEmw] = [
+  "bit",
+  { surge_ppg: null, swab_ppg: null },
+  { speed_ftmin: 40, emw_ppg: 12 },
+];
+void _exported;
 
 const rh = (r600: number, r300: number, r6: number, r3: number): Rheology => ({
   r600,
@@ -174,6 +182,7 @@ describe("Lock Sub 1H shoe ESD — real shoe, pill never reaches it", () => {
       expect(result.depths.shoe.fit_ppg).toBe(12.6);
       expect(result.depths.anchor.fit_ppg).toBeNull();
       expect(result.depths.shoe.pore_ppg).toBeNull();
+      expect(result.depths.anchor.pore_ppg).toBeNull();
       for (const stage of result.displacement.stages) {
         expect(stage.shoeEsd_ppg).toBeCloseTo(11.4, 4);
         expect(stage.shoeEsd_ppg!).toBeGreaterThanOrEqual(11.4 - 1e-6);
@@ -305,8 +314,13 @@ describe("trip schedule", () => {
     pore.well.targetEmw_ppg = 12;
     pore.well.porePressure_ppg = 30;
     const poreResult = calculate(pore);
-    expect(poreResult.tripSchedule.every((row) => row.maxSpeed_ftmin === null)).toBe(true);
-    expect(poreResult.tripSchedule.every((row) => row.limitedBy === "pore")).toBe(true);
+    expect(poreResult.depths.shoe.pore_ppg).toBeNull();
+    expect(poreResult.depths.anchor.pore_ppg).toBeNull();
+    expect(poreResult.depths.td.pore_ppg).toBe(30);
+    const deep = poreResult.tripSchedule.filter((row) => row.toBitMd_ft >= 1000);
+    expect(deep.length).toBeGreaterThan(0);
+    expect(deep.every((row) => row.maxSpeed_ftmin === null)).toBe(true);
+    expect(deep.every((row) => row.limitedBy === "pore")).toBe(true);
 
     const target = exampleJob();
     target.trip.speeds_ftmin = [10];
@@ -440,7 +454,7 @@ describe("Auburnia tripSchedule — 500 ft steps", () => {
     within(aboveAnchor?.emwAt.anchor.swab_ppg ?? null, 16.3, 0.001);
   });
 
-  it("treats POOH as swab-only and still holds the anchor target above the anchor", () => {
+  it("keeps POOH static shoe EMW under FIT and drops speeds whose surge reaches FIT", () => {
     const shoeEsd = result.depths.shoe.esd_ppg!;
     const shoeTvd = result.depths.shoe.tvd_ft!;
     expect(pooh.length).toBe(rih.length);
@@ -453,6 +467,7 @@ describe("Auburnia tripSchedule — 500 ft steps", () => {
       if (out.sbpRequired_psi == null) continue;
       const staticEmw = shoeEsd + out.sbpRequired_psi / (0.052 * shoeTvd);
       expect(staticEmw).toBeLessThan(17.5);
+      expect(out.emwAt.shoe.surge_ppg!).toBeLessThan(17.5);
       within(out.emwAt.anchor.swab_ppg, 16.3, 0.001);
     }
   });
@@ -472,6 +487,7 @@ describe("Lock Sub 1H — MPGenie shoe 8033 and the real shoe", () => {
     const result = calculate(job);
     within(result.depths.shoe.esd_ppg, 11.4046, 0.001);
     within(result.displacement.pillTopTvd_ft, 8018.7, 0.1);
+    expect(result.displacement.stages.map((stage) => stage.n)).toEqual([0, 1, 2]);
     expect(result.displacement.stages.map((stage) => Math.round(stage.bitMd_ft))).toEqual([
       0, 8057, 10480,
     ]);
@@ -491,6 +507,7 @@ describe("Lock Sub 1H — MPGenie shoe 8033 and the real shoe", () => {
   it("case B trips a dry closed pipe into the pipe-out pill", () => {
     const moved = calculate(lockSubDryJob("noDP", "8033"));
     const stages = moved.displacement.stages;
+    expect(stages.map((stage) => stage.n)).toEqual([0, 1, 2]);
     expect(stages.map((stage) => stage.bitMd_ft)).toEqual([0, 8060, 10480]);
     within(stages[0].shoeEsd_ppg, 11.4, 0.001);
     within(stages[1].shoeEsd_ppg, 11.4, 0.001);
@@ -505,7 +522,7 @@ describe("Lock Sub 1H — MPGenie shoe 8033 and the real shoe", () => {
 });
 
 describe("SHOE_ESD_AT_FIT", () => {
-  it("errors when shoe ESD is at or above FIT and stays quiet when it is not", () => {
+  it("errors when static shoe ESD plus SBP is at or above FIT and stays quiet when it is not", () => {
     const hot = exampleJob();
     hot.well.fit_ppg = 12;
     hot.trip.speeds_ftmin = [];
@@ -513,9 +530,43 @@ describe("SHOE_ESD_AT_FIT", () => {
     const hotIssues = calculate(hot).issues.filter((item) => item.code === "SHOE_ESD_AT_FIT");
     expect(hotIssues.length).toBeGreaterThan(0);
     expect(hotIssues.every((item) => item.level === "error")).toBe(true);
+    const shoe = hotIssues.find((item) => item.field === "depths.shoe.esd_ppg");
+    expect(shoe?.jobFields).toEqual(
+      expect.arrayContaining([
+        "well.shoeMd_ft",
+        "well.shoeTvd_ft",
+        "well.fit_ppg",
+        "column",
+        "fluids",
+        "trip.sbpConn_psi",
+      ]),
+    );
 
     const cold = exampleJob();
     cold.well.fit_ppg = 100;
     expect(calculate(cold).issues.some((item) => item.code === "SHOE_ESD_AT_FIT")).toBe(false);
+  });
+
+  it("drops a surge speed from the band and warns instead of locking the sheet", () => {
+    const result = calculate(auburniaJob("noDP"));
+    const warnings = result.issues.filter((item) => item.code === "SHOE_SURGE_AT_FIT");
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toMatchObject({ level: "warn", field: "depths.shoe.surge" });
+    expect(result.issues.some((item) => item.code === "SHOE_ESD_AT_FIT")).toBe(false);
+    const rih = result.tripSchedule.filter((row) => row.direction === "RIH");
+    expect(rih.some((row) => row.maxSpeed_ftmin === 40)).toBe(true);
+    expect(rih.every((row) => row.maxSpeed_ftmin !== 0)).toBe(true);
+    expect(rih.find((row) => row.toBitMd_ft > 18000)?.maxSpeed_ftmin).toBe(40);
+  });
+});
+
+describe("pore at TD only", () => {
+  it("copies the entered pore to TD and leaves the shoe and anchor null", () => {
+    const job = exampleJob();
+    job.well.porePressure_ppg = 9.5;
+    const depths = calculate(job).depths;
+    expect(depths.shoe.pore_ppg).toBeNull();
+    expect(depths.anchor.pore_ppg).toBeNull();
+    expect(depths.td.pore_ppg).toBe(9.5);
   });
 });

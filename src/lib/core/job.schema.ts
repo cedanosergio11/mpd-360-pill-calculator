@@ -65,9 +65,9 @@ export interface Well {
   anchorTvd_ft?: number;
   fit_ppg: number;
   /**
-   * Entered pore pressure, ppg. v1 repeats this one value at shoe, anchor,
-   * and bit. It does not spread a pore or fracture gradient versus depth —
-   * that is a future enhancement.
+   * Entered pore pressure, ppg. Reported at TD only. v1 does not copy it to
+   * the shoe or the anchor, and it does not spread a pore or fracture
+   * gradient versus depth — that is a future enhancement.
    */
   porePressure_ppg?: number;
   targetEmw_ppg: number;

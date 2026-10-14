@@ -3,13 +3,27 @@ export type IssueLevel = "error" | "warn";
 export interface Issue {
   level: IssueLevel;
   code: string;
-  /** Dotted path into the job, e.g. `fluids[1].fann.r300`. */
+  /**
+   * Dotted path into the result (`depths.shoe.esd_ppg`) or, for input
+   * problems, into the job (`fluids[1].fann.r300`).
+   */
   field?: string;
+  /** Job input paths that drive this result issue. */
+  jobFields?: string[];
   message: string;
 }
 
-export function issue(level: IssueLevel, code: string, message: string, field?: string): Issue {
-  return field === undefined ? { level, code, message } : { level, code, field, message };
+export function issue(
+  level: IssueLevel,
+  code: string,
+  message: string,
+  field?: string,
+  jobFields?: string[],
+): Issue {
+  const item: Issue = { level, code, message };
+  if (field !== undefined) item.field = field;
+  if (jobFields != null && jobFields.length > 0) item.jobFields = jobFields;
+  return item;
 }
 
 /** Errors that make hydrostatic results untrustworthy. */

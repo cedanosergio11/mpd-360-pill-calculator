@@ -129,7 +129,7 @@ function stagesFor(
       }
       columnJob = columnWithRaisedPill(job, pill, top);
     }
-    stages.push(stageFromColumn(job, columnJob, stages.length + 1, bit));
+    stages.push(stageFromColumn(job, columnJob, stages.length, bit));
   }
   return stages;
 }

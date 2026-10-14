@@ -21,8 +21,11 @@ export {
   type Displacement,
   type DisplacementStage,
   type Result,
+  type SpeedEmw,
   type TripDirection,
+  type TripEmw,
   type TripLimit,
+  type TripPointKey,
   type TripScheduleRow,
 } from "./result";
 export { validate } from "./validate";

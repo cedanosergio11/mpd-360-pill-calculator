@@ -36,13 +36,17 @@ interface SpeedCheck {
   sbpRequired: number | null;
   limitedBy: TripLimit;
   usable: boolean;
+  /** Shoe surge at this speed and SBP is at or above FIT. */
+  surgeAtFit: boolean;
 }
 
 /**
- * A speed passes when the anchor swab stays at or above target EMW (and at or
- * above pore, when pore is entered) at an SBP that also keeps the shoe under FIT.
- * RIH checks shoe surge at that SBP. POOH is swab-only, so FIT sees static shoe
- * ESD plus the SBP and not the surge term.
+ * A speed passes when the anchor swab stays at or above target EMW (and the bit
+ * swab stays at or above pore, when pore is entered) at an SBP that also keeps
+ * the shoe under FIT. Pore is not applied at the shoe or the anchor.
+ * RIH checks shoe surge at that SBP. POOH also keeps static shoe ESD plus the
+ * SBP under FIT. A speed whose shoe surge reaches FIT is dropped from the band
+ * either way, and maxSpeed stays at the fastest speed that still passes.
  * Anchor target EMW is enforced even when the bit is above the anchor: swab
  * still reduces pressure below the bit, and friction is summed only to the bit.
  * `limitedBy` names the constraint that closes the window.
@@ -60,32 +64,41 @@ function checkSpeed(
   const dAnchor = frictionAt(anchor.md);
   const dBit = frictionAt(bit.md);
   if ([dShoe, dAnchor, dBit].some((value) => value == null)) {
-    return { pass: false, sbpRequired: null, limitedBy: "FIT", usable: false };
+    return { pass: false, sbpRequired: null, limitedBy: "FIT", usable: false, surgeAtFit: false };
   }
   const target = sbpForFloor(anchor, dAnchor, job.well.targetEmw_ppg);
   let poreNeed = 0;
   if (job.well.porePressure_ppg != null) {
-    for (const point of [shoe, anchor, bit]) {
-      const need = sbpForFloor(point, frictionAt(point.md), job.well.porePressure_ppg);
-      if (need == null) return { pass: false, sbpRequired: null, limitedBy: "pore", usable: false };
-      poreNeed = Math.max(poreNeed, need);
+    const need = sbpForFloor(bit, dBit, job.well.porePressure_ppg);
+    if (need == null) {
+      return {
+        pass: false,
+        sbpRequired: null,
+        limitedBy: "pore",
+        usable: false,
+        surgeAtFit: false,
+      };
     }
+    poreNeed = need;
   }
   if (target == null || shoe.esd == null || shoe.tvd == null || !(shoe.tvd > 0) || dShoe == null) {
-    return { pass: false, sbpRequired: null, limitedBy: "FIT", usable: false };
+    return { pass: false, sbpRequired: null, limitedBy: "FIT", usable: false, surgeAtFit: false };
   }
   const sbpNeed = Math.max(target, poreNeed);
   const per = PSI_PER_PPG_FT * shoe.tvd;
-  const fitEmw =
-    direction === "POOH" ? shoe.esd + sbpNeed / per : shoe.esd + (sbpNeed + dShoe) / per;
-  const pass = fitEmw < job.well.fit_ppg;
-  if (pass) return { pass: true, sbpRequired: sbpNeed, limitedBy: "none", usable: true };
+  const surgeEmw = shoe.esd + (sbpNeed + dShoe) / per;
+  const surgeAtFit = surgeEmw >= job.well.fit_ppg;
+  const fitEmw = direction === "POOH" ? shoe.esd + sbpNeed / per : surgeEmw;
+  // Surge at FIT drops the speed from the band. It does not by itself lock the sheet.
+  const pass = fitEmw < job.well.fit_ppg && !surgeAtFit;
+  if (pass)
+    return { pass: true, sbpRequired: sbpNeed, limitedBy: "none", usable: true, surgeAtFit };
 
   const atZero = direction === "POOH" ? shoe.esd : shoe.esd + dShoe / per;
   let limitedBy: TripLimit = "targetEmw";
   if (atZero >= job.well.fit_ppg) limitedBy = "FIT";
   else if (job.well.porePressure_ppg != null && poreNeed > target) limitedBy = "pore";
-  return { pass: false, sbpRequired: null, limitedBy, usable: true };
+  return { pass: false, sbpRequired: null, limitedBy, usable: true, surgeAtFit };
 }
 
 function emwAtSpeed(
@@ -148,8 +161,9 @@ function stations(job: Job, pillTop: number | null, spotMd: number | null): numb
  *
  * The pill is not migrated along the trip. Surge and swab use the static column.
  *
- * maxSpeed is the fastest `trip.speeds_ftmin` entry that passes. When none pass
- * it is null (never 0) and the result carries NO_SAFE_TRIP_SPEED. If the anchor
+ * maxSpeed is the fastest `trip.speeds_ftmin` entry that passes. A speed whose
+ * shoe surge reaches FIT is dropped from that band. When none pass, maxSpeed
+ * is null (never 0) and the result carries NO_SAFE_TRIP_SPEED. If the anchor
  * swab floor and the shoe FIT cannot both hold, `limitedBy` is FIT.
  */
 export function buildTripSchedule(
@@ -197,6 +211,7 @@ export function buildTripSchedule(
 
   let geometryMiss = false;
   let anyRejected = false;
+  let droppedSurgeSpeed = false;
   const rows: TripScheduleRow[] = [];
 
   for (const step of steps) {
@@ -222,6 +237,7 @@ export function buildTripSchedule(
           break;
         }
         sawUsable = true;
+        if (result.surgeAtFit && !result.pass) droppedSurgeSpeed = true;
         if (result.pass && result.sbpRequired != null) {
           chosen = speed;
           chosenSbp = result.sbpRequired;
@@ -283,6 +299,20 @@ export function buildTripSchedule(
     rows.push(row);
   }
 
+  if (
+    droppedSurgeSpeed &&
+    rows.some((row) => row.maxSpeed_ftmin != null) &&
+    !issues.some((item) => item.code === "SHOE_SURGE_AT_FIT")
+  ) {
+    issues.push(
+      issue(
+        "warn",
+        "SHOE_SURGE_AT_FIT",
+        "Shoe surge reaches FIT at one or more trip speeds. Those speeds are dropped from the band. maxSpeed is the fastest speed that stays under FIT.",
+        "depths.shoe.surge",
+      ),
+    );
+  }
   if (geometryMiss && !issues.some((item) => item.code === "GEOMETRY")) {
     issues.push(
       issue(
@@ -298,7 +328,7 @@ export function buildTripSchedule(
       issue(
         "error",
         "NO_SAFE_TRIP_SPEED",
-        "No trip speed keeps RIH shoe surge at sbpRequired under FIT (POOH: static shoe ESD plus SBP), anchor swab at or above target EMW, and swab at or above pore pressure. maxSpeed is null.",
+        "No trip speed keeps shoe surge under FIT, static shoe ESD plus SBP under FIT on POOH, anchor swab at or above target EMW, and bit swab at or above pore. maxSpeed is null.",
         "trip.speeds_ftmin",
       ),
     );
@@ -313,7 +343,7 @@ export function buildTripSchedule(
       issue(
         "error",
         "NO_SAFE_TRIP_SPEED",
-        `No trip speed keeps RIH shoe surge at sbpRequired under FIT (POOH: static shoe ESD plus SBP), anchor swab at or above target EMW, and swab at or above pore pressure on ${failing} of ${rows.length} steps. maxSpeed is null, not 0.`,
+        `No trip speed keeps shoe surge under FIT, static shoe ESD plus SBP under FIT on POOH, anchor swab at or above target EMW, and bit swab at or above pore on ${failing} of ${rows.length} steps. maxSpeed is null, not 0.`,
         "trip.speeds_ftmin",
       ),
     );

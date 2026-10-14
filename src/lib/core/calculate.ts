@@ -7,6 +7,7 @@ import { fannBlocked, hasStructureError, issue, type Issue } from "./issues";
 import type { Job } from "./job.schema";
 import {
   CALC_VERSION,
+  PSI_PER_PPG_FT,
   type DepthKey,
   type DepthResult,
   type DisplacementStage,
@@ -23,7 +24,7 @@ function depthShell(job: Job, key: DepthKey, md: number, tvd: number | null): De
     esd_ppg: null,
     ecd_ppg: null,
     fit_ppg: key === "shoe" ? job.well.fit_ppg : null,
-    pore_ppg: job.well.porePressure_ppg ?? null,
+    pore_ppg: key === "td" ? (job.well.porePressure_ppg ?? null) : null,
     targetEmw_ppg: job.well.targetEmw_ppg,
     surge: [],
     swab: [],
@@ -58,6 +59,31 @@ function blankResult(job: Job, issues: Result["issues"]): Result {
   };
 }
 
+/** Job inputs that set static shoe EMW and the FIT it is checked against. */
+const SHOE_FIT_JOB_FIELDS = [
+  "well.shoeMd_ft",
+  "well.shoeTvd_ft",
+  "well.fit_ppg",
+  "well.anchorMd_ft",
+  "well.anchorTvd_ft",
+  "well.targetEmw_ppg",
+  "column",
+  "fluids",
+  "trip.sbpConn_psi",
+];
+
+/** Pumps-off SBP that holds anchor ESD at target EMW. */
+function staticSbpPsi(job: Job, anchorEsd: number | null, anchorTvd: number | null): number | null {
+  if (anchorEsd == null || anchorTvd == null || !(anchorTvd > 0)) return null;
+  return Math.max(0, (job.well.targetEmw_ppg - anchorEsd) * PSI_PER_PPG_FT * anchorTvd);
+}
+
+/** Static shoe EMW: shoe ESD plus SBP, with no trip friction. */
+function staticShoeEmw(esd: number | null, tvd: number | null, sbp: number | null): number | null {
+  if (esd == null || tvd == null || !(tvd > 0) || sbp == null) return null;
+  return esd + sbp / (PSI_PER_PPG_FT * tvd);
+}
+
 function flagShoeAtFit(
   job: Job,
   depths: Result["depths"],
@@ -66,50 +92,34 @@ function flagShoeAtFit(
 ) {
   const fit = job.well.fit_ppg;
   if (!Number.isFinite(fit)) return;
-  const over = (value: number | null | undefined) => value != null && value >= fit - 1e-9;
   const shoe = depths.shoe;
-  if (over(shoe.esd_ppg)) {
+  const anchor = depths.anchor;
+  const sbp = staticSbpPsi(job, anchor.esd_ppg, anchor.tvd_ft);
+  const staticEmw = staticShoeEmw(shoe.esd_ppg, shoe.tvd_ft, sbp);
+  if (staticEmw != null && staticEmw >= fit - 1e-9) {
     issues.push(
       issue(
         "error",
         "SHOE_ESD_AT_FIT",
-        `Shoe ESD ${shoe.esd_ppg!.toFixed(4)} ppg is at or above FIT ${fit} ppg. Not issuable on SDS-FRM-087.`,
+        `Static shoe ESD plus SBP is ${staticEmw.toFixed(4)} ppg, at or above FIT ${fit} ppg. Not issuable on SDS-FRM-087.`,
         "depths.shoe.esd_ppg",
-      ),
-    );
-  }
-  if (over(shoe.ecd_ppg)) {
-    issues.push(
-      issue(
-        "error",
-        "SHOE_ESD_AT_FIT",
-        `Shoe ECD ${shoe.ecd_ppg!.toFixed(4)} ppg is at or above FIT ${fit} ppg. Not issuable on SDS-FRM-087.`,
-        "depths.shoe.ecd_ppg",
+        SHOE_FIT_JOB_FIELDS,
       ),
     );
   }
   stages.forEach((stage, index) => {
-    if (!over(stage.shoeEsd_ppg)) return;
+    const stageEmw = staticShoeEmw(stage.shoeEsd_ppg, shoe.tvd_ft, stage.sbp_psi);
+    if (stageEmw == null || stageEmw < fit - 1e-9) return;
     issues.push(
       issue(
         "error",
         "SHOE_ESD_AT_FIT",
-        `Stage ${stage.n} shoe ESD ${stage.shoeEsd_ppg!.toFixed(4)} ppg is at or above FIT ${fit} ppg.`,
+        `Stage ${stage.n} static shoe ESD plus SBP is ${stageEmw.toFixed(4)} ppg, at or above FIT ${fit} ppg.`,
         `displacement.stages[${index}].shoeEsd_ppg`,
+        SHOE_FIT_JOB_FIELDS,
       ),
     );
   });
-  for (const point of shoe.surge) {
-    if (!over(point.emw_ppg)) continue;
-    issues.push(
-      issue(
-        "error",
-        "SHOE_ESD_AT_FIT",
-        `Shoe surge ${point.emw_ppg.toFixed(4)} ppg at ${point.speed_ftmin} ft/min is at or above FIT ${fit} ppg.`,
-        "depths.shoe.surge",
-      ),
-    );
-  }
 }
 
 /**
@@ -121,7 +131,7 @@ function flagShoeAtFit(
  *
  * Shoe ESD (1.0.7.1): only pill fluid standing above the shoe counts. A pill
  * that never reaches the shoe adds nothing, and shoe ESD does not fall below
- * mud weight. Pore is the entered value only — no depth gradient.
+ * mud weight. Pore is the entered value, reported at TD only.
  * Missing inputs stay null or empty, never 0.
  */
 export function calculate(job: Job): Result {
