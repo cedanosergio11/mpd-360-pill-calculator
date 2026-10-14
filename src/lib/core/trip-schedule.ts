@@ -1,0 +1,286 @@
+import { esdAtMd } from "./column";
+import { uniqueSorted } from "./geometry";
+import { tripFrictionPsi } from "./hydraulics";
+import { fannBlocked, issue, type Issue } from "./issues";
+import type { Job } from "./job.schema";
+import {
+  PSI_PER_PPG_FT,
+  type DisplacementStage,
+  type TripEmw,
+  type TripLimit,
+  type TripPointKey,
+  type TripScheduleRow,
+} from "./result";
+import { resolvedAnchorTvd, tvdAt } from "./tvd";
+
+interface PointState {
+  md: number;
+  tvd: number | null;
+  esd: number | null;
+}
+
+const EMPTY_EMW: TripEmw = { surge_ppg: null, swab_ppg: null };
+
+function pointAt(job: Job, md: number): PointState {
+  return { md, tvd: tvdAt(job.well, md), esd: esdAtMd(job, md) };
+}
+
+function sbpForFloor(point: PointState, dP: number | null, floorPpg: number): number | null {
+  if (point.esd == null || point.tvd == null || !(point.tvd > 0) || dP == null) return null;
+  return Math.max(0, (floorPpg - point.esd) * PSI_PER_PPG_FT * point.tvd + dP);
+}
+
+interface SpeedCheck {
+  pass: boolean;
+  /** Minimum SBP that satisfies swab floors. Null when the point cannot be evaluated. */
+  sbpRequired: number | null;
+  limitedBy: TripLimit;
+  usable: boolean;
+}
+
+/**
+ * A speed passes when there exists an SBP such that:
+ * - anchor swab >= target EMW
+ * - swab >= pore at shoe, anchor and bit, when pore is given
+ * - shoe surge at that SBP is strictly under FIT
+ * `limitedBy` names the constraint that closes the window.
+ */
+function checkSpeed(
+  job: Job,
+  bitMd: number,
+  speed: number,
+  shoe: PointState,
+  anchor: PointState,
+  bit: PointState,
+  frictionAt: (md: number) => number | null,
+): SpeedCheck {
+  const dShoe = frictionAt(shoe.md);
+  const dAnchor = frictionAt(anchor.md);
+  const dBit = frictionAt(bit.md);
+  if ([dShoe, dAnchor, dBit].some((value) => value == null)) {
+    return { pass: false, sbpRequired: null, limitedBy: "FIT", usable: false };
+  }
+  const target = sbpForFloor(anchor, dAnchor, job.well.targetEmw_ppg);
+  let poreNeed = 0;
+  if (job.well.porePressure_ppg != null) {
+    for (const point of [shoe, anchor, bit]) {
+      const need = sbpForFloor(point, frictionAt(point.md), job.well.porePressure_ppg);
+      if (need == null) return { pass: false, sbpRequired: null, limitedBy: "pore", usable: false };
+      poreNeed = Math.max(poreNeed, need);
+    }
+  }
+  if (target == null || shoe.esd == null || shoe.tvd == null || !(shoe.tvd > 0) || dShoe == null) {
+    return { pass: false, sbpRequired: null, limitedBy: "FIT", usable: false };
+  }
+  const sbpNeed = Math.max(target, poreNeed);
+  const surge = shoe.esd + (sbpNeed + dShoe) / (PSI_PER_PPG_FT * shoe.tvd);
+  const pass = surge < job.well.fit_ppg;
+  if (pass) return { pass: true, sbpRequired: sbpNeed, limitedBy: "none", usable: true };
+
+  const surgeAtZero = shoe.esd + dShoe / (PSI_PER_PPG_FT * shoe.tvd);
+  let limitedBy: TripLimit = "targetEmw";
+  if (surgeAtZero >= job.well.fit_ppg) limitedBy = "FIT";
+  else if (job.well.porePressure_ppg != null && poreNeed > target) limitedBy = "pore";
+  return { pass: false, sbpRequired: null, limitedBy, usable: true };
+}
+
+function emwAtSpeed(
+  job: Job,
+  md: number,
+  bitMd: number,
+  speed: number,
+  sbp: number,
+  dP: number | null,
+): TripEmw {
+  const esd = esdAtMd(job, md);
+  const tvd = tvdAt(job.well, md);
+  if (esd == null || tvd == null || !(tvd > 0) || dP == null) return { ...EMPTY_EMW };
+  const perPsi = 1 / (PSI_PER_PPG_FT * tvd);
+  return {
+    surge_ppg: esd + (sbp + dP) * perPsi,
+    swab_ppg: esd + (sbp - dP) * perPsi,
+  };
+}
+
+function stations(job: Job, pillTop: number | null, pillBottom: number | null): number[] {
+  const bit = job.well.bitMd_ft;
+  const marks = [0, bit, job.well.shoeMd_ft, job.well.anchorMd_ft];
+  if (pillTop != null) marks.push(pillTop);
+  if (pillBottom != null) marks.push(pillBottom);
+  for (const interval of job.well.casing) marks.push(interval.topMd_ft, interval.bottomMd_ft);
+  return uniqueSorted(
+    marks.filter((mark) => mark >= -1e-6 && mark <= bit + 1e-3),
+    0.5,
+  );
+}
+
+/**
+ * Trip rows in POOH-then-RIH order, one per bit-depth step between geometry stations
+ * (surface, casing, shoe, pill top/bottom, anchor, bit).
+ *
+ * TODO(MPGenie): the pill is not migrated along the trip. Surge and swab use the
+ * job's fluid column as given. Moving-column trip EMW is pending.
+ *
+ * maxSpeed is the fastest `trip.speeds_ftmin` entry that passes the FIT / target /
+ * pore window. When none pass it is null, and the result carries NO_SAFE_TRIP_SPEED.
+ */
+export function buildTripSchedule(
+  job: Job,
+  pillTop: number | null,
+  pillBottom: number | null,
+  stages: DisplacementStage[],
+  issues: Issue[],
+): TripScheduleRow[] {
+  const speeds = [...new Set(job.trip.speeds_ftmin.filter((speed) => speed > 0))].sort(
+    (a, b) => b - a,
+  );
+  const path = stations(job, pillTop, pillBottom);
+  if (path.length < 2) return [];
+
+  const anchorTvd = resolvedAnchorTvd(job.well);
+  const anchorEsd = esdAtMd(job, job.well.anchorMd_ft);
+  const sbpStatic =
+    anchorEsd == null || anchorTvd == null || !(anchorTvd > 0)
+      ? null
+      : Math.max(0, (job.well.targetEmw_ppg - anchorEsd) * PSI_PER_PPG_FT * anchorTvd);
+
+  const shoe = pointAt(job, job.well.shoeMd_ft);
+  const anchor = pointAt(job, job.well.anchorMd_ft);
+  const blocked = fannBlocked(issues);
+  const frictionCache = new Map<string, number | null>();
+  const friction = (bitMd: number, poiMd: number, speed: number): number | null => {
+    if (blocked) return null;
+    const key = `${bitMd}|${poiMd}|${speed}`;
+    const cached = frictionCache.get(key);
+    if (cached !== undefined) return cached;
+    const value = tripFrictionPsi(job, poiMd, bitMd, speed);
+    frictionCache.set(key, value);
+    return value;
+  };
+
+  type Step = { direction: "POOH" | "RIH"; from: number; to: number; evalAt: number };
+  const steps: Step[] = [];
+  for (let i = path.length - 1; i > 0; i--) {
+    steps.push({ direction: "POOH", from: path[i], to: path[i - 1], evalAt: path[i] });
+  }
+  for (let i = 0; i < path.length - 1; i++) {
+    steps.push({ direction: "RIH", from: path[i], to: path[i + 1], evalAt: path[i + 1] });
+  }
+
+  let geometryMiss = false;
+  let anyRejected = false;
+  const rows: TripScheduleRow[] = [];
+
+  for (const step of steps) {
+    const bitPoint = pointAt(job, step.evalAt);
+    const blankEmw = (): Record<TripPointKey, TripEmw> => ({
+      shoe: { ...EMPTY_EMW },
+      anchor: { ...EMPTY_EMW },
+      bit: { ...EMPTY_EMW },
+    });
+
+    let chosen: number | null = null;
+    let chosenSbp: number | null = null;
+    let limitedBy: TripLimit = "none";
+    let sawUsable = false;
+
+    if (!blocked && speeds.length) {
+      for (let i = 0; i < speeds.length; i++) {
+        const speed = speeds[i];
+        const frictionAt = (md: number) => friction(step.evalAt, md, speed);
+        const result = checkSpeed(job, step.evalAt, speed, shoe, anchor, bitPoint, frictionAt);
+        if (!result.usable) {
+          geometryMiss = true;
+          break;
+        }
+        sawUsable = true;
+        if (result.pass && result.sbpRequired != null) {
+          chosen = speed;
+          chosenSbp = result.sbpRequired;
+          limitedBy = i === 0 ? "none" : "FIT";
+          if (i > 0) {
+            const faster = speeds[i - 1];
+            const fasterCheck = checkSpeed(job, step.evalAt, faster, shoe, anchor, bitPoint, (md) =>
+              friction(step.evalAt, md, faster),
+            );
+            limitedBy = fasterCheck.limitedBy;
+          }
+          break;
+        }
+        if (i === speeds.length - 1) limitedBy = result.limitedBy;
+      }
+    }
+
+    if (chosen == null && (blocked || speeds.length === 0 || sawUsable)) anyRejected = true;
+
+    const emwAt = blankEmw();
+    if (chosen != null && chosenSbp != null) {
+      const fill = (key: TripPointKey, md: number) => {
+        emwAt[key] = emwAtSpeed(
+          job,
+          md,
+          step.evalAt,
+          chosen!,
+          chosenSbp!,
+          friction(step.evalAt, md, chosen!),
+        );
+      };
+      fill("shoe", job.well.shoeMd_ft);
+      fill("anchor", job.well.anchorMd_ft);
+      fill("bit", step.evalAt);
+    }
+
+    const row: TripScheduleRow = {
+      direction: step.direction,
+      fromBitMd_ft: step.from,
+      toBitMd_ft: step.to,
+      maxSpeed_ftmin: chosen,
+      emwAt,
+      sbpStatic_psi: sbpStatic,
+      sbpRequired_psi: chosen == null ? null : chosenSbp,
+      limitedBy,
+    };
+    if (step.direction === "RIH") {
+      const stage = stages.find((item) => Math.abs(item.bitMd_ft - step.to) <= 1);
+      if (stage) row.stage = stage.n;
+    }
+    rows.push(row);
+  }
+
+  if (geometryMiss && !issues.some((item) => item.code === "GEOMETRY")) {
+    issues.push(
+      issue(
+        "error",
+        "GEOMETRY",
+        "Trip hydraulics need a hole ID larger than the string OD along the well to the bit.",
+        "well.casing",
+      ),
+    );
+  }
+  if (!blocked && !geometryMiss && speeds.length === 0 && rows.length) {
+    issues.push(
+      issue(
+        "error",
+        "NO_SAFE_TRIP_SPEED",
+        "No trip speed keeps shoe surge under FIT, anchor swab at or above target EMW, and swab at or above pore pressure. maxSpeed is null.",
+        "trip.speeds_ftmin",
+      ),
+    );
+  } else if (
+    !blocked &&
+    !geometryMiss &&
+    anyRejected &&
+    rows.some((row) => row.maxSpeed_ftmin == null)
+  ) {
+    const failing = rows.filter((row) => row.maxSpeed_ftmin == null).length;
+    issues.push(
+      issue(
+        "error",
+        "NO_SAFE_TRIP_SPEED",
+        `No trip speed keeps shoe surge under FIT, anchor swab at or above target EMW, and swab at or above pore pressure on ${failing} of ${rows.length} steps. maxSpeed is null, not 0.`,
+        "trip.speeds_ftmin",
+      ),
+    );
+  }
+  return rows;
+}
