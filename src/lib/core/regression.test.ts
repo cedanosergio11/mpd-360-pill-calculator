@@ -620,6 +620,11 @@ describe("Lock Sub 1H — MPGenie shoe 8033 and the real shoe", () => {
     within(stages[0].shoeEsd_ppg, 11.4, 0.001);
     within(stages[1].shoeEsd_ppg, 11.4, 0.001);
     within(stages[2].shoeEsd_ppg, 11.5829, 0.001);
+    // Fixture keeps target EMW 12 ppg, so the anchor hold is 0 psi and shoe EMW stays the ESD.
+    expect(stages.map((stage) => stage.sbp_psi)).toEqual([0, 0, 0]);
+    within(stages[0].shoeEmw_ppg, 11.4, 0.001);
+    within(stages[1].shoeEmw_ppg, 11.4, 0.001);
+    within(stages[2].shoeEmw_ppg, 11.5829, 0.001);
     const pipeCap = 4.778 ** 2 / 1029.4;
     expect(stages[0].pumped_bbl).toBe(0);
     expect(stages[1].pumped_bbl).toBe(0);
@@ -641,9 +646,10 @@ describe("Lock Sub 1H — MPGenie shoe 8033 and the real shoe", () => {
     within(stages[0].shoeEsd_ppg, 11.4, 0.001);
     within(stages[1].shoeEsd_ppg, 11.4, 0.001);
     within(stages[2].shoeEsd_ppg, 11.5829, 0.001);
-    for (const stage of stages) {
-      expect(stage.shoeEmw_ppg).toBeCloseTo(stage.shoeEsd_ppg! + 325 / (0.052 * 8033), 4);
-    }
+    // 325 psi / (0.052 × 8033 ft) adds 0.778 ppg.
+    expect(stages[0].shoeEmw_ppg).toBeCloseTo(12.178, 3);
+    expect(stages[1].shoeEmw_ppg).toBeCloseTo(12.178, 3);
+    expect(stages[2].shoeEmw_ppg).toBeCloseTo(12.361, 3);
   });
 });
 
