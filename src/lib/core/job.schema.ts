@@ -70,7 +70,11 @@ export interface Well {
    * gradient versus depth — that is a future enhancement.
    */
   porePressure_ppg?: number;
-  targetEmw_ppg: number;
+  /**
+   * Anchor target EMW, ppg. When set, pumps-off SBP is the pressure that
+   * holds the anchor here. When omitted, stages carry `trip.sbpConn_psi`.
+   */
+  targetEmw_ppg?: number;
   casing: CasingInterval[];
   openHoleId_in: number;
   stringOd_in: number;

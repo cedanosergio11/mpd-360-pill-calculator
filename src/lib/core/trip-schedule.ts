@@ -1,4 +1,5 @@
 import { esdAtMd } from "./column";
+import { pumpsOffSbpPsi } from "./displacement";
 import { uniqueSorted } from "./geometry";
 import { tripFrictionPsi } from "./hydraulics";
 import { fannBlocked, issue, type Issue } from "./issues";
@@ -11,7 +12,7 @@ import {
   type TripPointKey,
   type TripScheduleRow,
 } from "./result";
-import { resolvedAnchorTvd, tvdAt } from "./tvd";
+import { tvdAt } from "./tvd";
 
 interface PointState {
   md: number;
@@ -66,7 +67,9 @@ function checkSpeed(
   if ([dShoe, dAnchor, dBit].some((value) => value == null)) {
     return { pass: false, sbpRequired: null, limitedBy: "FIT", usable: false, surgeAtFit: false };
   }
-  const target = sbpForFloor(anchor, dAnchor, job.well.targetEmw_ppg);
+  const targetPpg = job.well.targetEmw_ppg;
+  const target =
+    targetPpg != null && Number.isFinite(targetPpg) ? sbpForFloor(anchor, dAnchor, targetPpg) : 0;
   let poreNeed = 0;
   if (job.well.porePressure_ppg != null) {
     const need = sbpForFloor(bit, dBit, job.well.porePressure_ppg);
@@ -180,12 +183,8 @@ export function buildTripSchedule(
   const path = stations(job, pillTop, spotMd);
   if (path.length < 2) return [];
 
-  const anchorTvd = resolvedAnchorTvd(job.well);
   const anchorEsd = esdAtMd(job, job.well.anchorMd_ft);
-  const sbpStatic =
-    anchorEsd == null || anchorTvd == null || !(anchorTvd > 0)
-      ? null
-      : Math.max(0, (job.well.targetEmw_ppg - anchorEsd) * PSI_PER_PPG_FT * anchorTvd);
+  const sbpStatic = pumpsOffSbpPsi(job, anchorEsd);
 
   const shoe = pointAt(job, job.well.shoeMd_ft);
   const anchor = pointAt(job, job.well.anchorMd_ft);
@@ -310,14 +309,23 @@ export function buildTripSchedule(
     rows.some((row) => row.maxSpeed_ftmin != null) &&
     !issues.some((item) => item.code === "SHOE_SURGE_AT_FIT")
   ) {
-    issues.push(
-      issue(
-        "warn",
-        "SHOE_SURGE_AT_FIT",
-        "Shoe surge reaches FIT at one or more trip speeds. Those speeds are dropped from the band. maxSpeed is the fastest speed that stays under FIT.",
-        "depths.shoe.surge",
+    const surgeStages = [
+      ...new Set(
+        rows.flatMap((row) =>
+          row.stage != null && row.limitedBy === "FIT" && row.maxSpeed_ftmin != null
+            ? [row.stage]
+            : [],
+        ),
       ),
+    ].sort((a, b) => a - b);
+    const warning = issue(
+      "warn",
+      "SHOE_SURGE_AT_FIT",
+      "Shoe surge reaches FIT at one or more trip speeds. Those speeds are dropped from the band. maxSpeed is the fastest speed that stays under FIT.",
+      "depths.shoe.surge",
     );
+    warning.stages = surgeStages;
+    issues.push(warning);
   }
   if (geometryMiss && !issues.some((item) => item.code === "GEOMETRY")) {
     issues.push(

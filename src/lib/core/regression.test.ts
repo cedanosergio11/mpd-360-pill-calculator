@@ -630,6 +630,21 @@ describe("Lock Sub 1H — MPGenie shoe 8033 and the real shoe", () => {
     for (const stage of real.displacement.stages) within(stage.shoeEsd_ppg, 11.4, 0.001);
     within(real.depths.shoe.esd_ppg, 11.4, 0.001);
   });
+
+  it("carries connection SBP and shoe EMW on every stage when no anchor target is set", () => {
+    const job = lockSubDryJob("noDP", "8033");
+    delete job.well.targetEmw_ppg;
+    job.trip.speeds_ftmin = [];
+    job.trip.flow_gpm = 0;
+    const stages = calculate(job).displacement.stages;
+    expect(stages.map((stage) => stage.sbp_psi)).toEqual([325, 325, 325]);
+    within(stages[0].shoeEsd_ppg, 11.4, 0.001);
+    within(stages[1].shoeEsd_ppg, 11.4, 0.001);
+    within(stages[2].shoeEsd_ppg, 11.5829, 0.001);
+    for (const stage of stages) {
+      expect(stage.shoeEmw_ppg).toBeCloseTo(stage.shoeEsd_ppg! + 325 / (0.052 * 8033), 4);
+    }
+  });
 });
 
 describe("SHOE_ESD_AT_FIT", () => {
@@ -652,17 +667,22 @@ describe("SHOE_ESD_AT_FIT", () => {
       expect.arrayContaining([
         "well.shoeMd_ft",
         "well.shoeTvd_ft",
-        "well.fit_ppg",
+        "trip.sbpConn_psi",
         "fluids[0].density_ppg",
         "fluids[1].density_ppg",
+        "column[0].topMd_ft",
+        "column[0].bottomMd_ft",
         "column[1].topMd_ft",
         "column[1].bottomMd_ft",
-        "column[1].fluidId",
+        "pipeColumn[0].topMd_ft",
+        "pipeColumn[0].bottomMd_ft",
       ]),
     );
     expect(fields).not.toContain("column");
     expect(fields).not.toContain("fluids");
-    expect(fields.every((path) => path.includes("."))).toBe(true);
+    expect(fields.some((path) => /id_in|od_in|openHole|stringOd|stringId|casing/.test(path))).toBe(
+      false,
+    );
 
     const cold = exampleJob();
     cold.well.fit_ppg = 100;
@@ -688,6 +708,19 @@ describe("SHOE_ESD_AT_FIT", () => {
     const warnings = result.issues.filter((item) => item.code === "SHOE_SURGE_AT_FIT");
     expect(warnings).toHaveLength(1);
     expect(warnings[0]).toMatchObject({ level: "warn", field: "depths.shoe.surge" });
+    const surgeStages = warnings[0].stages ?? [];
+    expect(surgeStages.length).toBeGreaterThan(0);
+    for (const stage of surgeStages) {
+      const row = result.tripSchedule.find((item) => item.stage === stage);
+      expect(row?.limitedBy).toBe("FIT");
+      expect(row?.maxSpeed_ftmin).not.toBeNull();
+      expect(row!.maxSpeed_ftmin!).toBeLessThan(200);
+    }
+    expect(
+      result.tripSchedule
+        .filter((row) => row.limitedBy === "none" && row.stage != null)
+        .every((row) => !surgeStages.includes(row.stage!)),
+    ).toBe(true);
     expect(result.issues.some((item) => item.code === "SHOE_ESD_AT_FIT")).toBe(false);
     const rih = result.tripSchedule.filter((row) => row.direction === "RIH");
     expect(rih.some((row) => row.maxSpeed_ftmin === 40)).toBe(true);

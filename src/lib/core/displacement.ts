@@ -20,11 +20,29 @@ function blankDisplacement(): Displacement {
   };
 }
 
-function sbpHold(job: Job, columnJob: Job): number | null {
+/**
+ * Pumps-off SBP, psi. Matches trip `sbpStatic`.
+ * Anchor target present: max(0, (target − anchor ESD) × 0.052 × anchor TVD).
+ * No target: the entered connection SBP.
+ */
+export function pumpsOffSbpPsi(job: Job, anchorEsd: number | null): number | null {
+  const target = job.well.targetEmw_ppg;
+  if (target == null || !Number.isFinite(target)) {
+    return Number.isFinite(job.trip.sbpConn_psi) ? job.trip.sbpConn_psi : null;
+  }
   const anchorTvd = resolvedAnchorTvd(job.well);
-  const esd = esdAtMd(columnJob, job.well.anchorMd_ft);
-  if (esd == null || anchorTvd == null || !(anchorTvd > 0)) return null;
-  return Math.max(0, (job.well.targetEmw_ppg - esd) * PSI_PER_PPG_FT * anchorTvd);
+  if (anchorEsd == null || anchorTvd == null || !(anchorTvd > 0)) return null;
+  return Math.max(0, (target - anchorEsd) * PSI_PER_PPG_FT * anchorTvd);
+}
+
+/** Shoe EMW, ppg: hydrostatic shoe ESD plus SBP. */
+export function shoeEmwPpg(
+  shoeEsd: number | null,
+  shoeTvd: number | null,
+  sbp: number | null,
+): number | null {
+  if (shoeEsd == null || shoeTvd == null || !(shoeTvd > 0) || sbp == null) return null;
+  return shoeEsd + sbp / (PSI_PER_PPG_FT * shoeTvd);
 }
 
 /**
@@ -42,7 +60,9 @@ export function pumpedPillBbl(job: Job, pill: Span, bitMd: number): number | nul
       segment.topMd_ft < pill.bottomMd + 0.1,
   );
   const top = own.length ? Math.min(...own.map((segment) => segment.topMd_ft)) : pill.topMd;
-  const bottom = own.length ? Math.max(...own.map((segment) => segment.bottomMd_ft)) : pill.bottomMd;
+  const bottom = own.length
+    ? Math.max(...own.map((segment) => segment.bottomMd_ft))
+    : pill.bottomMd;
   const covered = Math.max(0, Math.min(bitMd, bottom) - top);
   return covered * cap;
 }
@@ -54,13 +74,17 @@ function stageFromColumn(
   bitMd: number,
   pill: Span,
 ): DisplacementStage {
+  const anchorEsd = esdAtMd(columnJob, job.well.anchorMd_ft);
+  const shoeEsd = esdAtMd(columnJob, job.well.shoeMd_ft);
+  const sbp = pumpsOffSbpPsi(job, anchorEsd);
   return {
     n,
     bitMd_ft: bitMd,
     pumped_bbl: pumpedPillBbl(job, pill, bitMd),
-    sbp_psi: sbpHold(job, columnJob),
-    shoeEsd_ppg: esdAtMd(columnJob, job.well.shoeMd_ft),
-    anchorEsd_ppg: esdAtMd(columnJob, job.well.anchorMd_ft),
+    sbp_psi: sbp,
+    shoeEsd_ppg: shoeEsd,
+    shoeEmw_ppg: shoeEmwPpg(shoeEsd, tvdAt(job.well, job.well.shoeMd_ft), sbp),
+    anchorEsd_ppg: anchorEsd,
     tdEsd_ppg: esdAtMd(columnJob, job.well.mdTd_ft),
   };
 }

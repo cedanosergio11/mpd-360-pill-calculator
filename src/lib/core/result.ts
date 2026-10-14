@@ -28,7 +28,8 @@ export interface DepthResult {
   fit_ppg: number | null;
   /** Entered pore, reported at TD only. Null at the shoe and the anchor. */
   pore_ppg: number | null;
-  targetEmw_ppg: number;
+  /** Anchor target when the job entered one. Null when it did not. */
+  targetEmw_ppg: number | null;
   surge: SpeedEmw[];
   swab: SpeedEmw[];
 }
@@ -43,8 +44,15 @@ export interface DisplacementStage {
    * not entered that fluid. Null only when pipe capacity cannot be computed.
    */
   pumped_bbl: number | null;
+  /**
+   * Pumps-off SBP, psi. With an anchor target: max(0, (target − anchor ESD) × 0.052 × anchor TVD).
+   * With no target: `trip.sbpConn_psi` as entered.
+   */
   sbp_psi: number | null;
+  /** Hydrostatic shoe ESD only. SBP is not in this number. */
   shoeEsd_ppg: number | null;
+  /** Shoe ESD plus this stage's SBP: shoeEsd + sbp / (0.052 × shoe TVD). */
+  shoeEmw_ppg: number | null;
   anchorEsd_ppg: number | null;
   tdEsd_ppg: number | null;
 }

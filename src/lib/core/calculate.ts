@@ -1,5 +1,5 @@
 import { esdAtMd, pillPlacement } from "./column";
-import { buildDisplacement } from "./displacement";
+import { buildDisplacement, pumpsOffSbpPsi, shoeEmwPpg } from "./displacement";
 import { staticColumnJob } from "./equalize";
 import { inputHash } from "./hash";
 import { ecdPpg, emwFromParts, frictionPsi } from "./hydraulics";
@@ -7,7 +7,6 @@ import { fannBlocked, hasStructureError, issue, type Issue } from "./issues";
 import type { Job } from "./job.schema";
 import {
   CALC_VERSION,
-  PSI_PER_PPG_FT,
   type DepthKey,
   type DepthResult,
   type DisplacementStage,
@@ -25,7 +24,7 @@ function depthShell(job: Job, key: DepthKey, md: number, tvd: number | null): De
     ecd_ppg: null,
     fit_ppg: key === "shoe" ? job.well.fit_ppg : null,
     pore_ppg: key === "td" ? (job.well.porePressure_ppg ?? null) : null,
-    targetEmw_ppg: job.well.targetEmw_ppg,
+    targetEmw_ppg: job.well.targetEmw_ppg ?? null,
     surge: [],
     swab: [],
   };
@@ -59,66 +58,25 @@ function blankResult(job: Job, issues: Result["issues"]): Result {
   };
 }
 
-/** Exact job paths that set static shoe EMW and the FIT it is checked against. */
+/**
+ * Job paths that set shoe ESD. Interval depths are the pill-volume input.
+ * Pipe and hole sizes are not listed.
+ */
 function shoeFitJobFields(job: Job): string[] {
-  const fields = [
-    "well.shoeMd_ft",
-    "well.shoeTvd_ft",
-    "well.fit_ppg",
-    "well.anchorMd_ft",
-    "well.targetEmw_ppg",
-    "well.bitMd_ft",
-    "well.mdTd_ft",
-    "well.tvdTd_ft",
-    "well.openHoleId_in",
-    "well.stringOd_in",
-  ];
-  if (job.well.anchorTvd_ft != null) fields.push("well.anchorTvd_ft");
-  job.well.casing.forEach((_, index) => {
-    fields.push(
-      `well.casing[${index}].topMd_ft`,
-      `well.casing[${index}].bottomMd_ft`,
-      `well.casing[${index}].id_in`,
-    );
-  });
-  (job.well.survey ?? []).forEach((_, index) => {
-    fields.push(`well.survey[${index}].md_ft`, `well.survey[${index}].tvd_ft`);
-  });
+  const fields = ["well.shoeMd_ft", "well.shoeTvd_ft", "trip.sbpConn_psi"];
   const used = new Set<string>();
-  job.column.forEach((segment, index) => {
-    fields.push(
-      `column[${index}].fluidId`,
-      `column[${index}].topMd_ft`,
-      `column[${index}].bottomMd_ft`,
-    );
-    used.add(segment.fluidId);
-  });
-  if (job.mode === "withDP") {
-    job.pipeColumn.forEach((segment, index) => {
-      fields.push(
-        `pipeColumn[${index}].fluidId`,
-        `pipeColumn[${index}].topMd_ft`,
-        `pipeColumn[${index}].bottomMd_ft`,
-      );
+  const intervals = (key: "column" | "pipeColumn", segments: Job["column"]) => {
+    segments.forEach((segment, index) => {
+      fields.push(`${key}[${index}].topMd_ft`, `${key}[${index}].bottomMd_ft`);
       used.add(segment.fluidId);
     });
-  }
+  };
+  intervals("column", job.column);
+  intervals("pipeColumn", job.pipeColumn);
   job.fluids.forEach((fluid, index) => {
     if (used.has(fluid.id)) fields.push(`fluids[${index}].density_ppg`);
   });
   return fields;
-}
-
-/** Pumps-off SBP that holds anchor ESD at target EMW. */
-function staticSbpPsi(job: Job, anchorEsd: number | null, anchorTvd: number | null): number | null {
-  if (anchorEsd == null || anchorTvd == null || !(anchorTvd > 0)) return null;
-  return Math.max(0, (job.well.targetEmw_ppg - anchorEsd) * PSI_PER_PPG_FT * anchorTvd);
-}
-
-/** Static shoe EMW: shoe ESD plus SBP, with no trip friction. */
-function staticShoeEmw(esd: number | null, tvd: number | null, sbp: number | null): number | null {
-  if (esd == null || tvd == null || !(tvd > 0) || sbp == null) return null;
-  return esd + sbp / (PSI_PER_PPG_FT * tvd);
 }
 
 function formatPpg(value: number): string {
@@ -149,14 +107,13 @@ function flagShoeAtFit(
   if (!Number.isFinite(fit)) return;
   const shoe = depths.shoe;
   const anchor = depths.anchor;
-  const sbp = staticSbpPsi(job, anchor.esd_ppg, anchor.tvd_ft);
   const hits: ShoeFitHit[] = [];
-  const staticEmw = staticShoeEmw(shoe.esd_ppg, shoe.tvd_ft, sbp);
+  const staticEmw = shoeEmwPpg(shoe.esd_ppg, shoe.tvd_ft, pumpsOffSbpPsi(job, anchor.esd_ppg));
   if (staticEmw != null && staticEmw >= fit - 1e-9) {
     hits.push({ stage: null, emw: staticEmw, depthFt: shoe.md_ft });
   }
   for (const stage of stages) {
-    const stageEmw = staticShoeEmw(stage.shoeEsd_ppg, shoe.tvd_ft, stage.sbp_psi);
+    const stageEmw = stage.shoeEmw_ppg;
     if (stageEmw == null || stageEmw < fit - 1e-9) continue;
     hits.push({ stage: stage.n, emw: stageEmw, depthFt: shoe.md_ft });
   }
