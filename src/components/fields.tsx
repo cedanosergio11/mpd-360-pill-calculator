@@ -1,117 +1,54 @@
-import { useState, type ReactNode } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { cn } from "@/lib/utils";
+import type { ReactNode } from "react";
+import type { Issue } from "@/contract";
+import { getPath } from "@/lib/paths";
+import { issuesFor, useStore } from "@/lib/store";
 
-export function Field({
-  label,
-  unit,
-  hint,
-  children,
-  className,
-}: {
-  label: string;
-  unit?: string;
-  hint?: string;
-  children: ReactNode;
-  className?: string;
-}) {
+export function IssueList({ issues }: { issues: Issue[] }) {
+  if (!issues.length) return null;
   return (
-    <div className={cn("grid gap-1.5", className)}>
-      <div className="flex items-baseline justify-between gap-2">
-        <Label className="text-pretty">{label}</Label>
-        {unit ? (
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">{unit}</span>
-        ) : null}
+    <ul className="mt-1 space-y-0.5">
+      {issues.map((i, k) => (
+        <li key={k} data-issue-field={i.field} className={`text-[11px] leading-snug ${i.level === "error" ? "text-danger" : "text-warn"}`}>
+          {i.level === "error" ? "✖" : "▲"} {i.message} <span className="font-mono opacity-70">[{i.code}]</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function NumField({ path, label, unit, optional }: { path: string; label: string; unit: string; optional?: boolean }) {
+  const job = useStore((s) => s.job);
+  const set = useStore((s) => s.set);
+  const issues = issuesFor(useStore((s) => s.result?.issues), path);
+  const v = getPath(job, path);
+  const err = issues.some((i) => i.level === "error");
+  return (
+    <label className="block min-w-0">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}{optional && " (opt)"}</span>
+      <div className={`mt-0.5 flex items-center rounded-md border bg-background ${err ? "border-danger" : "border-input"}`}>
+        <input
+          inputMode="decimal" data-path={path}
+          className="w-full min-w-0 bg-transparent px-2 py-1.5 font-mono text-sm outline-none"
+          value={typeof v === "number" && Number.isFinite(v) ? String(v) : ""}
+          onChange={(e) => { const t = e.target.value.trim(); set(path, t === "" ? (optional ? undefined : NaN) : Number(t)); }}
+        />
+        <span className="shrink-0 pr-2 font-mono text-[11px] text-muted-foreground">{unit}</span>
       </div>
+      <IssueList issues={issues} />
+    </label>
+  );
+}
+
+export function Card({ title, children, right }: { title: string; children: ReactNode; right?: ReactNode }) {
+  return (
+    <section className="rounded-lg border bg-card p-3 sm:p-4">
+      <div className="mb-3 flex items-center justify-between gap-2"><h2 className="text-sm font-semibold">{title}</h2>{right}</div>
       {children}
-      {hint ? <p className="text-[11px] leading-snug text-muted-foreground">{hint}</p> : null}
-    </div>
+    </section>
   );
 }
 
-export function NumberField({
-  label,
-  unit,
-  value,
-  onChange,
-  hint,
-  step = "any",
-  disabled,
-}: {
-  label: string;
-  unit?: string;
-  value: number | "";
-  onChange: (v: number | "") => void;
-  hint?: string;
-  step?: string;
-  disabled?: boolean;
-}) {
-  return (
-    <Field label={label} unit={unit} hint={hint}>
-      <Input
-        type="number"
-        step={step}
-        inputMode="decimal"
-        disabled={disabled}
-        value={value}
-        onChange={(e) => {
-          const raw = e.target.value;
-          if (raw === "") onChange("");
-          else {
-            const n = Number(raw);
-            onChange(Number.isFinite(n) ? n : "");
-          }
-        }}
-        className={cn(disabled && "bg-muted text-muted-foreground")}
-      />
-    </Field>
-  );
-}
+export const Grid = ({ children }: { children: ReactNode }) => <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">{children}</div>;
 
-export function TextField({
-  label,
-  value,
-  onChange,
-  type = "text",
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  type?: string;
-}) {
-  return (
-    <Field label={label}>
-      <Input type={type} value={value} onChange={(e) => onChange(e.target.value)} />
-    </Field>
-  );
-}
-
-export function Section({
-  title,
-  children,
-  defaultOpen = true,
-}: {
-  title: string;
-  children: ReactNode;
-  defaultOpen?: boolean;
-}) {
-  const [open, setOpen] = useState(defaultOpen);
-  return (
-    <details
-      open={open}
-      onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}
-      className="group border-b border-border last:border-b-0"
-    >
-      <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground hover:text-foreground [&::-webkit-details-marker]:hidden">
-        {title}
-        <span className="inline-block text-muted-foreground transition-transform duration-150 group-open:rotate-180">
-          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
-            <path d="M2.5 4.5 L6 8 L9.5 4.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-          </svg>
-        </span>
-      </summary>
-      <div className="grid gap-3 px-4 pb-4">{children}</div>
-    </details>
-  );
-}
+export const fmt = (v: number | null | undefined, unit: string, d = 2) =>
+  v == null || !Number.isFinite(v) ? "—" : `${v.toFixed(d)} ${unit}`;
