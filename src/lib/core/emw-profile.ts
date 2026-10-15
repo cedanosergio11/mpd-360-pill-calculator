@@ -332,7 +332,8 @@ function profileFor(
 /**
  * Static, static-plus-connection-SBP, and ECD profiles for the pill in place
  * and the pill spotted. FIT is the shoe EMW. Pore is the entered ppg when
- * present. A failure returns no stations and no lines.
+ * present. Crossings shallower than the shoe TVD are omitted. A failure
+ * returns no stations and no lines.
  */
 export function emwProfile(job: Job): EmwProfileResult {
   if (!finite(job.well.fit_ppg)) {
@@ -391,7 +392,7 @@ export function emwProfile(job: Job): EmwProfileResult {
     crossings: [
       ...crossingsFor("inPlace", placed.lines, job.well.fit_ppg, pore),
       ...crossingsFor("spotted", spottedProfile.lines, job.well.fit_ppg, pore),
-    ],
+    ].filter((crossing) => crossing.tvd_ft >= job.well.shoeTvd_ft),
     notes: pore == null ? [PORE_NOT_ENTERED] : [],
   };
 }

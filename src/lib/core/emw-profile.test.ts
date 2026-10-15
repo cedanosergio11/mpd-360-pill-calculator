@@ -176,6 +176,37 @@ describe("emwProfile EXAMPLE B and C", () => {
     });
   });
 
+  it("drops the shallow static-plus-SBP FIT crossing on EXAMPLE B and C", () => {
+    for (const job of [exampleB, exampleC]) {
+      const result = emwProfile(job);
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.crossings.some((flag) => Math.abs(flag.tvd_ft - 99.6) < 1)).toBe(false);
+      expect(result.crossings.every((flag) => flag.tvd_ft >= job.well.shoeTvd_ft)).toBe(true);
+    }
+    const base = emwProfile(exampleB);
+    const high = emwProfile(exampleC);
+    expect(base.ok && high.ok).toBe(true);
+    if (!base.ok || !high.ok) return;
+    expect(base.crossings).toEqual([
+      { tvd_ft: 9486, line: "staticSbp", pillState: "spotted", limit: "fit" },
+    ]);
+    expect(high.crossings).toEqual([]);
+  });
+
+  it("keeps a FIT crossing at or below the shoe when FIT is lowered", () => {
+    const job: Job = structuredClone(exampleB);
+    job.well.fit_ppg = 12.3;
+    const result = emwProfile(job);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.crossings.some((flag) => Math.abs(flag.tvd_ft - 99.6) < 1)).toBe(false);
+    expect(result.crossings).toEqual([
+      { tvd_ft: 8686, line: "staticSbp", pillState: "inPlace", limit: "fit" },
+    ]);
+    expect(result.crossings[0].tvd_ft).toBeGreaterThanOrEqual(job.well.shoeTvd_ft);
+  });
+
   it("does not invent a pore value when the entered pore is not finite", () => {
     const job: Job = structuredClone(exampleB);
     job.well.porePressure_ppg = Number.NaN;
