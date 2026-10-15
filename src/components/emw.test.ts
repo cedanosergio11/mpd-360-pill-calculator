@@ -15,7 +15,15 @@ describe("EMW screen on the real contract", () => {
       for (const print of [false, true]) {
         const out = html(p, print);
         expect(out.match(/data-emw-shoe-row=/g)?.length).toBe(6);
-        expect(out.match(/data-emw-band=/g)?.length).toBe(bands);
+        const charts = out.split(`data-testid="emw-chart"`).slice(1).map((c) => c.split("</svg>")[0]);
+        const gutterChart = charts.find((c) => c.includes('data-emw-gutter="on"'))!;
+        expect(gutterChart.match(/data-emw-band=/g)?.length).toBe(bands);
+        expect(gutterChart.match(/data-emw-band-label=/g)?.length).toBe(bands);
+        if (!print) {
+          const phone = charts.find((c) => c.includes('data-emw-gutter="off"'))!;
+          expect(phone.match(/data-emw-band-num=/g)?.length).toBe(bands);
+          expect(phone).not.toContain("data-emw-band-label");
+        } else expect(charts.length).toBe(1);
         expect(out).toContain(p.spotted.label);
       }
     }
