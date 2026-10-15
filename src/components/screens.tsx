@@ -1,5 +1,5 @@
 import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { KpiError, KpiVolumesResult, PoohFillValue, DepthKey, PumpError, Result, StrokesScheduleResult, TripLimit, TripScheduleRow } from "@/contract";
 import { HAS_PIPE_COLUMN, kpiVolumes, strokesSchedule } from "@/contract";
 import { getPath } from "@/lib/paths";
@@ -427,9 +427,10 @@ function StrokesPrint() {
 }
 
 /* ---------- KPI & volumes: display only. All numbers come from one kpiVolumes() call. ---------- */
-function useKpi(): KpiVolumesResult {
-  const job = useStore((s) => s.job);
-  return kpiVolumes(job, { surfaceLine_bbl: 0 });
+/** KPI uses the inputs snapshot from the last Calculate, like the other result screens — never live edits. */
+function useKpi(): KpiVolumesResult | null {
+  const job = useStore((s) => s.calcJob);
+  return useMemo(() => (job ? kpiVolumes(job, { surfaceLine_bbl: 0 }) : null), [job]);
 }
 const KpiErr = ({ e }: { e: KpiError }) => (
   <p data-kpi-error={e.code} role="alert" className="text-xs text-danger">✖ {e.message} <span className="font-mono opacity-70">[{e.code} · {e.field}]</span></p>);
@@ -441,7 +442,7 @@ const Kv = ({ k, v, u, strong, id }: { k: string; v: string; u?: string; strong?
 /** Shows the contract's STAND_LENGTH error under the Trip inputs stand-length field. */
 function StandLengthErr() {
   const k = useKpi();
-  const error = !k.ok ? null : !k.poohFill.ok && k.poohFill.error.code === "STAND_LENGTH" ? k.poohFill.error : null;
+  const error = !k || !k.ok ? null : !k.poohFill.ok && k.poohFill.error.code === "STAND_LENGTH" ? k.poohFill.error : null;
   return error ? <div className="mt-2"><KpiErr e={error} /></div> : null;
 }
 const PILL_PENDING = "Pill volume basis pending Sergio's choice";
@@ -507,6 +508,7 @@ function PoohRows({ fill, print }: { fill: PoohFillValue; print?: boolean }) {
 
 export function KpiScreen() {
   const k = useKpi();
+  if (!k) return null;
   return (<div className="space-y-3">
     <p className="text-[11px] text-muted-foreground print:hidden">Stand length is set in 6 Trip schedule → Trip inputs.</p>
     {k.ok ? <><KpiBody k={k} />{k.poohFill.ok ? <PoohRows fill={k.poohFill} /> : <div data-testid="pooh-table-error" className="rounded-md border p-2"><p className="mb-1 text-xs font-semibold">POOH fill table</p><KpiErr e={k.poohFill.error} /></div>}</> : <><Card title="KPI & volumes"><KpiErr e={k.error} /><p className="mt-2 text-xs text-muted-foreground">No KPI numbers until this input is fixed.</p></Card>
@@ -516,6 +518,7 @@ export function KpiScreen() {
 
 function KpiPrint() {
   const k = useKpi();
+  if (!k) return null;
   return (<section className="kpi-print mb-3">
     <h3 className="mb-1 font-semibold">KPI &amp; volumes{k.ok ? "" : " · not available"}</h3>
     {k.ok ? <><KpiBody k={k} print />{k.poohFill.ok ? <><h4 className="kpi-print-h mt-2 text-xs font-semibold">POOH fill · {fx(k.poohFill.standLength_ft, 0)} ft stands</h4><PoohRows fill={k.poohFill} print /></> : <><h4 className="kpi-print-h mt-2 text-xs font-semibold">POOH fill table</h4><div data-testid="pooh-table-error"><KpiErr e={k.poohFill.error} /></div></>}</> : <KpiErr e={k.error} />}
