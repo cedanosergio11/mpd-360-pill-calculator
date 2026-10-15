@@ -181,6 +181,18 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  .kpi-print {
+    break-before: page;
+  }
+  .kpi-print h3,
+  .kpi-print .kpi-print-h {
+    border-bottom: 1px solid #222;
+    margin-top: 0.5rem;
+    break-after: avoid;
+  }
+  .kpi-print details > summary {
+    display: none;
+  }
   .procedure-fit-banner {
     background: #c45c4a !important;
     color: #fff !important;

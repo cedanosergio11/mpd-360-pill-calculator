@@ -1,7 +1,7 @@
 import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { useState } from "react";
-import type { DepthKey, PumpError, Result, StrokesScheduleResult, TripLimit, TripScheduleRow } from "@/contract";
-import { HAS_PIPE_COLUMN, strokesSchedule } from "@/contract";
+import { useState, type ReactNode } from "react";
+import type { KpiError, KpiVolumesResult, PoohFillResult, DepthKey, PumpError, Result, StrokesScheduleResult, TripLimit, TripScheduleRow } from "@/contract";
+import { HAS_PIPE_COLUMN, kpiVolumes, poohFill, strokesSchedule } from "@/contract";
 import { getPath } from "@/lib/paths";
 import { Card, fmt, Grid, IssueList, NumField } from "@/components/fields";
 import { issuesFor, useStore } from "@/lib/store";
@@ -425,6 +425,105 @@ function StrokesPrint() {
   </>);
 }
 
+/* ---------- KPI & volumes: display only. All numbers come from kpiVolumes(). ---------- */
+/** Stand length is not on the Job; the contract requires it as input. Fixed at 93 ft until it gets a home in the schema. */
+export const KPI_STAND_FT = 93;
+type KpiView = { k: KpiVolumesResult; closed: PoohFillResult; open: PoohFillResult };
+/** Closed and open POOH come from two contract calls (pipe end forced per call); the screen does no arithmetic. */
+function useKpi(): KpiView {
+  const job = useStore((s) => s.job);
+  const withEnd = (pipeEnd: "closed" | "open") => ({ ...job, trip: { ...job.trip, pipeEnd } }) as typeof job;
+  return {
+    k: kpiVolumes(job, { standLength_ft: KPI_STAND_FT, surfaceLine_bbl: 0 }),
+    closed: poohFill(withEnd("closed"), KPI_STAND_FT),
+    open: poohFill(withEnd("open"), KPI_STAND_FT),
+  };
+}
+const KpiErr = ({ e }: { e: KpiError }) => (
+  <p data-kpi-error={e.code} role="alert" className="text-xs text-danger">✖ {e.message} <span className="font-mono opacity-70">[{e.code} · {e.field}]</span></p>);
+const Kv = ({ k, v, u, strong, id }: { k: string; v: string; u?: string; strong?: boolean; id?: string }) => (
+  <div className="flex items-baseline justify-between gap-2 border-b border-border/40 py-1 text-xs">
+    <span className="text-muted-foreground">{k}</span>
+    <span data-kpi={id} className={`font-mono ${strong ? "text-sm font-semibold" : ""}`}>{v}{u ? <span className="ml-1 text-[11px] text-muted-foreground">{u}</span> : null}</span>
+  </div>);
+const PILL_PENDING = "Pill volume basis pending Sergio's choice";
+
+function KpiBody({ k, closed, open, print }: { k: Extract<KpiVolumesResult, { ok: true }>; closed: PoohFillResult; open: PoohFillResult; print?: boolean }) {
+  const { masp: m, kmw: w, chase: c, kmwInString: s, kmwBackfill: b } = k;
+  const Box = ({ title, children }: { title: string; children: ReactNode }) => print
+    ? <div className="print-avoid mb-2"><h4 className="kpi-print-h text-xs font-semibold">{title}</h4>{children}</div>
+    : <Card title={title}>{children}</Card>;
+  return (<div className={print ? "grid grid-cols-2 gap-x-4" : "grid gap-3 md:grid-cols-2"}>
+    <Box title="MASP vs planned SBP">
+      <Kv k="MASP = (FIT − MW) × 0.052 × shoe TVD" v={fx(m.masp_psi, 2)} u="psi" strong id="masp" />
+      <Kv k="Planned SBP" v={fx(m.plannedSbp_psi, 0)} u="psi" id="sbp" />
+      <Kv k="Margin (MASP − SBP)" v={fx(m.margin_psi, 2)} u="psi" id="margin" />
+      <div className="mt-1 text-xs"><span data-kpi="sbp-flag" className={`rounded px-2 py-0.5 font-semibold ${m.sbpExceedsMasp ? "procedure-hot bg-danger text-white" : "bg-success/20 text-success"}`}>{m.sbpExceedsMasp ? "SBP OVER MASP" : "OK"} · {m.sbpFlag}</span></div>
+      <p className="mt-1 text-[10px] text-muted-foreground">FIT {fx(m.fitEmw_ppg, 2)} · MW {fx(m.activeMw_ppg, 2)} ppg ({m.activeMwFluidId}) · shoe TVD {fx(m.shoeTvd_ft, 0)} ft</p>
+    </Box>
+    <Box title="Kill mud weight">
+      <Kv k="KMW raw" v={fx(w.raw_ppg, 4)} u="ppg" id="kmw-raw" />
+      <Kv k="KMW (rounded up 0.1)" v={fx(w.rounded_ppg, 1)} u="ppg" strong id="kmw" />
+      <p className="mt-1 text-[10px] text-muted-foreground">MW {fx(w.activeMw_ppg, 2)} + SBP {fx(w.sbp_psi, 0)} psi ÷ (0.052 × anchor TVD {fx(w.anchorTvd_ft, 0)} ft)</p>
+    </Box>
+    <Box title="Chase volume">
+      <Kv k="String" v={fx(c.stringCapacity_bbl, 3)} u="bbl" id="chase-string" />
+      <Kv k="Annulus" v={fx(c.annularVolume_bbl, 3)} u="bbl" id="chase-annulus" />
+      <Kv k="Pill in string" v={fx(c.pillInString_bbl, 3)} u="bbl" id="chase-pill" />
+      <Kv k="Chase" v={fx(c.chase_bbl, 3)} u="bbl" strong id="chase" />
+      <Kv k="Surface lines (separate, not in chase)" v={fx(c.surfaceLine_bbl, 3)} u="bbl" id="surface" />
+    </Box>
+    <Box title="KMW left in string">
+      <Kv k="Volume" v={fx(s.bbl, 3)} u="bbl" strong id="kmw-left" />
+      <Kv k="Length" v={s.height_ft.toLocaleString("en-US")} u="ft" id="kmw-left-ft" />
+    </Box>
+    <Box title="KMW backfill (annulus above pill)">
+      <Kv k="Total" v={fx(b.volume_bbl, 3)} u="bbl" strong id="backfill" />
+      {b.sections.map((x, i) => <Kv key={i} k={`${fx(x.topMd_ft, 0)}–${fx(x.bottomMd_ft, 0)} ft · ${fx(x.holeId_in, 3)} in`} v={fx(x.volume_bbl, 3)} u="bbl" id={`backfill-${i}`} />)}
+    </Box>
+    <Box title={`POOH fill · ${fx(KPI_STAND_FT, 0)} ft stands`}>
+      {closed.ok ? <><Kv k="Per stand, closed pipe" v={fx(closed.perStand_bbl, 4)} u="bbl" id="pooh-stand-closed" />
+        <Kv k="Total, closed pipe" v={fx(closed.total_bbl, 3)} u="bbl" strong id="pooh-total-closed" /></> : <KpiErr e={closed.error} />}
+      {open.ok ? <><Kv k="Per stand, open pipe" v={fx(open.perStand_bbl, 4)} u="bbl" id="pooh-stand-open" />
+        <Kv k="Total, open pipe" v={fx(open.total_bbl, 3)} u="bbl" strong id="pooh-total-open" /></> : <KpiErr e={open.error} />}
+      {closed.ok && <Kv k="Rows" v={`${closed.stands.length} (${closed.fullStandCount} stands${closed.partialStand_ft ? ` + ${fx(closed.partialStand_ft, 0)} ft single` : ""})`} id="pooh-rows" />}
+    </Box>
+    <Box title="Pill volume">
+      <p data-kpi="pill-volume" className="text-xs italic text-muted-foreground">{PILL_PENDING}</p>
+    </Box>
+  </div>);
+}
+
+function PoohRows({ closed, open, print }: { closed: PoohFillResult; open: PoohFillResult; print?: boolean }) {
+  if (!closed.ok) return null;
+  const openRows = open.ok ? open.stands : [];
+  const table = (
+    <table data-testid="pooh-table" className="procedure-table w-full text-right font-mono text-xs">
+      <thead className="text-muted-foreground"><tr>{["#", "Length (ft)", "Closed (bbl)", "Closed total", "Open (bbl)", "Open total"].map((h) => <th key={h} className="border-b px-2 py-1 font-normal">{h}</th>)}</tr></thead>
+      <tbody>{closed.stands.map((r, i) => { const o = openRows[i]; return (
+        <tr key={r.n} data-pooh-row={r.n} className="border-b border-border/50 [&>td]:px-2 [&>td]:py-0.5">
+          <td>{r.n}</td><td>{fx(r.length_ft, 0)}</td><td>{fx(r.bbl, 4)}</td><td className="font-semibold">{fx(r.runningTotal_bbl, 3)}</td>
+          <td>{o ? fx(o.bbl, 4) : "—"}</td><td>{o ? fx(o.runningTotal_bbl, 3) : "—"}</td></tr>); })}</tbody>
+    </table>);
+  if (print) return table;
+  return (<details data-testid="pooh-details" className="rounded-md border p-2"><summary className="cursor-pointer text-xs font-semibold">POOH fill table · {closed.stands.length} rows</summary><div className="mt-2 overflow-x-auto">{table}</div></details>);
+}
+
+export function KpiScreen() {
+  const { k, closed, open } = useKpi();
+  if (!k.ok) return (<div className="space-y-3"><Card title="KPI & volumes"><KpiErr e={k.error} /><p className="mt-2 text-xs text-muted-foreground">No KPI numbers until this input is fixed.</p></Card>
+    <Card title="Pill volume"><p data-kpi="pill-volume" className="text-xs italic text-muted-foreground">{PILL_PENDING}</p></Card></div>);
+  return (<div className="space-y-3"><KpiBody k={k} closed={closed} open={open} /><PoohRows closed={closed} open={open} /></div>);
+}
+
+function KpiPrint() {
+  const { k, closed, open } = useKpi();
+  return (<section className="kpi-print mb-3">
+    <h3 className="mb-1 font-semibold">KPI &amp; volumes{k.ok ? "" : " · not available"}</h3>
+    {k.ok ? <><KpiBody k={k} closed={closed} open={open} print /><h4 className="kpi-print-h mt-2 text-xs font-semibold">POOH fill · {KPI_STAND_FT} ft stands</h4><PoohRows closed={closed} open={open} print /></> : <KpiErr e={k.error} />}
+  </section>);
+}
+
 export function ExportScreen() {
   const { job, result } = useStore();
   const errors = (result?.issues ?? []).filter((i) => i.level === "error");
@@ -448,6 +547,7 @@ export function ExportScreen() {
           <table className="procedure-table mb-3 w-full text-right font-mono text-xs"><thead><tr>{["#", "Bit MD (ft)", "Pumped (bbl)", "SBP (psi)", "Shoe ESD hydrostatic (ppg)", "Shoe EMW (ppg)", `vs FIT ${num(result.depths.shoe.fit_ppg)}`].map((h) => <th key={h} className="border-b px-1">{h}</th>)}</tr></thead>
             <tbody>{result.displacement.stages.map((s) => <tr key={s.n}><td>{s.n}</td><td>{s.bitMd_ft}</td><td><Pumped v={s.pumped_bbl} /></td><td>{num(s.sbp_psi, 0)}</td><td>{num(s.shoeEsd_ppg)}</td><td className="font-semibold">{num(s.shoeEmw_ppg, 3)}</td><td><FitCmp n={s.n} /></td></tr>)}</tbody></table>
           <StrokesPrint />
+          <KpiPrint />
         </>}
         <h3 className="mb-1 font-semibold">Inputs used</h3>
         <InputsTable />
