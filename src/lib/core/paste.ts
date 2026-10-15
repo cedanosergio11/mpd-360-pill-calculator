@@ -21,6 +21,7 @@ export interface PasteError {
     | "BAD_BOOL"
     | "UNIT_MISMATCH"
     | "NOT_A_2_0_INPUT"
+    | "TAPERED_STRING"
     | "CONFLICTING_DUPLICATE";
   /** 2.0 field path when the label mapped, otherwise the raw label. */
   field: string;
@@ -101,7 +102,7 @@ export interface PastePreviewError {
   /**
    * True when this code blocks apply.
    * Blocking codes: `BAD_NUMBER`, `CONFLICTING_DUPLICATE`, `EMPTY`, `BAD_DATE`,
-   * `BAD_SECTION`, `BAD_BOOL`, `UNIT_MISMATCH`.
+   * `BAD_SECTION`, `BAD_BOOL`, `UNIT_MISMATCH`, `TAPERED_STRING`.
    * `UNMAPPED_LABEL` and `NOT_A_2_0_INPUT` are false.
    */
   blocking: boolean;
@@ -122,10 +123,11 @@ const BLOCKING: ReadonlySet<PasteError["code"]> = new Set([
   "BAD_SECTION",
   "BAD_BOOL",
   "UNIT_MISMATCH",
+  "TAPERED_STRING",
 ]);
 
 type Kind = "text" | "number" | "date" | "section" | "bool";
-type Disposition = "store" | "not2" | "switch";
+type Disposition = "store" | "not2" | "switch" | "taper";
 
 interface FieldRule {
   field: string;
@@ -282,11 +284,11 @@ const RULES: FieldRule[] = [
   { field: "linerId", kind: "number", labels: ["liner id"], disposition: "store" },
   { field: "linerHangerMd", kind: "number", labels: ["liner hanger"], disposition: "store" },
   { field: "linerShoeMd", kind: "number", labels: ["liner shoe"], disposition: "store" },
-  { field: "odDp1", kind: "number", labels: ["od drill pipe 1"], disposition: "store" },
-  { field: "idDp1", kind: "number", labels: ["id drill pipe 1"], disposition: "store" },
-  { field: "lengthDp1", kind: "number", labels: ["length of dp 1"], disposition: "store" },
-  { field: "odDp2", kind: "number", labels: ["od drill pipe 2"], disposition: "store" },
-  { field: "idDp2", kind: "number", labels: ["id drill pipe 2"], disposition: "store" },
+  { field: "odDp1", kind: "number", labels: ["od drill pipe 1"], disposition: "taper" },
+  { field: "idDp1", kind: "number", labels: ["id drill pipe 1"], disposition: "taper" },
+  { field: "lengthDp1", kind: "number", labels: ["length of dp 1"], disposition: "taper" },
+  { field: "odDp2", kind: "number", labels: ["od drill pipe 2"], disposition: "taper" },
+  { field: "idDp2", kind: "number", labels: ["id drill pipe 2"], disposition: "taper" },
 ];
 
 /** Expected unit norms for stored numeric fields. A unit outside the list is `UNIT_MISMATCH`. */
@@ -577,8 +579,8 @@ function assignmentsFrom(hits: Map<string, Hit>): Assignment[] {
   // re-enable when #6 (tapered strings) lands
   // DP1 length + OD + ID and DP2 OD + ID become well.stringSections.
   // DP2 length is bit MD minus DP1 length when that remainder is positive.
-  // This job has one string (`odDp` / `idDp` → stringOd_in / stringId_in). Those DP1/DP2
-  // labels stay recognized above and are not written here.
+  // This job has one string (`odDp` / `idDp` → stringOd_in / stringId_in). A second
+  // section is `TAPERED_STRING` in parseWellPaste and is not written here.
 
   const largerId = num(hits, "casingIdLarger");
   const largerShoe = num(hits, "casingShoeMdLarger");
@@ -714,7 +716,7 @@ export function parseWellPaste(text: string): PasteResult {
       if (!valueCell) break;
 
       const path = primaryPath(rule.field);
-      if (rule.disposition === "store" && unitText != null) {
+      if ((rule.disposition === "store" || rule.disposition === "taper") && unitText != null) {
         const allowed = EXPECTED_UNITS[rule.field];
         if (!allowed?.includes(norm(unitText))) {
           errors.push(
@@ -767,6 +769,31 @@ export function parseWellPaste(text: string): PasteResult {
             ),
           );
         }
+        break;
+      }
+
+      if (rule.disposition === "taper") {
+        if (rule.kind === "number" && parseStrictNumber(valueCell.text) == null) {
+          errors.push(
+            error(
+              sheetRow.row,
+              valueCell.column,
+              "BAD_NUMBER",
+              rule.field,
+              `${valueCell.text} is not a number.`,
+            ),
+          );
+          break;
+        }
+        errors.push(
+          error(
+            sheetRow.row,
+            labelCell.column,
+            "TAPERED_STRING",
+            rule.field,
+            `${labelCell.text} is a second drill-string section. This branch cannot model that crossover.`,
+          ),
+        );
         break;
       }
 

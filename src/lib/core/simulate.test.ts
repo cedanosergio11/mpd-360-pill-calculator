@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { exampleB, exampleC } from "@/lib/example-b";
+import { parseSaved, toSaved } from "@/lib/store";
 import { columnDisplacedByPipe, pillPlacement } from "./column";
 import { emwProfile, type EmwLines, type EmwProfileResult } from "./emw-profile";
 import type { Job } from "./job.schema";
 import { kpiVolumes } from "./kpi";
+import { markEdited } from "./preset";
 import {
   canSimulate,
   DEFAULT_STEP_FT,
@@ -165,48 +167,94 @@ function defaultSim(job: Job) {
   return sim;
 }
 
+function expectTaperRefusal(job: Job) {
+  const gate = canSimulate(job);
+  expect(gate.ok).toBe(false);
+  if (!gate.ok) expect(gate.reason?.length).toBeGreaterThan(0);
+  const result = simulate(job);
+  expect(result.ok).toBe(false);
+  if (result.ok) return;
+  expect(result.error).toEqual({ code: "SIM_REQUIRES_TAPERED", presetId: "D" });
+  expect(result).not.toHaveProperty("steps");
+}
+
 describe("canSimulate", () => {
-  it("refuses EXAMPLE D", () => {
-    const job = structuredClone(exampleB);
+  it("refuses a loaded EXAMPLE D", () => {
+    const job = exampleDJob();
     job.meta = { presetId: "D", isExample: true, modified: false };
-    job.well.bitMd_ft = Number.NaN;
-    expect(canSimulate(job)).toEqual({ ok: false, reason: "EXAMPLE D needs tapered strings." });
-    const result = simulate(job);
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.error).toEqual({ code: "SIM_REQUIRES_TAPERED", presetId: "D" });
-    expect(result).not.toHaveProperty("steps");
+    const loaded = parseSaved(JSON.stringify(toSaved(job, null)));
+    expect(loaded).not.toBeNull();
+    expect(loaded!.job.meta).toEqual({ presetId: "D", isExample: true, modified: false });
+    const sections = (loaded!.job.well as { stringSections?: unknown[] }).stringSections;
+    expect(sections).toHaveLength(2);
+    expectTaperRefusal(loaded!.job);
   });
 
-  it("refuses a taper this branch cannot model", () => {
-    const tapered = exampleDJob();
-    expect(canSimulate(tapered)).toEqual({
-      ok: false,
-      reason: "This branch cannot model a tapered string.",
-    });
-    const taperedResult = simulate(tapered, { mds: [0] });
-    expect(taperedResult.ok).toBe(false);
-    if (!taperedResult.ok) {
-      expect(taperedResult.error).toEqual({ code: "SIM_REQUIRES_TAPERED", presetId: "D" });
-      expect(taperedResult).not.toHaveProperty("steps");
-    }
+  it("refuses EXAMPLE D after markEdited", () => {
+    const job = exampleDJob();
+    job.meta = { presetId: "D", isExample: true, modified: false };
+    const edited = markEdited(job);
+    expect(edited.meta).toEqual({ presetId: "D", isExample: false, modified: true });
+    expect((edited.well as { stringSections?: unknown[] }).stringSections).toHaveLength(2);
+    expectTaperRefusal(edited);
+  });
 
-    const crossover = structuredClone(exampleC);
-    Object.assign(crossover.well, { crossovers: [{ md_ft: 8480, tvd_ft: 8466 }] });
-    expect(canSimulate(crossover)).toEqual({
-      ok: false,
-      reason: "This branch cannot model a string crossover.",
-    });
-    const crossoverResult = simulate(crossover, { mds: [0] });
-    expect(crossoverResult.ok).toBe(false);
-    if (!crossoverResult.ok) {
-      expect(crossoverResult.error).toEqual({ code: "SIM_REQUIRES_TAPERED", presetId: "D" });
-      expect(crossoverResult).not.toHaveProperty("steps");
-    }
+  it("refuses D geometry with meta stripped", () => {
+    const stripped = exampleDJob();
+    delete stripped.meta;
+    expect(stripped.meta).toBeUndefined();
+    expectTaperRefusal(stripped);
 
-    const empty = structuredClone(exampleB);
-    Object.assign(empty.well, { stringSections: [] });
-    expect(canSimulate(empty)).toEqual({ ok: true });
+    const legacy = exampleDJob();
+    legacy.meta = { presetId: null, isExample: false, modified: true };
+    expectTaperRefusal(legacy);
+  });
+
+  it("refuses a crossover depth on a single OD", () => {
+    const job = structuredClone(exampleB);
+    Object.assign(job.well, { crossovers: [{ md_ft: 8480, tvd_ft: 8466 }] });
+    expect(canSimulate(job)).toEqual({
+      ok: false,
+      reason: "The drill string has a crossover depth.",
+    });
+    expectTaperRefusal(job);
+  });
+
+  it("refuses two sections that share one OD and ID", () => {
+    const job = structuredClone(exampleB);
+    Object.assign(job.well, {
+      stringSections: [
+        { length_ft: 8480, od_in: job.well.stringOd_in, id_in: job.well.stringId_in },
+        { length_ft: 2000, od_in: job.well.stringOd_in, id_in: job.well.stringId_in },
+      ],
+    });
+    expect(canSimulate(job)).toEqual({
+      ok: false,
+      reason: "The drill string has more than one section.",
+    });
+    expectTaperRefusal(job);
+  });
+
+  it("refuses an OD or ID change along one section", () => {
+    const job = structuredClone(exampleB);
+    Object.assign(job.well, {
+      stringSections: [{ length_ft: job.well.bitMd_ft, od_in: 4, id_in: 3.34 }],
+    });
+    expect(canSimulate(job)).toEqual({
+      ok: false,
+      reason: "The drill string changes OD or ID along its length.",
+    });
+    expectTaperRefusal(job);
+  });
+
+  it("does not refuse a single string when presetId is D", () => {
+    const job = structuredClone(exampleB);
+    job.meta = { presetId: "D", isExample: true, modified: false };
+    expect(canSimulate(job)).toEqual({ ok: true });
+    const result = simulate(job, { mds: [job.well.bitMd_ft], fromMd_ft: 0 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.steps).toHaveLength(1);
   });
 
   it.each(JOBS)("still simulates $name", (job) => {
@@ -215,6 +263,16 @@ describe("canSimulate", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.steps).toHaveLength(1);
+  });
+
+  it("still simulates one constant section", () => {
+    const job = structuredClone(exampleB);
+    Object.assign(job.well, { stringSections: [] });
+    expect(canSimulate(job)).toEqual({ ok: true });
+    Object.assign(job.well, {
+      stringSections: [{ length_ft: job.well.bitMd_ft, od_in: job.well.stringOd_in, id_in: job.well.stringId_in }],
+    });
+    expect(canSimulate(job)).toEqual({ ok: true });
   });
 });
 

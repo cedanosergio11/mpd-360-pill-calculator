@@ -146,26 +146,67 @@ export type SimulateResult =
     }
   | { ok: false; error: SimulateError };
 
-function nonEmptyList(value: unknown): boolean {
-  return Array.isArray(value) && value.length > 0;
+function finite(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
+
+interface StringGeometry {
+  stringSections?: unknown;
+  crossovers?: unknown;
+  crossoverMd_ft?: unknown;
 }
 
 /**
  * Whether this single-string branch can run `simulate` on `job`.
- * EXAMPLE D and any crossover or taper return `ok: false`. The 8480 ft crossover is #6.
+ * The decision is the drill string, not `meta.presetId`. More than one section,
+ * a crossover depth, or an OD/ID change along the string is #6.
  */
 export function canSimulate(job: Job): { ok: boolean; reason?: string } {
-  if (job.meta?.presetId === "D") {
-    return { ok: false, reason: "EXAMPLE D needs tapered strings." };
+  const reason = taperReason(job.well as Job["well"] & StringGeometry);
+  return reason == null ? { ok: true } : { ok: false, reason };
+}
+
+function taperReason(well: Job["well"] & StringGeometry): string | null {
+  const sections = Array.isArray(well.stringSections) ? well.stringSections : [];
+  if (sections.length > 1) {
+    for (let i = 1; i < sections.length; i++) {
+      if (sectionChanges(sections[i - 1], sections[i])) {
+        return "The drill string changes OD or ID along its length.";
+      }
+    }
+    return "The drill string has more than one section.";
   }
-  const well = job.well as { stringSections?: unknown; crossovers?: unknown };
-  if (nonEmptyList(well.stringSections)) {
-    return { ok: false, reason: "This branch cannot model a tapered string." };
+  if (sections.length === 1 && odIdChanges(well, sections[0])) {
+    return "The drill string changes OD or ID along its length.";
   }
-  if (nonEmptyList(well.crossovers)) {
-    return { ok: false, reason: "This branch cannot model a string crossover." };
-  }
-  return { ok: true };
+  if (hasCrossoverDepth(well)) return "The drill string has a crossover depth.";
+  return null;
+}
+
+function odIdChanges(well: Job["well"], section: unknown): boolean {
+  if (section == null || typeof section !== "object") return false;
+  const row = section as { od_in?: unknown; id_in?: unknown };
+  const od = finite(row.od_in) ? row.od_in : well.stringOd_in;
+  const id = finite(row.id_in) ? row.id_in : well.stringId_in;
+  return od !== well.stringOd_in || id !== well.stringId_in;
+}
+
+function sectionChanges(left: unknown, right: unknown): boolean {
+  if (left == null || typeof left !== "object" || right == null || typeof right !== "object") return false;
+  const a = left as { od_in?: unknown; id_in?: unknown };
+  const b = right as { od_in?: unknown; id_in?: unknown };
+  return (finite(a.od_in) && finite(b.od_in) && a.od_in !== b.od_in) || (finite(a.id_in) && finite(b.id_in) && a.id_in !== b.id_in);
+}
+
+function hasCrossoverDepth(well: StringGeometry): boolean {
+  if (finite(well.crossoverMd_ft)) return true;
+  if (!Array.isArray(well.crossovers) || well.crossovers.length === 0) return false;
+  return well.crossovers.some((item) => {
+    if (finite(item)) return true;
+    if (item == null || typeof item !== "object") return false;
+    const row = item as { md_ft?: unknown; tvd_ft?: unknown; depth_ft?: unknown };
+    return finite(row.md_ft) || finite(row.tvd_ft) || finite(row.depth_ft);
+  });
 }
 
 function taperedRefusal(): SimulateResult {

@@ -4,6 +4,7 @@ import type { Job } from "./job.schema";
 import { loadPreset } from "./preset";
 import { inputHash } from "./hash";
 import { applyPaste, getPath, parseWellPaste, previewPaste, setPath } from "./paste";
+import { canSimulate, simulate } from "./simulate";
 
 function paste(text: string) {
   return parseWellPaste(text);
@@ -60,6 +61,54 @@ describe("parseWellPaste duplicates", () => {
     expect(preview.canApply).toBe(false);
     expect(preview.errors.find((item) => item.code === "CONFLICTING_DUPLICATE")?.blocking).toBe(true);
     expect(preview.rows).toEqual([]);
+  });
+});
+
+describe("parseWellPaste tapered string", () => {
+  it("blocks a second string section instead of dropping it", () => {
+    const job = structuredClone(exampleB);
+    const result = paste(
+      [
+        "OD Drill Pipe\t5.5\tin",
+        "ID Drill Pipe\t4.778\tin",
+        "OD Drill Pipe 1\t5.5\tin",
+        "ID Drill Pipe 1\t4.778\tin",
+        "Length of DP 1\t8480\tft",
+        "OD Drill Pipe 2\t4\tin",
+        "ID Drill Pipe 2\t3.34\tin",
+      ].join("\n"),
+    );
+    const tapered = result.errors.filter((item) => item.code === "TAPERED_STRING");
+    expect(tapered.map((item) => item.field).sort()).toEqual(
+      ["idDp1", "idDp2", "lengthDp1", "odDp1", "odDp2"].sort(),
+    );
+    expect(result.matched.map((item) => item.field)).not.toEqual(expect.arrayContaining(["odDp1", "idDp1", "lengthDp1", "odDp2", "idDp2"]));
+    expect(JSON.stringify(result.patch)).not.toContain("stringSections");
+    expect(getPath(result.patch, "well.stringOd_in")).toBe(5.5);
+    expect(getPath(result.patch, "well.stringId_in")).toBe(4.778);
+
+    const preview = previewPaste(job, result);
+    expect(preview.canApply).toBe(false);
+    expect(preview.errors.filter((item) => item.code === "TAPERED_STRING")).toHaveLength(5);
+    expect(preview.errors.filter((item) => item.code === "TAPERED_STRING").every((item) => item.blocking)).toBe(true);
+    expect(() => applyPaste(job, preview)).toThrow(/blocked/);
+    expect(job.well.stringOd_in).toBe(exampleB.well.stringOd_in);
+    expect(canSimulate(job)).toEqual({ ok: true });
+
+    const carried = structuredClone(exampleB);
+    Object.assign(carried.well, {
+      stringSections: [
+        { length_ft: 8480, od_in: 5.5, id_in: 4.778 },
+        { length_ft: 2000, od_in: 4, id_in: 3.34 },
+      ],
+    });
+    expect(canSimulate(carried).ok).toBe(false);
+    const refused = simulate(carried);
+    expect(refused.ok).toBe(false);
+    if (!refused.ok) {
+      expect(refused.error).toEqual({ code: "SIM_REQUIRES_TAPERED", presetId: "D" });
+      expect(refused).not.toHaveProperty("steps");
+    }
   });
 });
 

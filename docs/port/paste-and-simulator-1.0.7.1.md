@@ -313,6 +313,7 @@ export interface PasteError {
     | "BAD_BOOL"
     | "UNIT_MISMATCH"
     | "NOT_A_2_0_INPUT"
+    | "TAPERED_STRING"
     | "CONFLICTING_DUPLICATE";
   /** 2.0 field path when the label mapped, otherwise the raw label. */
   field: string;
@@ -395,7 +396,7 @@ export interface PastePreviewError {
   /**
    * True when this code blocks apply.
    * Blocking codes: `BAD_NUMBER`, `CONFLICTING_DUPLICATE`, `EMPTY`, `BAD_DATE`,
-   * `BAD_SECTION`, `BAD_BOOL`, `UNIT_MISMATCH`.
+   * `BAD_SECTION`, `BAD_BOOL`, `UNIT_MISMATCH`, `TAPERED_STRING`.
    * `UNMAPPED_LABEL` and `NOT_A_2_0_INPUT` are false.
    */
   blocking: boolean;
@@ -423,7 +424,7 @@ A repeated label whose coerced value equals the value already patched is `ignore
 
 Number precision is per field: ppg and ppge use 0.01 (`12.65` over `12.6` displays `12.65` and `12.60`), inches use 0.001, feet (including md and tvd) use 1, psi uses 1, bbl uses 0.01, bbl/stk uses 0.0001 (`0.0958` over `0.0962` displays `0.0958` and `0.0962`), and gpm uses 1. The formatted number is `toFixed` at that step. It has no thousands separator. A bool displays `Yes` or `No`. A date displays ISO `YYYY-MM-DD`. Text is the stored string. A nested value (a casing interval or a survey station) is text and displays as JSON. `stringSections` is not a field on this branch. Null displays as an empty string.
 
-`errors` copies every `PasteError`, with `column` renamed to `col`. `blocking` is true for `BAD_NUMBER`, `CONFLICTING_DUPLICATE`, and the other blocking codes listed on `PastePreviewError`. It is false for `UNMAPPED_LABEL` and `NOT_A_2_0_INPUT`. `canApply` is false when any error is blocking. Ignored `DUPLICATE` and `CALCULATED` rows are not preview rows and are not preview errors.
+`errors` copies every `PasteError`, with `column` renamed to `col`. `blocking` is true for `BAD_NUMBER`, `CONFLICTING_DUPLICATE`, `TAPERED_STRING`, and the other blocking codes listed on `PastePreviewError`. It is false for `UNMAPPED_LABEL` and `NOT_A_2_0_INPUT`. `canApply` is false when any error is blocking. Ignored `DUPLICATE` and `CALCULATED` rows are not preview rows and are not preview errors.
 
 `applyPaste` returns a new `Job`. It writes exactly `preview.rows` and nothing else: each `newValue` is set at `field`, and every field that is not in `rows` stays as it was, including `mode`. It then calls `markEdited`, which sets `isExample` to false and `modified` to true and keeps `presetId`. `inputHash` excludes `meta` the same way it excludes `savedAt`, so the flags do not move a preset baseline. `applyPaste` does not write `presetBaseline`, does not call the store, and does not change `baselineHash`. If the cloned job still carries a `presetBaseline` from a saved record, that property is dropped on the returned job only. The job passed in is not mutated. It does not write localStorage and does not fill `calcJob`. It throws when `canApply` is false and returns no job, and the thrown call does not set `meta`. After a successful apply, `simulate` is called with that returned job.
 
@@ -474,7 +475,7 @@ Mapping onto the 2.0 `Job` on this branch (one string, before tapered strings):
 | `spotTvd` | one `well.survey` station `{ md_ft: spotMd, tvd_ft: spotTvd }` |
 | casing and anchor MD/TVD pairs | two more `well.survey` stations. 1.0 built the same three stations in `surveyFromWell` and never pasted a survey grid |
 | `odDp` / `idDp` | `well.stringOd_in` / `well.stringId_in` |
-| DP1 length + OD + ID and DP2 OD + ID | Not stored on this branch. The labels stay recognized. When #6 lands they become `well.stringSections`: `[{ length_ft, od_in, id_in }, { length_ft, od_in, id_in }]`. DP2 length is bit MD minus DP1 length when both OD and ID are present. A single `odDp` / `idDp` stays `well.stringOd_in` / `well.stringId_in` |
+| DP1 length + OD + ID and DP2 OD + ID | Not stored. The single-string schema has no `stringSections`. Each of those rows is `TAPERED_STRING`, and that code is blocking, so the rows are not dropped and `canApply` is false. When #6 lands they become `well.stringSections`: `[{ length_ft, od_in, id_in }, { length_ft, od_in, id_in }]`. DP2 length is bit MD minus DP1 length when both OD and ID are present. A single `odDp` / `idDp` stays `well.stringOd_in` / `well.stringId_in` |
 | larger casing, liner hanger, liner shoe, liner ID | `well.casing` intervals. Not string sections |
 | `currentMw` / `kmw` | two `fluids` entries, and the `column` / `pipeColumn` segment fluid ids that already point at them |
 | `pumpDisp` | `pump.bblPerStk` |
@@ -663,7 +664,7 @@ export function simulate(job: Job, opts?: SimulateOptions): SimulateResult;
 
 Work per call:
 
-1. `canSimulate(job)` runs first. It returns `{ ok: true }` on this branch's single string. It returns `{ ok: false, reason }` when `job.meta.presetId` is `"D"`, or when the job carries a non-empty `stringSections` or `crossovers` list this branch cannot model. In that case `simulate` returns `{ ok: false, error: { code: "SIM_REQUIRES_TAPERED", presetId: "D" } }` and no `steps`, before the bit and step checks. EXAMPLE B and EXAMPLE C still simulate. The six EXAMPLE D simulate tests stay skipped until #6. An empty `stringSections` list is not a taper.
+1. `canSimulate(job)` runs first and does not read `meta.presetId`. It returns `{ ok: true }` for one constant OD/ID, including a single `stringSections` entry that matches `stringOd_in` and `stringId_in`, and including an empty list. It returns `{ ok: false, reason }` when the drill string has more than one section, a crossover depth (`crossovers` or `crossoverMd_ft`), or an OD/ID change along the string. Those are the fields EXAMPLE D carries (`stringSections` of `{ length_ft, od_in, id_in }`, two sections, the 8480 ft boundary). In that case `simulate` returns `{ ok: false, error: { code: "SIM_REQUIRES_TAPERED", presetId: "D" } }` and no `steps`, before the bit and step checks. The `presetId` on that error names the tapered model. It is not copied from `job.meta`. EXAMPLE B and EXAMPLE C still simulate. A saved D, a D after `markEdited`, and a D with `meta` stripped all refuse from the geometry. The six EXAMPLE D simulate tests stay skipped until #6.
 2. Reject a non-finite `stepMd_ft`, or a step below `MIN_STEP_FT`, with `INVALID_STEP`, including when `mds` is set. Do not raise it to 10. Reject a from/to MD outside `0…well.mdTd_ft`, or any explicit MD that is non-finite or outside that span, with `INVALID_DEPTH`. Do not clip the way 1.0 `clamp` did and then continue silently. Count the steps before building them. More than `MAX_STEPS` is `STEP_LIMIT` and the call returns no `steps`. That error is `{ code: "STEP_LIMIT", field: "stepMd_ft", message, minStepFt, maxSteps, requestedSteps }`. Do not coarsen the step. When `mds` is set and the list is within the cap, `steps.length` equals `mds.length` and `steps[i].pipeMd_ft` equals `mds[i]`. `meta.stepCount` equals that length, `meta.stepsLength` equals `stepCount`, and `meta.stepFt` is the resolved step.
 3. `kpi = kpiVolumes(job)` once, on the job passed in. That supplies MASP, KMW, chase at the procedure bit, `pillVolume_bbl` (`stringCapOverPillInterval_bbl + chase_bbl`), the breakdown, backfill, and POOH fill. Stand length still belongs to `poohFill` inside that result. A `STAND_LENGTH` error stays on `poohFill` and does not drop the steps.
 4. `pump = strokesSchedule(job, calculate(job))` once, on that same job. Stage bbl, strokes, and minutes are that function's rows. SPM blank leaves minutes null. This replaces the 1.0 `desiredResolution` ladder. The pipe steps do not walk these rows.
