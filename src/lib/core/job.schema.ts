@@ -94,6 +94,33 @@ export interface TripInputs {
   /** Circulating surface backpressure, psi. Applied to ECD. */
   sbpCirc_psi: number;
   flow_gpm: number;
+  /**
+   * Stand length, ft. Required for POOH fill.
+   * Blank or ≤ 0 is STAND_LENGTH. Not defaulted.
+   * EXAMPLE B and EXAMPLE C seed 93.
+   */
+  standLength_ft?: number | null;
+}
+
+/**
+ * Triplex pump for the strokes schedule. Not required to run `calculate`.
+ * `bblPerStk`, when a finite number greater than 0, overrides the liner formula.
+ * Omitted liner, stroke, and efficiency are allowed only with that override.
+ */
+export interface PumpInput {
+  /** Liner ID, in. */
+  linerIn?: number | null;
+  /** Stroke length, in. */
+  strokeIn?: number | null;
+  /** Volumetric efficiency as a fraction in (0, 1]. */
+  efficiency?: number | null;
+  /** Direct output, bbl/stk. Explicit 0 is an error and does not fall through. */
+  bblPerStk?: number | null;
+  /**
+   * Strokes per minute. Omitted, null, or 0 leaves schedule `minutes` and `cumMinutes` null.
+   * A negative or non-finite value is an error.
+   */
+  spm?: number | null;
 }
 
 export interface Job {
@@ -117,4 +144,6 @@ export interface Job {
   /** Fluids inside the string, surface to the bit. Same shape as `column`. */
   pipeColumn: ColumnSegment[];
   trip: TripInputs;
+  /** Optional. `strokesSchedule` reports MISSING_PUMP when this is absent. */
+  pump?: PumpInput;
 }

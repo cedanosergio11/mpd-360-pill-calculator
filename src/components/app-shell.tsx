@@ -1,23 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import { Drawer } from "vaul";
 import type { Job } from "@/contract";
-import { DisplacementScreen, ExportScreen, FitBanner, FluidsScreen, TripScreen, WellScreen } from "@/components/screens";
+import { DisplacementScreen, ExportScreen, FitBanner, FluidsScreen, KpiScreen, StrokesScreen, TripScreen, WellScreen } from "@/components/screens";
 import { seeds } from "@/lib/seeds";
-import { useOutOfDate, useStore, worst } from "@/lib/store";
+import { useEdited, useOutOfDate, useStore, worst } from "@/lib/store";
 import { APP_VERSION } from "@/lib/version";
 
 const tabs = [
   { id: "well", label: "1 Well setup", C: WellScreen },
   { id: "fluids", label: "2 Fluids", C: FluidsScreen },
   { id: "displacement", label: "3 Displacement & pill", C: DisplacementScreen },
-  { id: "trip", label: "4 Trip schedule", C: TripScreen },
-  { id: "export", label: "5 Export", C: ExportScreen },
+  { id: "strokes", label: "4 Strokes", C: StrokesScreen },
+  { id: "kpi", label: "5 KPI & volumes", C: KpiScreen },
+  { id: "trip", label: "6 Trip schedule", C: TripScreen },
+  { id: "export", label: "7 Export", C: ExportScreen },
 ] as const;
 type TabId = (typeof tabs)[number]["id"];
 
 export function AppShell() {
   const { job, result, saved, loaded, load, save, run, replace } = useStore();
   const outOfDate = useOutOfDate();
+  const edited = useEdited();
   const [tab, setTab] = useState<TabId>("well");
   const fileRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -46,7 +49,7 @@ export function AppShell() {
         <div className="flex items-center gap-2 px-3 py-2 text-xs">
           <span className="font-semibold text-primary">PillView 2.0</span>
           <span className="font-mono text-muted-foreground">{APP_VERSION}</span>
-          <span className="truncate font-semibold">{job.name}</span>
+          <span className="truncate font-semibold">{job.name}{edited && <span data-testid="edited-marker"> (edited)</span>}</span>
           <span className={`rounded px-1.5 py-0.5 ${saved ? "bg-backfill/20 text-backfill" : "bg-warn/20 text-warn"}`}>{saved ? "Saved" : "Unsaved"}</span>
           {outOfDate && <button onClick={run} className="rounded bg-warn px-1.5 py-0.5 font-semibold text-black">Out of date · recalc</button>}
           <span data-testid="worst-issue" className={`ml-auto truncate ${w?.level === "error" ? "text-danger" : w ? "text-warn" : "text-backfill"}`}>

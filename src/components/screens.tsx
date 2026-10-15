@@ -1,9 +1,10 @@
 import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { useState } from "react";
-import type { DepthKey, Result, TripLimit, TripScheduleRow } from "@/contract";
-import { HAS_PIPE_COLUMN } from "@/contract";
+import { useMemo, useState, type ReactNode } from "react";
+import type { KpiError, KpiVolumesResult, PoohFillValue, DepthKey, PumpError, Result, StrokesScheduleResult, TripLimit, TripScheduleRow } from "@/contract";
+import { HAS_PIPE_COLUMN, kpiVolumes, strokesSchedule } from "@/contract";
+import { getPath } from "@/lib/paths";
 import { Card, fmt, Grid, IssueList, NumField } from "@/components/fields";
-import { issuesFor, useStore } from "@/lib/store";
+import { issuesFor, useCalcEdited, useStore } from "@/lib/store";
 import { APP_VERSION } from "@/lib/version";
 
 export function WellScreen() {
@@ -315,8 +316,9 @@ export function TripScreen() {
         <Grid>
           <NumField path="trip.clinging" label="Clinging constant" unit="–" /><NumField path="trip.eccentricity" label="Eccentricity" unit="–" />
           <NumField path="trip.sbpConn_psi" label="SBP on connection" unit="psi" /><NumField path="trip.sbpCirc_psi" label="SBP circulating" unit="psi" />
-          <NumField path="trip.flow_gpm" label="Flow rate" unit="gpm" />
+          <NumField path="trip.flow_gpm" label="Flow rate" unit="gpm" /><NumField path="trip.standLength_ft" label="Stand length" unit="ft" />
         </Grid>
+        <StandLengthErr />
       </Card>
       <Card title="Trip order (bands)" right={<span className="text-[11px] text-muted-foreground">Open a band, tap a step to highlight its limit</span>}>
         <TripBands rows={r.tripSchedule} fit={r.depths.shoe.fit_ppg} sel={sel} onSel={setSel} />
@@ -326,8 +328,204 @@ export function TripScreen() {
   );
 }
 
+
+/* ---------- Strokes schedule: display only. All numbers come from strokesSchedule(). ---------- */
+function useStrokes(): StrokesScheduleResult | null {
+  const job = useStore((s) => s.job);
+  const r = useStore((s) => s.result);
+  return r ? strokesSchedule(job, r) : null;
+}
+const PumpErr = ({ e }: { e: PumpError }) => (
+  <p data-pump-error={e.field} role="alert" className="mt-1 text-[11px] leading-snug text-danger">✖ {e.message} <span className="font-mono opacity-70">[{e.code}]</span></p>);
+
+/** Pump input: blank → null (contract reports "is blank"); no conversion of entered values. */
+function PumpField({ k, label, unit, hint, err }: { k: string; label: string; unit: string; hint?: string; err?: PumpError }) {
+  const job = useStore((s) => s.job);
+  const set = useStore((s) => s.set);
+  const path = `pump.${k}`;
+  const v = getPath(job, path);
+  const [txt, setTxt] = useState<string | null>(null);
+  const shown = txt ?? (typeof v === "number" && Number.isFinite(v) ? String(v) : "");
+  return (
+    <label className="block min-w-0">
+      <span className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</span>
+      <div className={`mt-0.5 flex items-center rounded-md border bg-background ${err ? "border-danger" : "border-input"}`}>
+        <input inputMode="decimal" data-path={path} className="w-full min-w-0 bg-transparent px-2 py-1.5 font-mono text-sm outline-none" value={shown}
+          onChange={(e) => { const t = e.target.value; setTxt(t); set(path, t.trim() === "" ? null : Number(t.trim())); }} onBlur={() => setTxt(null)} />
+        <span className="shrink-0 pr-2 font-mono text-[11px] text-muted-foreground">{unit}</span>
+      </div>
+      {hint && <span className="mt-0.5 block text-[10px] text-muted-foreground">{hint}</span>}
+      {err && <PumpErr e={err} />}
+    </label>);
+}
+
+const PUMP_FIELDS = ["pump.linerIn", "pump.strokeIn", "pump.efficiency", "pump.bblPerStk", "pump.spm"];
+/** Format only: fixed decimals, "—" for null/non-finite. */
+const fx = (v: number | null | undefined, d: number) => (v == null || !Number.isFinite(v) ? "—" : v.toFixed(d));
+const Min = ({ v }: { v: number | null }) => v == null ? <span className="text-muted-foreground">— <span className="font-sans text-[10px]">enter SPM</span></span> : <span>{v.toFixed(2)}</span>;
+const STROKE_HEAD = ["Stage", "Stage bbl", "Total bbl", "Stage strokes", "Total strokes", "Stage min", "Total min"];
+
+export function StrokesTable({ s, print }: { s: Extract<StrokesScheduleResult, { ok: true }>; print?: boolean }) {
+  const table = (
+    <table data-testid="strokes-table" className={`procedure-table w-full text-right font-mono text-xs ${print ? "" : "hidden sm:table"}`}>
+      <thead className="text-muted-foreground"><tr>{STROKE_HEAD.map((h) => <th key={h} className="border-b px-2 py-1 font-normal">{h}</th>)}</tr></thead>
+      <tbody>{s.rows.map((r) => (
+        <tr key={r.n} data-strokes-row={r.n} className="border-b border-border/50 [&>td]:px-2 [&>td]:py-1">
+          <td className="text-left">{r.label}</td><td>{fx(r.stage_bbl, 3)}</td><td>{fx(r.cum_bbl, 3)}</td>
+          <td>{fx(r.strokes, 2)}</td><td className="font-semibold">{fx(r.cumStrokes, 2)}</td><td><Min v={r.minutes} /></td><td className="font-semibold"><Min v={r.cumMinutes} /></td></tr>))}</tbody>
+    </table>);
+  if (print) return table;
+  return (<>
+    {table}
+    <div className="space-y-2 sm:hidden">{s.rows.map((r) => (
+      <div key={r.n} data-strokes-card={r.n} className="rounded-md border p-2 text-xs">
+        <div className="mb-1 font-semibold">{r.label}</div>
+        <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5 font-mono">
+          <dt className="text-muted-foreground">Stage bbl</dt><dd>{fx(r.stage_bbl, 3)}</dd>
+          <dt className="text-muted-foreground">Total bbl</dt><dd>{fx(r.cum_bbl, 3)}</dd>
+          <dt className="text-muted-foreground">Stage strokes</dt><dd>{fx(r.strokes, 2)}</dd>
+          <dt className="text-muted-foreground">Total strokes</dt><dd className="font-semibold">{fx(r.cumStrokes, 2)}</dd>
+          <dt className="text-muted-foreground">Stage min</dt><dd><Min v={r.minutes} /></dd>
+          <dt className="text-muted-foreground">Total min</dt><dd className="font-semibold"><Min v={r.cumMinutes} /></dd>
+        </dl>
+      </div>))}</div>
+  </>);
+}
+
+export function StrokesScreen() {
+  const s = useStrokes();
+  if (!s) return null;
+  const err = s.ok ? undefined : s.error;
+  const at = (f: string) => (err && err.field === f ? err : undefined);
+  const other = err && !PUMP_FIELDS.includes(err.field) ? err : undefined;
+  return (
+    <div className="space-y-3">
+      <Card title="Triplex pump">
+        <Grid>
+          <PumpField k="linerIn" label="Liner" unit="in" err={at("pump.linerIn")} />
+          <PumpField k="strokeIn" label="Stroke" unit="in" err={at("pump.strokeIn")} />
+          <PumpField k="efficiency" label="Efficiency" unit="frac" hint="fraction, e.g. 0.97" err={at("pump.efficiency")} />
+          <PumpField k="bblPerStk" label="bbl/stk override (opt)" unit="bbl/stk" hint="overrides liner, stroke, eff." err={at("pump.bblPerStk")} />
+          <PumpField k="spm" label="SPM" unit="spm" hint="blank or 0: no minutes" err={at("pump.spm")} />
+        </Grid>
+        {other && <PumpErr e={other} />}
+        <p data-testid="bbl-per-stk" className="mt-3 font-mono text-sm">Pump output: <span className="font-semibold">{s.ok ? `${s.bblPerStk.toFixed(6)} bbl/stk` : "—"}</span></p>
+      </Card>
+      <Card title="Strokes schedule (pill pumped per stage)" right={<span className="text-[11px] text-muted-foreground">Stage = this stage only · Total = running total</span>}>
+        {s.ok ? <StrokesTable s={s} /> : <p className="text-xs text-muted-foreground">No schedule until the pump input above is fixed.</p>}
+      </Card>
+    </div>);
+}
+
+function StrokesPrint() {
+  const s = useStrokes();
+  if (!s) return null;
+  return (<>
+    <h3 className="mb-1 font-semibold">Strokes schedule · {s.ok ? `${s.bblPerStk.toFixed(6)} bbl/stk` : "not available"}</h3>
+    {s.ok ? <div className="mb-3"><StrokesTable s={s} print /></div> : <p className="mb-3 text-xs text-danger">✖ {s.error.message} <span className="font-mono">[{s.error.field}]</span></p>}
+  </>);
+}
+
+/* ---------- KPI & volumes: display only. All numbers come from one kpiVolumes() call. ---------- */
+/** KPI uses the inputs snapshot from the last Calculate, like the other result screens — never live edits. */
+function useKpi(): KpiVolumesResult | null {
+  const job = useStore((s) => s.calcJob);
+  return useMemo(() => (job ? kpiVolumes(job, { surfaceLine_bbl: 0 }) : null), [job]);
+}
+const KpiErr = ({ e }: { e: KpiError }) => (
+  <p data-kpi-error={e.code} role="alert" className="text-xs text-danger">✖ {e.message} <span className="font-mono opacity-70">[{e.code} · {e.field}]</span></p>);
+const Kv = ({ k, v, u, strong, id }: { k: string; v: string; u?: string; strong?: boolean; id?: string }) => (
+  <div className="flex items-baseline justify-between gap-2 border-b border-border/40 py-1 text-xs">
+    <span className="text-muted-foreground">{k}</span>
+    <span data-kpi={id} className={`font-mono ${strong ? "text-sm font-semibold" : ""}`}>{v}{u ? <span className="ml-1 text-[11px] text-muted-foreground">{u}</span> : null}</span>
+  </div>);
+/** Shows the contract's STAND_LENGTH error under the Trip inputs stand-length field. */
+function StandLengthErr() {
+  const k = useKpi();
+  const error = !k || !k.ok ? null : !k.poohFill.ok && k.poohFill.error.code === "STAND_LENGTH" ? k.poohFill.error : null;
+  return error ? <div className="mt-2"><KpiErr e={error} /></div> : null;
+}
+function KpiBody({ k, print }: { k: Extract<KpiVolumesResult, { ok: true }>; print?: boolean }) {
+  const { masp: m, kmw: w, chase: c, kmwInString: s, kmwBackfill: b, poohFill: fill } = k;
+  const Box = ({ title, children }: { title: string; children: ReactNode }) => print
+    ? <div className="print-avoid mb-2"><h4 className="kpi-print-h text-xs font-semibold">{title}</h4>{children}</div>
+    : <Card title={title}>{children}</Card>;
+  return (<div className={print ? "grid grid-cols-2 gap-x-4" : "grid gap-3 md:grid-cols-2"}>
+    <Box title="MASP vs planned SBP">
+      <Kv k="MASP = (FIT − MW) × 0.052 × shoe TVD" v={fx(m.masp_psi, 2)} u="psi" strong id="masp" />
+      <Kv k="Planned SBP" v={fx(m.plannedSbp_psi, 0)} u="psi" id="sbp" />
+      <Kv k="Margin (MASP − SBP)" v={fx(m.margin_psi, 2)} u="psi" id="margin" />
+      <div className="mt-1 text-xs"><span data-kpi="sbp-flag" className={`rounded px-2 py-0.5 font-semibold ${m.sbpExceedsMasp ? "kpi-flag-over" : "kpi-flag-ok"}`}>{m.sbpExceedsMasp ? "SBP OVER MASP" : "OK"} · {m.sbpFlag}</span></div>
+      <p className="mt-1 text-[10px] text-muted-foreground">FIT {fx(m.fitEmw_ppg, 2)} · MW {fx(m.activeMw_ppg, 2)} ppg ({m.activeMwFluidId}) · shoe TVD {fx(m.shoeTvd_ft, 0)} ft</p>
+    </Box>
+    <Box title="Kill mud weight">
+      <Kv k="KMW raw" v={fx(w.raw_ppg, 4)} u="ppg" id="kmw-raw" />
+      <Kv k="KMW (rounded up 0.1)" v={fx(w.rounded_ppg, 1)} u="ppg" strong id="kmw" />
+      <p className="mt-1 text-[10px] text-muted-foreground">MW {fx(w.activeMw_ppg, 2)} + SBP {fx(w.sbp_psi, 0)} psi ÷ (0.052 × anchor TVD {fx(w.anchorTvd_ft, 0)} ft)</p>
+    </Box>
+    <Box title="Chase volume">
+      <Kv k="String" v={fx(c.stringCapacity_bbl, 3)} u="bbl" id="chase-string" />
+      <Kv k="Annulus" v={fx(c.annularVolume_bbl, 3)} u="bbl" id="chase-annulus" />
+      <Kv k="Pill in string" v={fx(c.pillInString_bbl, 3)} u="bbl" id="chase-pill" />
+      <Kv k="Chase" v={fx(c.chase_bbl, 3)} u="bbl" strong id="chase" />
+      <Kv k="Surface lines (separate, not in chase)" v={fx(c.surfaceLine_bbl, 3)} u="bbl" id="surface" />
+    </Box>
+    <Box title="KMW left in string">
+      <Kv k="Volume" v={fx(s.bbl, 3)} u="bbl" strong id="kmw-left" />
+      <Kv k="Length" v={s.height_ft.toLocaleString("en-US")} u="ft" id="kmw-left-ft" />
+    </Box>
+    <Box title="KMW backfill (annulus above pill)">
+      <Kv k="Total" v={fx(b.volume_bbl, 3)} u="bbl" strong id="backfill" />
+      {b.sections.map((x, i) => <Kv key={i} k={`${fx(x.topMd_ft, 0)}–${fx(x.bottomMd_ft, 0)} ft · ${fx(x.holeId_in, 3)} in`} v={fx(x.volume_bbl, 3)} u="bbl" id={`backfill-${i}`} />)}
+    </Box>
+    <Box title={fill.ok ? `POOH fill · ${fx(fill.standLength_ft, 0)} ft stands` : "POOH fill"}>
+      {fill.ok ? <><Kv k="Per stand, closed pipe" v={fx(fill.closed.perStand_bbl, 4)} u="bbl" id="pooh-stand-closed" />
+        <Kv k="Total, closed pipe" v={fx(fill.closed.total_bbl, 3)} u="bbl" strong id="pooh-total-closed" />
+        <Kv k="Per stand, open pipe" v={fx(fill.open.perStand_bbl, 4)} u="bbl" id="pooh-stand-open" />
+        <Kv k="Total, open pipe" v={fx(fill.open.total_bbl, 3)} u="bbl" strong id="pooh-total-open" />
+        <Kv k="Rows" v={`${fill.closed.stands.length} (${fill.fullStandCount} stands${fill.partialStand_ft ? ` + ${fx(fill.partialStand_ft, 0)} ft single` : ""})`} id="pooh-rows" /></> : <KpiErr e={fill.error} />}
+    </Box>
+    <Box title="Pill volume">
+      <Kv k="Pill volume" v={fx(k.pillVolume_bbl, 3)} u="bbl" strong id="pill-volume" />
+      <p data-kpi="pill-breakdown" className="mt-1 font-mono text-[11px] text-muted-foreground">String capacity over pill interval {fx(k.pillVolumeBreakdown.stringCapOverPillInterval_bbl, 3)} bbl + chase {fx(k.pillVolumeBreakdown.chase_bbl, 3)} bbl</p>
+    </Box>
+  </div>);
+}
+
+function PoohRows({ fill, print }: { fill: PoohFillValue; print?: boolean }) {
+  const table = (
+    <table data-testid="pooh-table" className="procedure-table w-full text-right font-mono text-xs">
+      <thead className="text-muted-foreground"><tr>{["#", "Length (ft)", "Closed (bbl)", "Closed total", "Open (bbl)", "Open total"].map((h) => <th key={h} className="border-b px-2 py-1 font-normal">{h}</th>)}</tr></thead>
+      <tbody>{fill.closed.stands.map((r, i) => { const o = fill.open.stands[i]; return (
+        <tr key={r.n} data-pooh-row={r.n} className="border-b border-border/50 [&>td]:px-2 [&>td]:py-0.5">
+          <td>{r.n}</td><td>{fx(r.length_ft, 0)}</td><td>{fx(r.bbl, 4)}</td><td className="font-semibold">{fx(r.runningTotal_bbl, 3)}</td>
+          <td>{o ? fx(o.bbl, 4) : "—"}</td><td>{o ? fx(o.runningTotal_bbl, 3) : "—"}</td></tr>); })}</tbody>
+    </table>);
+  if (print) return table;
+  return (<details data-testid="pooh-details" className="rounded-md border p-2"><summary className="cursor-pointer text-xs font-semibold">POOH fill table · {fill.closed.stands.length} rows</summary><div className="mt-2 overflow-x-auto">{table}</div></details>);
+}
+
+export function KpiScreen() {
+  const k = useKpi();
+  if (!k) return null;
+  return (<div className="space-y-3">
+    <p className="text-[11px] text-muted-foreground print:hidden">Stand length is set in 6 Trip schedule → Trip inputs.</p>
+    {k.ok ? <><KpiBody k={k} />{k.poohFill.ok ? <PoohRows fill={k.poohFill} /> : <div data-testid="pooh-table-error" className="rounded-md border p-2"><p className="mb-1 text-xs font-semibold">POOH fill table</p><KpiErr e={k.poohFill.error} /></div>}</> : <Card title="KPI & volumes"><KpiErr e={k.error} /><p className="mt-2 text-xs text-muted-foreground">No KPI numbers until this input is fixed.</p></Card>}
+  </div>);
+}
+
+function KpiPrint() {
+  const k = useKpi();
+  if (!k) return null;
+  return (<section className="kpi-print mb-3">
+    <h3 className="mb-1 font-semibold">KPI &amp; volumes{k.ok ? "" : " · not available"}</h3>
+    {k.ok ? <><KpiBody k={k} print />{k.poohFill.ok ? <><h4 className="kpi-print-h mt-2 text-xs font-semibold">POOH fill · {fx(k.poohFill.standLength_ft, 0)} ft stands</h4><PoohRows fill={k.poohFill} print /></> : <><h4 className="kpi-print-h mt-2 text-xs font-semibold">POOH fill table</h4><div data-testid="pooh-table-error"><KpiErr e={k.poohFill.error} /></div></>}</> : <KpiErr e={k.error} />}
+  </section>);
+}
+
 export function ExportScreen() {
-  const { job, result } = useStore();
+  const { job, result, calcJob } = useStore();
+  const calcEdited = useCalcEdited();
   const errors = (result?.issues ?? []).filter((i) => i.level === "error");
   const fitBreach = errors.some((i) => i.code === "SHOE_ESD_AT_FIT");
   const locked = errors.length > 0;
@@ -341,13 +539,15 @@ export function ExportScreen() {
       <article className="procedure-sheet rounded-lg border bg-card p-4 text-sm">
         <FitBanner />
         <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2 border-b pb-2">
-          <div><div className="text-base font-semibold">{job.name}</div><div className="text-xs text-danger">EXAMPLE inputs, math checked against API RP 13D examples, pending Sergio's field review</div></div>
+          <div><div data-testid="sheet-title" className="text-base font-semibold">{(calcJob ?? job).name}{calcEdited && <span data-testid="print-edited-marker"> (edited)</span>}</div><div className="text-xs text-danger">EXAMPLE inputs, math checked against API RP 13D examples, pending Sergio's field review</div></div>
           <div className="text-right font-mono text-[11px] text-muted-foreground">PillView 2.0 · {APP_VERSION}<br />SDS-FRM-087 · calc {result?.calcVersion ?? "—"}<br />inputs #{result?.inputHash ?? "—"}</div>
         </header>
         {result && <>
           <h3 className="mb-1 font-semibold">RIH - minimum {result.displacement.minStagesRih ?? "—"} stages needed</h3>
           <table className="procedure-table mb-3 w-full text-right font-mono text-xs"><thead><tr>{["#", "Bit MD (ft)", "Pumped (bbl)", "SBP (psi)", "Shoe ESD hydrostatic (ppg)", "Shoe EMW (ppg)", `vs FIT ${num(result.depths.shoe.fit_ppg)}`].map((h) => <th key={h} className="border-b px-1">{h}</th>)}</tr></thead>
             <tbody>{result.displacement.stages.map((s) => <tr key={s.n}><td>{s.n}</td><td>{s.bitMd_ft}</td><td><Pumped v={s.pumped_bbl} /></td><td>{num(s.sbp_psi, 0)}</td><td>{num(s.shoeEsd_ppg)}</td><td className="font-semibold">{num(s.shoeEmw_ppg, 3)}</td><td><FitCmp n={s.n} /></td></tr>)}</tbody></table>
+          <StrokesPrint />
+          <KpiPrint />
         </>}
         <h3 className="mb-1 font-semibold">Inputs used</h3>
         <InputsTable />
@@ -357,8 +557,9 @@ export function ExportScreen() {
   );
 }
 
+/** Print sheet inputs: the last-Calculate snapshot, so the table matches the results above it. */
 function InputsTable() {
-  const job = useStore((s) => s.job);
+  const job = useStore((s) => s.calcJob ?? s.job);
   const w = job.well;
   const rows: [string, string][] = [
     ["Mode", job.mode], ["TD MD / TVD", `${w.mdTd_ft} / ${w.tvdTd_ft} ft`], ["Bit MD", `${w.bitMd_ft} ft`],
@@ -369,7 +570,9 @@ function InputsTable() {
     ...job.column.map((c, i): [string, string] => [`Annulus column ${i + 1}`, `${c.fluidId}: ${c.topMd_ft}–${c.bottomMd_ft} ft MD`]),
     ...(job.pipeColumn ?? []).map((c, i): [string, string] => [`Pipe column ${i + 1}`, `${c.fluidId}: ${c.topMd_ft}–${c.bottomMd_ft} ft MD (inside string)`]),
     ["Trip speeds", `${job.trip.speeds_ftmin.join(", ")} ft/min, pipe ${job.trip.pipeEnd}`],
+    ["Pump liner / stroke / eff. / SPM", job.pump ? `${job.pump.linerIn ?? "—"} in / ${job.pump.strokeIn ?? "—"} in / ${job.pump.efficiency ?? "—"} / ${job.pump.spm ?? "—"} spm${job.pump.bblPerStk != null ? ` · override ${job.pump.bblPerStk} bbl/stk` : ""}` : "—"],
     ["SBP conn / circ · flow", `${job.trip.sbpConn_psi} / ${job.trip.sbpCirc_psi} psi · ${job.trip.flow_gpm} gpm`],
+    ["Stand length", job.trip.standLength_ft != null && Number.isFinite(job.trip.standLength_ft) ? `${job.trip.standLength_ft} ft` : "—"],
   ];
   return <table className="w-full text-xs"><tbody>{rows.map(([k, v]) => <tr key={k} className="border-b border-border/50"><td className="py-0.5 pr-2 text-muted-foreground">{k}</td><td className="font-mono">{v}</td></tr>)}</tbody></table>;
 }
