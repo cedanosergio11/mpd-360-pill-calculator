@@ -4,6 +4,9 @@
  * `presetId` is not part of the check. D returns with #6 (tapered strings).
  */
 
+import type { Well } from "./job.schema";
+import { surveyTvdAt } from "./tvd";
+
 export const TAPERED_STRING_UNSUPPORTED = "TAPERED_STRING_UNSUPPORTED" as const;
 
 /** Calc entry points return this and nothing else. No volumes, depths, or notes. */
@@ -20,7 +23,7 @@ export interface DepthBeyondField {
   value: number;
   /** The limit that field passed. */
   limit: number;
-  limitField: "well.mdTd_ft" | "well.bitMd_ft" | "well.survey";
+  limitField: "well.mdTd_ft" | "well.bitMd_ft" | "surveyTvdAt(well.bitMd_ft)" | "well.survey";
 }
 
 /** Calc entry points return this and nothing else. The field list stays on `jobSupport` and the paste error. */
@@ -131,7 +134,8 @@ function past(fields: DepthBeyondField[], field: string, value: number | null, l
 }
 
 /**
- * Every depth that is past `mdTd_ft`, including `bitMd_ft`, and every pill or anchor depth past `bitMd_ft`.
+ * Every MD that is past `mdTd_ft`, including `bitMd_ft`, and every pill or anchor MD past `bitMd_ft`.
+ * Anchor TVD is compared to the survey TVD at the bit, not to the bit MD.
  * Equal to the limit is inside the well.
  */
 export function depthBeyondFields(job: DepthJob | null | undefined): DepthBeyondField[] {
@@ -139,6 +143,7 @@ export function depthBeyondFields(job: DepthJob | null | undefined): DepthBeyond
   const well = job.well;
   const td = asDepth(well.mdTd_ft);
   const bit = asDepth(well.bitMd_ft);
+  const bitTvd = bit == null ? null : surveyTvdAt(well as Well, bit);
   const fields: DepthBeyondField[] = [];
   const vsTd = (field: string, value: number | null) => past(fields, field, value, td, "well.mdTd_ft");
   const vsBit = (field: string, value: number | null) => past(fields, field, value, bit, "well.bitMd_ft");
@@ -149,7 +154,7 @@ export function depthBeyondFields(job: DepthJob | null | undefined): DepthBeyond
   vsTd("well.anchorMd_ft", asDepth(well.anchorMd_ft));
   vsTd("well.anchorTvd_ft", asDepth(well.anchorTvd_ft));
   vsBit("well.anchorMd_ft", asDepth(well.anchorMd_ft));
-  vsBit("well.anchorTvd_ft", asDepth(well.anchorTvd_ft));
+  past(fields, "well.anchorTvd_ft", asDepth(well.anchorTvd_ft), bitTvd, "surveyTvdAt(well.bitMd_ft)");
 
   const survey = Array.isArray(well.survey) ? well.survey : [];
   const last = survey.length > 0 ? survey[survey.length - 1] : null;

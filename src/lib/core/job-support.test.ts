@@ -156,7 +156,7 @@ describe("depth beyond TD", () => {
       code: DEPTH_BEYOND_TD,
       fields: [
         { field: "well.anchorMd_ft", value: 10480, limit: 9000, limitField: "well.bitMd_ft" },
-        { field: "well.anchorTvd_ft", value: 10466, limit: 9000, limitField: "well.bitMd_ft" },
+        { field: "well.anchorTvd_ft", value: 10466, limit: 8986, limitField: "surveyTvdAt(well.bitMd_ft)" },
         { field: "column[1].bottomMd_ft", value: 10480, limit: 9000, limitField: "well.bitMd_ft" },
       ],
     });

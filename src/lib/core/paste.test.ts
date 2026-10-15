@@ -266,11 +266,12 @@ describe("previewPaste depth consistency", () => {
     expect(depth[0]?.blocking).toBe(true);
     expect(depth[0]?.fields).toEqual([
       { field: "well.anchorMd_ft", value: 10480, limit: 9000, limitField: "well.bitMd_ft" },
-      { field: "well.anchorTvd_ft", value: 10466, limit: 9000, limitField: "well.bitMd_ft" },
+      { field: "well.anchorTvd_ft", value: 10466, limit: 8986, limitField: "surveyTvdAt(well.bitMd_ft)" },
       { field: "column[1].bottomMd_ft", value: 10480, limit: 9000, limitField: "well.bitMd_ft" },
     ]);
     expect(depth[0]?.message).toContain("10480");
     expect(depth[0]?.message).toContain("10466");
+    expect(depth[0]?.message).toContain("8986");
     expect(depth[0]?.fields?.some((item) => item.field.startsWith("well.survey"))).toBe(false);
     expect(() => applyPaste(job, preview)).toThrow(/blocked/);
     expect(job).toEqual(before);
