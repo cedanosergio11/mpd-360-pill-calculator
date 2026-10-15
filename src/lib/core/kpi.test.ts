@@ -506,6 +506,20 @@ describe("EXAMPLE C against MPGenie", () => {
     expect(result.poohFill).toEqual(base.poohFill);
   });
 
+  it("reports MASP, the over-MASP margin, and KMW when connection SBP is 560", () => {
+    const job: Job = structuredClone(exampleC);
+    job.trip.sbpConn_psi = 560;
+    const result = kpiVolumes(job, { surfaceLine_bbl: 0 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.masp.plannedSbp_psi).toBe(560);
+    expect(result.masp.masp_psi).toBeCloseTo(501.26, 2);
+    expect(result.masp.margin_psi).toBeCloseTo(-58.74, 2);
+    expect(result.masp.sbpExceedsMasp).toBe(true);
+    expect(result.kmw.raw_ppg).toBeCloseTo(12.4290, 4);
+    expect(result.kmw.rounded_ppg).toBe(12.5);
+  });
+
   it("keeps MASP and KMW when stand length is blank and reports STAND_LENGTH on POOH only", () => {
     const job: Job = structuredClone(exampleC);
     delete job.trip.standLength_ft;
