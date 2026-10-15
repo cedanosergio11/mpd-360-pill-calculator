@@ -68,6 +68,25 @@ export {
   type PoohFillValue,
 } from "./kpi";
 export {
+  applyPaste,
+  parseWellPaste,
+  previewPaste,
+  type PasteError,
+  type PasteIgnored,
+  type PasteMatch,
+  type PastePreview,
+  type PastePreviewError,
+  type PastePreviewRow,
+  type PasteResult,
+} from "./paste";
+export {
+  simulate,
+  type SimulateError,
+  type SimulateOptions,
+  type SimulateResult,
+  type SimulateStep,
+} from "./simulate";
+export {
   emwProfile,
   type EmwCrossing,
   type EmwCrossover,
