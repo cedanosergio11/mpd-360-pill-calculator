@@ -140,6 +140,20 @@
     display: table-header-group;
   }
   .procedure-table thead,
+  .procedure-sheet .procedure-table thead {
+    background: #fff !important;
+    color: #111 !important;
+  }
+  .procedure-table th,
+  .procedure-sheet .procedure-table th {
+    color: #111 !important;
+    background: #fff !important;
+    font-weight: 700 !important;
+    border-bottom: 2px solid #111 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .procedure-table thead,
   .procedure-table tr {
     break-inside: avoid;
     page-break-inside: avoid;
