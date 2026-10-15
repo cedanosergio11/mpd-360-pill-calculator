@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { exampleB } from "@/lib/example-b";
 import { exampleJob } from "./example-job";
@@ -168,15 +169,15 @@ describe("volumes", () => {
     expect(result.chase_bbl).toBeCloseTo(cap * 10480 - 480 * cap, 6);
   });
 
-  it("reports string capacity above the EXAMPLE B pill top", () => {
+  it("reports the whole string when the pill is only in the annulus", () => {
     const result = kmwInString(exampleB);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     const cap = 4.778 ** 2 / 1029.4;
     expect(result.pillTopSource).toBe("annulus");
     expect(result.pillTopMd_ft).toBe(8060);
-    expect(result.height_ft).toBe(8060);
-    expect(result.bbl).toBeCloseTo(cap * 8060, 6);
+    expect(result.height_ft).toBe(10480);
+    expect(result.bbl).toBeCloseTo(cap * 10480, 6);
     expect(result.belowPillTop_ft).toBe(2420);
     expect(result.belowPillTop_bbl).toBeCloseTo(cap * 2420, 6);
   });
@@ -296,5 +297,159 @@ describe("kpiVolumes", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe("MISSING_PILL");
+  });
+});
+
+interface ExpectedKpi {
+  capacities_bbl_ft: {
+    string_id: number;
+    cased_annulus: number;
+    oh_annulus: number;
+    closed_end_disp: number;
+    open_end_steel: number;
+  };
+  masp_psi: number;
+  masp_minus_sbp_psi: number;
+  masp_sbp_flag: string;
+  kmw_raw_ppg: number;
+  kmw_roundup_ppg: number;
+  chase_bbl: number;
+  chase_parts: {
+    string_surface_to_bit: number;
+    annulus_bit_to_pill_bottom: number;
+    pill_in_string: number;
+  };
+  surface_lines_bbl: number;
+  kmw_left_in_string: { bbl: number; height_ft: number };
+  kmw_backfill_bbl: number;
+  backfill_parts: { cased_0_8045: number; oh_8045_8060: number };
+  pill_annular_volume_8060_10480_bbl: number;
+  string_cap_over_pill_interval_bbl: number;
+  pooh_fill: {
+    stand_ft: number;
+    closed_bbl_per_stand: number;
+    open_bbl_per_stand: number;
+    stands: number;
+    closed_total_bbl: number;
+    open_total_bbl: number;
+    table_closed: Array<{ stand: number; length_ft: number; bbl: number; cum_bbl: number }>;
+  };
+}
+
+const exampleBExpected: ExpectedKpi = JSON.parse(
+  readFileSync(new URL("./fixtures/kpi-example-b.expected.json", import.meta.url), "utf8"),
+);
+
+describe("EXAMPLE B against the MPGenie expected file", () => {
+  it("matches every published field", () => {
+    const result = kpiVolumes(exampleB, { standLength_ft: 93, surfaceLine_bbl: 0 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const expected = exampleBExpected;
+    const cased = result.kmwBackfill.sections[0];
+    const openHole = result.kmwBackfill.sections[1];
+    expect(result.chase.stringCap_bblFt).toBeCloseTo(expected.capacities_bbl_ft.string_id, 6);
+    expect(cased.annularCap_bblFt).toBeCloseTo(expected.capacities_bbl_ft.cased_annulus, 6);
+    expect(openHole.annularCap_bblFt).toBeCloseTo(expected.capacities_bbl_ft.oh_annulus, 6);
+    expect(result.poohFill.closedDisplacement_bblFt).toBeCloseTo(
+      expected.capacities_bbl_ft.closed_end_disp,
+      6,
+    );
+    expect(result.poohFill.openDisplacement_bblFt).toBeCloseTo(
+      expected.capacities_bbl_ft.open_end_steel,
+      6,
+    );
+    expect(result.masp.masp_psi).toBeCloseTo(expected.masp_psi, 2);
+    expect(result.masp.margin_psi).toBeCloseTo(expected.masp_minus_sbp_psi, 2);
+    expect(result.masp.sbpFlag).toBe(expected.masp_sbp_flag);
+    expect(result.masp.sbpExceedsMasp).toBe(false);
+    expect(result.kmw.raw_ppg).toBeCloseTo(expected.kmw_raw_ppg, 4);
+    expect(result.kmw.rounded_ppg).toBe(expected.kmw_roundup_ppg);
+    expect(result.chase.chase_bbl).toBeCloseTo(expected.chase_bbl, 3);
+    expect(result.chase.stringCapacity_bbl).toBeCloseTo(
+      expected.chase_parts.string_surface_to_bit,
+      3,
+    );
+    expect(result.chase.annularVolume_bbl).toBeCloseTo(
+      expected.chase_parts.annulus_bit_to_pill_bottom,
+      3,
+    );
+    expect(result.chase.pillInString_bbl).toBeCloseTo(expected.chase_parts.pill_in_string, 3);
+    expect(result.chase.surfaceLine_bbl).toBe(expected.surface_lines_bbl);
+    expect(result.kmwInString.bbl).toBeCloseTo(expected.kmw_left_in_string.bbl, 3);
+    expect(result.kmwInString.height_ft).toBe(expected.kmw_left_in_string.height_ft);
+    expect(result.kmwBackfill.volume_bbl).toBeCloseTo(expected.kmw_backfill_bbl, 3);
+    expect(cased.volume_bbl).toBeCloseTo(expected.backfill_parts.cased_0_8045, 3);
+    expect(openHole.volume_bbl).toBeCloseTo(expected.backfill_parts.oh_8045_8060, 3);
+    expect(cased.volume_bbl + openHole.volume_bbl).toBeCloseTo(expected.kmw_backfill_bbl, 3);
+    expect(result.pillAnnularVolume_bbl).toBeCloseTo(
+      expected.pill_annular_volume_8060_10480_bbl,
+      3,
+    );
+    expect(result.stringCapOverPillInterval_bbl).toBeCloseTo(
+      expected.string_cap_over_pill_interval_bbl,
+      3,
+    );
+    const mixed = result.pillAnnularVolume_bbl + result.stringCapOverPillInterval_bbl;
+    expect(result.chase.chase_bbl).toBeCloseTo(expected.chase_bbl, 3);
+    expect(Math.abs(result.chase.chase_bbl - mixed)).toBeGreaterThan(1);
+    expect(Math.abs(result.kmwInString.bbl - mixed)).toBeGreaterThan(1);
+    expect(Math.abs(result.kmwBackfill.volume_bbl - mixed)).toBeGreaterThan(1);
+    expect(result.poohFill.standLength_ft).toBe(expected.pooh_fill.stand_ft);
+    expect(result.poohFill.closedDisplacement_bblFt * result.poohFill.standLength_ft).toBeCloseTo(
+      expected.pooh_fill.closed_bbl_per_stand,
+      6,
+    );
+    expect(result.poohFill.openDisplacement_bblFt * result.poohFill.standLength_ft).toBeCloseTo(
+      expected.pooh_fill.open_bbl_per_stand,
+      6,
+    );
+    expect(result.poohFill.stands).toHaveLength(expected.pooh_fill.stands);
+    expect(result.poohFill.total_bbl).toBeCloseTo(expected.pooh_fill.closed_total_bbl, 3);
+    expect(result.poohFill.openDisplacement_bblFt * result.poohFill.tripLength_ft).toBeCloseTo(
+      expected.pooh_fill.open_total_bbl,
+      3,
+    );
+    expect(result.poohFill.stands).toHaveLength(expected.pooh_fill.table_closed.length);
+    for (const row of expected.pooh_fill.table_closed) {
+      const actual = result.poohFill.stands[row.stand - 1];
+      expect(actual.n).toBe(row.stand);
+      expect(actual.length_ft).toBeCloseTo(row.length_ft, 1);
+      expect(actual.bbl).toBeCloseTo(row.bbl, 6);
+      expect(actual.runningTotal_bbl).toBeCloseTo(row.cum_bbl, 4);
+    }
+  });
+
+  it("errors on a missing FIT, a missing shoe TVD, and anchor TVD 0", () => {
+    const missingFit = kpiVolumes(
+      { ...exampleB, well: { ...exampleB.well, fit_ppg: null as unknown as number } },
+      { standLength_ft: 93 },
+    );
+    expect(missingFit.ok).toBe(false);
+    if (!missingFit.ok) {
+      expect(missingFit.error.code).toBe("MISSING_FIT");
+      expect(missingFit.error.field).toBe("well.fit_ppg");
+    }
+    const missingShoe = kpiVolumes(
+      { ...exampleB, well: { ...exampleB.well, shoeTvd_ft: null as unknown as number } },
+      { standLength_ft: 93 },
+    );
+    expect(missingShoe.ok).toBe(false);
+    if (!missingShoe.ok) {
+      expect(missingShoe.error.code).toBe("MISSING_SHOE_TVD");
+      expect(missingShoe.error.field).toBe("well.shoeTvd_ft");
+    }
+    const zeroAnchor = kpiVolumes(
+      { ...exampleB, well: { ...exampleB.well, anchorTvd_ft: 0 } },
+      { standLength_ft: 93 },
+    );
+    expect(zeroAnchor).toEqual({
+      ok: false,
+      error: {
+        code: "MISSING_ANCHOR_TVD",
+        field: "well.anchorTvd_ft",
+        message: "Anchor TVD must be a finite number greater than 0.",
+      },
+    });
   });
 });

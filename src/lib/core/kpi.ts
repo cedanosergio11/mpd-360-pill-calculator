@@ -40,6 +40,10 @@ export interface MaspValue {
   masp_psi: number;
   /** Entered planned SBP, psi. Echoed, not derived. */
   plannedSbp_psi: number;
+  /** MASP − planned SBP, psi. */
+  margin_psi: number;
+  /** `OK, SBP <value> < MASP` when planned SBP is below MASP. */
+  sbpFlag: string;
   /** True when planned SBP is greater than MASP. */
   sbpExceedsMasp: boolean;
 }
@@ -106,14 +110,17 @@ export interface KmwInStringValue {
   stringId_in: number;
   stringCap_bblFt: number;
   /**
-   * String MD from surface to the pill top, capped at the bit.
-   * This is the bore above the pill top.
+   * When the pill is only in the annulus, this is the whole string, surface to bit.
+   * When the pill is inside the string, this is that pipe-pill column only.
    */
   height_ft: number;
-  /** `stringCap_bblFt × height_ft`. */
+  /** `stringCap_bblFt × height_ft`. Not combined with the annular pill volume. */
   bbl: number;
   bitMd_ft: number;
-  /** Bit MD below the pill top, ft. 0 when the pill top is at or below the bit. */
+  /**
+   * String capacity over the annulus pill's MD interval.
+   * Kept separate from `bbl` and from the annular pill volume.
+   */
   belowPillTop_ft: number;
   belowPillTop_bbl: number;
 }
@@ -194,6 +201,10 @@ export type KpiVolumesResult =
       kmwInString: KmwInStringValue;
       kmwBackfill: KmwBackfillValue;
       poohFill: PoohFillValue;
+      /** Annular volume of the pill interval. Not added to the string-capacity check. */
+      pillAnnularVolume_bbl: number;
+      /** String capacity over the same pill MD interval. Not added to the annular volume. */
+      stringCapOverPillInterval_bbl: number;
     }
   | { ok: false; error: KpiError };
 
@@ -259,9 +270,11 @@ export function masp(input: {
   const deltaEmw_ppg = fit.value - mw.value;
   const psiPerPpg = PSI_PER_PPG_FT * shoe.value;
   const masp_psi = deltaEmw_ppg * psiPerPpg;
-  if (!Number.isFinite(masp_psi) || !Number.isFinite(psiPerPpg)) {
+  const margin_psi = masp_psi - sbp.value;
+  if (!Number.isFinite(masp_psi) || !Number.isFinite(psiPerPpg) || !Number.isFinite(margin_psi)) {
     return fail("INVALID_GEOMETRY", "well.shoeTvd_ft", "MASP is not a finite pressure.");
   }
+  const sbpText = Number.isInteger(sbp.value) ? String(sbp.value) : String(sbp.value);
   return {
     ok: true,
     fitEmw_ppg: fit.value,
@@ -272,6 +285,8 @@ export function masp(input: {
     psiPerPpg,
     masp_psi,
     plannedSbp_psi: sbp.value,
+    margin_psi,
+    sbpFlag: sbp.value < masp_psi ? `OK, SBP ${sbpText} < MASP` : "SBP >= MASP",
     sbpExceedsMasp: sbp.value > masp_psi,
   };
 }
@@ -496,16 +511,14 @@ export function kmwInString(job: Job): KmwInStringResult {
       "Bit depth must be a finite number greater than or equal to 0.",
     );
   }
-  const height_ft = Math.max(0, Math.min(pill.topMd, job.well.bitMd_ft));
   const belowPillTop_ft = Math.max(0, job.well.bitMd_ft - pill.topMd);
-  const bbl = bore.cap * height_ft;
   const belowPillTop_bbl = bore.cap * belowPillTop_ft;
+  // Pill wholly in the annulus: the string figure is the whole string.
+  // Pill inside the string: only that pipe column, never the annular pill volume.
+  const height_ft = pill.source === "pipe" ? belowPillTop_ft : job.well.bitMd_ft;
+  const bbl = bore.cap * height_ft;
   if (!Number.isFinite(bbl) || !Number.isFinite(belowPillTop_bbl)) {
-    return fail(
-      "INVALID_GEOMETRY",
-      "well.stringId_in",
-      "String volume above the pill top is not finite.",
-    );
+    return fail("INVALID_GEOMETRY", "well.stringId_in", "String volume is not finite.");
   }
   return {
     ok: true,
@@ -625,7 +638,9 @@ function activeMud(
 }
 
 /**
- * MASP, KMW, chase, string volume above the pill top, annular backfill, and POOH fill.
+ * MASP, KMW, chase, KMW left in the string, annular backfill, and POOH fill.
+ * The annular pill volume and the string capacity over that same interval are returned
+ * separately and are never added together.
  * A missing FIT, shoe TVD, or anchor TVD is an error. Anchor TVD is never taken from the survey.
  */
 export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesResult {
@@ -654,6 +669,8 @@ export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesRes
   if (!backfill.ok) return backfill;
   const fill = poohFill(job, input.standLength_ft);
   if (!fill.ok) return fill;
+  const checks = separatePillChecks(job);
+  if (!checks.ok) return checks;
   return {
     ok: true,
     masp: stripOk(maspResult),
@@ -662,6 +679,38 @@ export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesRes
     kmwInString: stripOk(inString),
     kmwBackfill: stripOk(backfill),
     poohFill: stripOk(fill),
+    pillAnnularVolume_bbl: checks.pillAnnularVolume_bbl,
+    stringCapOverPillInterval_bbl: checks.stringCapOverPillInterval_bbl,
+  };
+}
+
+/** Annular pill volume and string capacity over that MD interval. Not summed. */
+function separatePillChecks(
+  job: Job,
+):
+  | { ok: true; pillAnnularVolume_bbl: number; stringCapOverPillInterval_bbl: number }
+  | { ok: false; error: KpiError } {
+  const pill = spottedPill(job);
+  if (!pill) return fail("MISSING_PILL", "column", "Pill top is missing.");
+  const length = pill.bottomMd - pill.topMd;
+  if (!Number.isFinite(length) || length < 0) {
+    return fail("MISSING_PILL", "column", "Pill top is missing.");
+  }
+  const bore = stringCapacity(job.well);
+  if (!bore.ok) return bore;
+  const annular = intervalVolume(job.well, pill.topMd, pill.bottomMd, "annular");
+  const stringCapOverPillInterval_bbl = bore.cap * length;
+  if (
+    annular == null ||
+    !Number.isFinite(annular) ||
+    !Number.isFinite(stringCapOverPillInterval_bbl)
+  ) {
+    return fail("INVALID_GEOMETRY", "column", "Pill interval volume is not finite.");
+  }
+  return {
+    ok: true,
+    pillAnnularVolume_bbl: annular,
+    stringCapOverPillInterval_bbl,
   };
 }
 
