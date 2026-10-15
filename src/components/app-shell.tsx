@@ -25,6 +25,14 @@ export function AppShell() {
   const edited = useEdited();
   const [tab, setTab] = useState<TabId>("well");
   const fileRef = useRef<HTMLInputElement>(null);
+  /* Measured action-bar height → --action-bar-h, so main's bottom padding always clears the fixed bar (it wraps on narrow phones). */
+  const barRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = barRef.current; if (!el) return;
+    const setH = () => document.documentElement.style.setProperty("--action-bar-h", `${el.getBoundingClientRect().height}px`);
+    setH(); const ro = new ResizeObserver(setH); ro.observe(el);
+    return () => ro.disconnect();
+  }, [loaded]);
   useEffect(() => {
     load();
     const t = new URLSearchParams(window.location.search).get("tab");
@@ -45,7 +53,7 @@ export function AppShell() {
   if (!loaded) return <main className="p-4 text-sm text-muted-foreground">Loading…</main>;
 
   return (
-    <main className="min-h-screen pb-24">
+    <main className="app-main min-h-screen">
       <div className="bg-danger px-3 py-1 text-center text-xs font-bold tracking-wide text-white print:hidden" role="alert">EXAMPLE inputs, math checked against API RP 13D examples, pending Sergio's field review</div>
       <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur print:hidden">
         <div className="flex items-center gap-2 px-3 py-2 text-xs">
@@ -63,7 +71,7 @@ export function AppShell() {
         </nav>
       </header>
       <div className="mx-auto max-w-6xl space-y-3 p-3 sm:p-4">{tab !== "export" && <div className="print:hidden"><FitBanner /></div>}<Active /></div>
-      <footer className="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center gap-2 border-t bg-card px-3 py-2 text-xs print:hidden">
+      <footer ref={barRef} data-testid="action-bar" className="fixed inset-x-0 bottom-0 z-20 flex flex-wrap items-center gap-2 border-t bg-card px-3 py-2 text-xs print:hidden">
         <button onClick={save} className="rounded-md bg-primary px-3 py-1.5 font-semibold text-primary-foreground">Save</button>
         <button onClick={run} className="rounded-md border px-3 py-1.5">Calculate</button>
         <button onClick={exportJson} className="rounded-md border px-3 py-1.5">Export JSON</button>
