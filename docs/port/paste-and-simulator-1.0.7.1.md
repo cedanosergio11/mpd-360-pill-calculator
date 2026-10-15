@@ -350,18 +350,31 @@ export interface PasteResult {
 
 export function parseWellPaste(text: string): PasteResult;
 
+export type PastePreviewKind = "number" | "text" | "bool" | "date";
+
 export interface PastePreviewRow {
   /** 2.0 field path. */
   field: string;
   /**
    * Unit shown with both values. The recognized sheet unit when the row has one,
    * otherwise the unit that field already uses. Null for text, bool, and date.
+   * The unit is not written into `oldDisplay` or `newDisplay`.
    */
   unit: string | null;
+  /**
+   * How the engine formatted the display strings.
+   * `number` uses the field precision. `bool` is Yes/No. `date` is ISO YYYY-MM-DD.
+   * `text` is the value as stored.
+   */
+  kind: PastePreviewKind;
   /** Value on `job` at `field`, in `unit`. Null when the job has no value there. */
   oldValue: unknown;
   /** Coerced value from `result.patch`, in the same `unit`. */
   newValue: unknown;
+  /** Engine-formatted `oldValue`. The UI prints this and does not format `oldValue`. */
+  oldDisplay: string;
+  /** Engine-formatted `newValue`. The UI prints this and does not format `newValue`. */
+  newDisplay: string;
   /** 1-based sheet row, copied from `matched`. */
   row: number;
   /** 1-based value column, copied from `matched.column`. */
@@ -401,13 +414,17 @@ export function applyPaste(job: Job, preview: PastePreview): Job;
 
 A repeated label whose coerced value equals the value already patched is `ignored` with `DUPLICATE`. That is a warning. The first value stays, and `ok` can still be true. A repeated label whose coerced value differs is `CONFLICTING_DUPLICATE` on `errors`. That blocks the patch: `ok` is false, `patch` is `{}`, and `previewPaste` reports the conflict with `blocking: true`. Coerced equality is numeric after the thousands-separator rule, trimmed text, the normalized date, or the coerced bool. `1500` and `1,500` are the same value. `1,5` never becomes a number, so it cannot be a duplicate of anything.
 
-`previewPaste` is pure. One row per `matched` entry, in that order. `newValue` is the patched value. `oldValue` is read from `job` at `field`. `unit` is shown with both values: the screen prints the old number and the new number each followed by that unit, and it does not convert either value. `errors` copies every `PasteError`, with `column` renamed to `col`. `blocking` is true for `BAD_NUMBER`, `CONFLICTING_DUPLICATE`, and the other blocking codes listed on `PastePreviewError`. It is false for `UNMAPPED_LABEL` and `NOT_A_2_0_INPUT`. `canApply` is false when any error is blocking. Ignored `DUPLICATE` and `CALCULATED` rows are not preview rows and are not preview errors.
+`previewPaste` is pure. One row per `matched` entry, in that order. `newValue` is the patched value. `oldValue` is read from `job` at `field`. Both stay raw. `kind` is `number`, `text`, `bool`, or `date`, taken from the new value when it is present and otherwise from the old value. `oldDisplay` and `newDisplay` are the strings the engine formats for that kind. The UI prints those strings and the separate `unit`. It does not format `oldValue` or `newValue`, and it does not put the unit inside the display string.
 
-`applyPaste` returns a new `Job`. It writes exactly `preview.rows` and nothing else: each `newValue` is set at `field`, and every field that is not in `rows` stays as it was, including `mode`. It does not write localStorage and does not fill `calcJob`. It throws when `canApply` is false and returns no job. After a successful apply, `simulate` is called with that returned job.
+Number precision is per field: ppg and ppge use 0.1 (`12.25` displays `12.3`), inches use 0.001, feet (including md and tvd) use 1, psi uses 1, bbl and bbl/stk use 0.01, and gpm uses 1. The formatted number is `toFixed` at that step. It has no thousands separator. A bool displays `Yes` or `No`. A date displays ISO `YYYY-MM-DD`. Text is the stored string. A nested value (a casing interval, a survey station, or `stringSections`) is text and displays as JSON. Null displays as an empty string.
+
+`errors` copies every `PasteError`, with `column` renamed to `col`. `blocking` is true for `BAD_NUMBER`, `CONFLICTING_DUPLICATE`, and the other blocking codes listed on `PastePreviewError`. It is false for `UNMAPPED_LABEL` and `NOT_A_2_0_INPUT`. `canApply` is false when any error is blocking. Ignored `DUPLICATE` and `CALCULATED` rows are not preview rows and are not preview errors.
+
+`applyPaste` returns a new `Job`. It writes exactly `preview.rows` and nothing else: each `newValue` is set at `field`, and every field that is not in `rows` stays as it was, including `mode`. It then sets `meta` to `{ modified: true, isExample: false }`. `meta` is optional on `Job` and is absent on a preset. `inputHash` excludes `meta` the same way it excludes `savedAt`, so the flags do not move a preset baseline. `applyPaste` does not write `presetBaseline`, does not call the store, and does not change `baselineHash`. If the cloned job still carries a `presetBaseline` from a saved record, that property is dropped on the returned job only. The job passed in is not mutated. It does not write localStorage and does not fill `calcJob`. It throws when `canApply` is false and returns no job, and the thrown call does not set `meta`. After a successful apply, `simulate` is called with that returned job.
 
 ### Planned paste apply test
 
-Planned, not implemented in this spec. Build a `Job`, parse a sheet whose `previewPaste` result has `canApply: true`, and call `applyPaste(job, preview)`. The returned job deep-equals a copy of `job` on which each preview row's `newValue` has been set at `field`. No other field differs. A second call whose preview has `canApply: false` throws, and the job passed in is unchanged.
+Planned, not implemented in this spec. Build a `Job`, parse a sheet whose `previewPaste` result has `canApply: true`, and call `applyPaste(job, preview)`. The returned job deep-equals a copy of `job` on which each preview row's `newValue` has been set at `field`, plus `meta: { modified: true, isExample: false }`. No other field differs. `inputHash` of the returned job equals `inputHash` of that same job with `meta` removed. A job that also carries `presetBaseline` keeps that property on the input, and the returned job does not have it. A second call whose preview has `canApply: false` throws, and the job passed in is unchanged, including `meta`. A display check: current MW `12.25` ppg has `kind: "number"`, `newValue` `12.25`, and `newDisplay` `"12.3"`. A depth of `10000` ft displays `"10000"`. A well name displays as the text itself.
 
 Same delimiters as 1.0: tab and newline, HTML table when `<table` or `<tr` is present. A comma never separates cells. The decimal mark is `.`. Dates stay month-day-year and Excel serial, written to a well-date string on the side, not to `job.savedAt`. Units are checked, not converted. A unit outside the set expected for that field is `UNIT_MISMATCH` and the value is not stored.
 
@@ -481,7 +498,9 @@ Two flags next to that split are unused:
 
 Pure function of the canonical `Job`. The UI holds an index into `steps` for scrub, play, and pause. Speed is how fast the index advances. It is not an input to the physics. There is no `engine-nodp` call and no SafeVision table.
 
-1.0 stepped the pipe by 50 ft on the slider, 100 ft on the arrow keys, and 500 ft on the coarse buttons, each click as one shot (`floatDrainOnMove` uses the whole delta). 2.0 keeps pipe MD as the axis. Default `stepMd_ft` is 100. Pass 50 or 500 to match the other 1.0 controls. The sequence includes `fromMd_ft` and `toMd_ft`. When the span is not a multiple of the step, the last interval is the remainder, so the end depth is exact.
+1.0 stepped the pipe by 50 ft on the slider, 100 ft on the arrow keys, and 500 ft on the coarse buttons, each click as one shot (`floatDrainOnMove` uses the whole delta). 2.0 keeps pipe MD as the axis. Default `stepMd_ft` is 100. The minimum is 10. A step below 10, or a non-finite step, is `INVALID_STEP` on `stepMd_ft`. The value is not raised to 10. Pass 50 or 500 to match the other 1.0 controls; both are at least 10. The sequence includes `fromMd_ft` and `toMd_ft`. When the span is not a multiple of the step, the last interval is the remainder, so the end depth is exact.
+
+The walk is capped at 1000 steps, inclusive. A generated walk or an explicit `mds` list longer than 1000 returns `STEP_LIMIT` on `stepMd_ft` and no `steps`. The step is not coarsened to fit. `meta.stepsLength` equals `steps.length`. `meta.stepFt` is the resolved step, which stays 100 when `mds` is set and `stepMd_ft` is omitted. A step below 10 is still `INVALID_STEP` when `mds` is set. `stepMd_ft` on the result equals `meta.stepFt`.
 
 The default range is unchanged: omit `opts` and the walk still starts at `well.bitMd_ft` and ends at 0 ft, step 100 ft. On a 10480 ft bit that is 10480, 10380, …, 80, then 0. The main run is RIH from 0 to the bit, same step: `fromMd_ft: 0`, `toMd_ft: well.bitMd_ft`. On that 10480 ft bit the steps are 0, 100, …, 10400, then 10480.
 
@@ -493,14 +512,42 @@ export interface SimulateOptions {
   fromMd_ft?: number;
   /** End pipe MD, ft. Default 0. Ignored for the step list when `mds` is set. */
   toMd_ft?: number;
-  /** Pipe-MD step, ft. Default 100. Must be finite and greater than 0 when `mds` is omitted. */
+  /** Pipe-MD step, ft. Default 100. Minimum 10, including when `mds` is set. */
   stepMd_ft?: number;
   /**
    * Explicit pipe MDs, ft, in this order. When set, `steps` are these depths and nothing else.
    * A single-point evaluation is a one-element list. `fromMd_ft` still anchors `tripTank_bbl` and `pipeDelta_ft`.
+   * Longer than 1000 is `STEP_LIMIT`.
    */
   mds?: number[];
 }
+
+export interface SimulateDepth {
+  md_ft: number | null;
+  tvd_ft: number | null;
+}
+
+/** One labeled station, with EMW for a single pill state. */
+export interface SimulateEmwStation {
+  label: EmwStationLabel;
+  md_ft: number;
+  tvd_ft: number;
+  emw: EmwStationEmw;
+}
+
+/** One pill state's lines, stations, and shoe check, plus the string at that pipe MD. */
+export interface SimulateFluidProfile {
+  label: string;
+  lines: EmwLines;
+  stations: SimulateEmwStation[];
+  shoeCheck: EmwShoeCheck[];
+  sections: EmwStringSection[];
+  crossovers: EmwCrossover[];
+}
+
+export type SimulateFluidResult =
+  | ({ ok: true; notes: EmwNote[] } & SimulateFluidProfile)
+  | { ok: false; notes: EmwNote[]; error: EmwError };
 
 export interface SimulateStep {
   index: number;
@@ -508,10 +555,10 @@ export interface SimulateStep {
   pipeTvd_ft: number | null;
   /** `pipeMd_ft - fromMd_ft`. Negative while pulling. */
   pipeDelta_ft: number;
-  pillTopMd_ft: number | null;
-  pillTopTvd_ft: number | null;
-  pillBottomMd_ft: number | null;
-  pillBottomTvd_ft: number | null;
+  /** Pill top at this pipe MD. Both depths come from `pillPlacement` and `tvdAt`. */
+  pillTop: SimulateDepth;
+  /** Pill bottom at this pipe MD. */
+  pillBottom: SimulateDepth;
   /** `chaseVolume` at this pipe MD. */
   chase_bbl: number | null;
   /** Surface-to-bit string capacity at this pipe MD. Not the pill-interval term. */
@@ -524,18 +571,23 @@ export interface SimulateStep {
    */
   tripTank_bbl: number;
   /**
-   * `emwProfile(stepJob)`.
-   * `inPlace` is pipe out. `spotted` is this pipe MD, because `spottedColumn`
-   * calls `columnDisplacedByPipe(job, job.well.bitMd_ft)`.
-   * Lines are static, staticSbp, and ecd, in ppg, with MD and TVD on each point.
-   * `sections` and `crossovers` are the tapered string layout.
-   * Stations stay shoe, anchor, and bit. Shoe check is margin ppg and psi.
+   * Spotted EMW at this pipe MD. `spottedColumn` uses `columnDisplacedByPipe(job, pipeMd)`.
+   * Stations carry only the spotted EMW. `shoeCheck` is the spotted rows.
+   * `sections` and `crossovers` are the string at this pipe MD.
+   * At pipe MD 0 this is the pipe-out copy of the in-place profile.
    */
-  emw: EmwProfileResult;
+  spotted: SimulateFluidResult;
+}
+
+export interface SimulateMeta {
+  /** Equal to `steps.length`. */
+  stepsLength: number;
+  /** Resolved step, ft. Default 100. Minimum 10. */
+  stepFt: number;
 }
 
 export interface SimulateError {
-  code: "INVALID_STEP" | "INVALID_DEPTH" | "MISSING_BIT";
+  code: "INVALID_STEP" | "INVALID_DEPTH" | "MISSING_BIT" | "STEP_LIMIT";
   field: "stepMd_ft" | "fromMd_ft" | "toMd_ft" | "well.bitMd_ft";
   message: string;
 }
@@ -546,6 +598,13 @@ export type SimulateResult =
       stepMd_ft: number;
       fromMd_ft: number;
       toMd_ft: number;
+      /** `stepsLength` equals `steps.length`. `stepFt` equals `stepMd_ft`. */
+      meta: SimulateMeta;
+      /**
+       * In-place EMW of the job passed in, computed once.
+       * Not recomputed per step. Stations and shoe check are the in-place side only.
+       */
+      inPlace: SimulateFluidResult;
       /** `kpiVolumes(job)` for the job passed in. Output only. */
       kpi: KpiVolumesResult;
       /** One row per displacement stage. Not the pipe-step axis. */
@@ -559,16 +618,16 @@ export function simulate(job: Job, opts?: SimulateOptions): SimulateResult;
 
 Work per call:
 
-1. Reject a non-finite or non-positive `stepMd_ft` when `mds` is omitted, a from/to MD outside `0…well.mdTd_ft`, or any explicit MD that is non-finite or outside that span, with `SimulateError`. Do not clip the way 1.0 `clamp` did and then continue silently. When `mds` is set, `steps.length` equals `mds.length` and `steps[i].pipeMd_ft` equals `mds[i]`.
+1. Reject a non-finite `stepMd_ft`, or a step below 10 ft, with `INVALID_STEP`, including when `mds` is set. Do not raise it to 10. Reject a from/to MD outside `0…well.mdTd_ft`, or any explicit MD that is non-finite or outside that span, with `INVALID_DEPTH`. Do not clip the way 1.0 `clamp` did and then continue silently. Count the steps before building them. More than 1000 is `STEP_LIMIT` and the call returns no `steps`. Do not coarsen the step. When `mds` is set and the list is within the cap, `steps.length` equals `mds.length` and `steps[i].pipeMd_ft` equals `mds[i]`. `meta.stepsLength` equals that length and `meta.stepFt` is the resolved step.
 2. `kpi = kpiVolumes(job)` once, on the job passed in. That supplies MASP, KMW, chase at the procedure bit, `pillVolume_bbl` (`stringCapOverPillInterval_bbl + chase_bbl`), the breakdown, backfill, and POOH fill. Stand length still belongs to `poohFill` inside that result. A `STAND_LENGTH` error stays on `poohFill` and does not drop the steps.
 3. `pump = strokesSchedule(job, calculate(job))` once, on that same job. Stage bbl, strokes, and minutes are that function's rows. SPM blank leaves minutes null. This replaces the 1.0 `desiredResolution` ladder. The pipe steps do not walk these rows.
 4. For each pipe MD, call the existing functions with `bitMd_ft` set to that MD and discard the argument afterward.
    - `placed = columnDisplacedByPipe` at that MD.
-   - Pill top and bottom from `pillPlacement(placed)`, TVD from `tvdAt`.
+   - Pill top and bottom from `pillPlacement(placed)`, each as `{ md_ft, tvd_ft }` with TVD from `tvdAt`.
    - `chaseVolume` and `kmwInString` for the bbl fields. Tapered capacity stays inside those functions.
    - `tripTank_bbl` is the signed closed-pipe displacement from `fromMd_ft` to this MD. Closed-pipe displacement is each section's own OD: OD² / 1029.4 bbl/ft, the same quantity as `stringVolumeBbl(well, lo, hi, "closed")`. The first step is 0. A later step equals the previous step plus the signed increment between those two MDs.
    - An increment that contains a string crossover is split at that crossover. The rate above the boundary is the upper section's OD. The rate below it is the lower section's OD. The two pieces are summed. They are not replaced by one rate times the whole increment. On EXAMPLE D the boundary is 8480 ft MD (5.5 in OD above, 4.0 in OD below). A step from 8400 to 8600 ft is `(5.5² / 1029.4) × 80 + (4² / 1029.4) × 120` bbl, and the reverse step is the negative of that.
-   - `emw = emwProfile` at that MD. The UI plots `emw.spotted.lines` and reads `sections` and `crossovers` from the same object. It does not sample a second hydrostatic.
+   - `spotted` is the spotted side of `emwProfile` at that MD: label, lines, stations (spotted EMW only), shoe check filtered to `spotted`, and `sections` and `crossovers` for the string at that pipe MD. The UI plots `spotted.lines`. It does not sample a second hydrostatic. `inPlace` is computed once, on the job passed in, and is not recomputed per step.
 
 Play, pause, and scrub are the index into `steps`. They are not arguments of `simulate`. A playback speed of one step per tick moves `stepMd_ft` per tick. Choosing 50, 100, or 500 is the 1.0 slider, arrow key, and coarse button.
 
@@ -592,27 +651,29 @@ All three results are `ok: true`. `step.pipeMd_ft` equals `job.well.bitMd_ft` ex
 | `chase_bbl` | `kpi.chase.chase_bbl` | 1e-6 bbl |
 | `stringCapacity_bbl` | `kpi.chase.stringCapacity_bbl` | 1e-6 bbl |
 | `kmwInString_bbl` | `kpi.kmwInString.bbl` | 1e-6 bbl |
-| `emw.stations[].emw.{inPlace,spotted}.{static,staticSbp,ecd}` | `emw.stations` | 1e-6 ppg |
-| `emw.shoeCheck[].emw_ppg` and `margin_ppg` | `emw.shoeCheck` | 1e-6 ppg |
-| `emw.shoeCheck[].margin_psi` | `emw.shoeCheck` | 1e-4 psi |
-| `emw.{inPlace,spotted}.lines.{static,staticSbp,ecd}` at shoe MD and bit MD, `emw_ppg` | the same points on `emw` | 1e-6 ppg |
-| `emw.sections` and `emw.crossovers` | `emw.sections` and `emw.crossovers` | exact (`md_ft`, `tvd_ft`, `id_in`, `od_in`, labels) |
-| `emw.inPlace.label` and `emw.spotted.label` | the same labels on `emw` | exact string |
-| `pillTopMd_ft`, `pillBottomMd_ft` | `pillPlacement` of the spotted column `emwProfile` builds with `columnDisplacedByPipe(job, job.well.bitMd_ft)` | 1e-4 ft |
+| `spotted.stations[].emw.{static,staticSbp,ecd}` | `emw.stations[].emw.spotted` | 1e-6 ppg |
+| `inPlace.stations[].emw.{static,staticSbp,ecd}` | `emw.stations[].emw.inPlace` | 1e-6 ppg |
+| `spotted.shoeCheck` and `inPlace.shoeCheck`, `emw_ppg` and `margin_ppg` | the shoe rows of that pill state | 1e-6 ppg |
+| those shoe rows, `margin_psi` | the same rows | 1e-4 psi |
+| `spotted.lines` and `inPlace.lines` at shoe MD and bit MD, `emw_ppg` | the same points on that pill state | 1e-6 ppg |
+| `spotted.sections`, `spotted.crossovers`, and the same fields on `inPlace` | `emw.sections` and `emw.crossovers` | exact (`md_ft`, `tvd_ft`, `id_in`, `od_in`, labels) |
+| `spotted.label` and `inPlace.label` | the same labels on `emw` | exact string |
+| `pillTop.md_ft`, `pillBottom.md_ft` | `pillPlacement` of the spotted column `emwProfile` builds with `columnDisplacedByPipe(job, job.well.bitMd_ft)` | 1e-4 ft |
+| `pillTop.tvd_ft`, `pillBottom.tvd_ft` | `tvdAt` of those measured depths | 1e-4 ft |
 
-`pillTopMd_ft` is that spotted column. It is not required to equal `kpi.kmwInString.pillTopMd_ft`, which is the pill on the stored column.
+`pillTop` is that spotted column. It is not required to equal `kpi.kmwInString.pillTopMd_ft`, which is the pill on the stored column. `inPlace` is the reference profile for the job passed in. `steps[0].spotted` is the spotted side at the procedure bit.
 
 `simulate(job).kpi` matches `kpiVolumes(job)` on `pillVolume_bbl`, `pillVolumeBreakdown.stringCapOverPillInterval_bbl`, and `pillVolumeBreakdown.chase_bbl` to 1e-6 bbl. That `kpi` value is an output of the same job. `pillVolumeBreakdown.chase_bbl` also matches `steps[0].chase_bbl` to 1e-6 bbl. `steps[0].tripTank_bbl` is 0, because that step is `fromMd_ft`.
 
 ### Pipe-out invariant
 
-Planned, not implemented in this spec. On EXAMPLE B, C, and D, take the step whose `pipeMd_ft` is 0 (the last step of the default walk, and the first step of the RIH run). On that step the spotted profile equals the in-place profile to 1e-6 ppg:
+Planned, not implemented in this spec. On EXAMPLE B, C, and D, take the step whose `pipeMd_ft` is 0 (the last step of the default walk, and the first step of the RIH run). On that step `spotted` equals the result's `inPlace` to 1e-6 ppg:
 
-- `emw.spotted.lines.{static,staticSbp,ecd}` and `emw.inPlace.lines` at each shared MD, `emw_ppg`
-- `emw.stations[].emw.spotted.{static,staticSbp,ecd}` and `emw.stations[].emw.inPlace`
-- `emw.shoeCheck` rows with the same `line`, spotted versus in-place, `emw_ppg` and `margin_ppg`
+- `spotted.lines.{static,staticSbp,ecd}` and `inPlace.lines` at each shared MD, `emw_ppg`
+- `spotted.stations[].emw.{static,staticSbp,ecd}` and `inPlace.stations[].emw`
+- shoe rows with the same `line`, `emw_ppg` and `margin_ppg`. `pillState` stays `spotted` on the step and `inPlace` on the reference, so it is not part of the equality
 
-Pipe MD 0 removes no closed-pipe volume, so `columnDisplacedByPipe` leaves the pipe-out column. Labels stay the contract strings. This comparison is ppg only.
+Pipe MD 0 removes no closed-pipe volume, so `columnDisplacedByPipe` leaves the pipe-out column. `emwProfile` rejects a non-positive bit, so the step copies the original job's in-place lines, station EMW, and shoe numbers onto `spotted` and keeps the contract labels. `inPlace` is that same original profile, computed once. This comparison is ppg only.
 
 ### Direction test
 
@@ -627,7 +688,7 @@ Every grid MD is evaluated on its own, once in each direction, with an explicit 
 - RIH: `simulate(job, { mds: [md], fromMd_ft: 0 })`
 - POOH: `simulate(job, { mds: [md], fromMd_ft: job.well.bitMd_ft })`
 
-Each result has one step, and that step's `pipeMd_ft` is `md`. These fields match at every grid MD, to the tolerances in the table above: `chase_bbl`, `stringCapacity_bbl`, `kmwInString_bbl`, `pillTopMd_ft`, `pillBottomMd_ft`, and the `emw` lines, stations, shoe check, sections, and crossovers. `tripTank_bbl` and `pipeDelta_ft` are cumulative from `fromMd_ft`, so they differ between the two calls and are not part of this equality. The single-point call at the bit with `fromMd_ft: 0`, and the single-point call at 0 with `fromMd_ft` at the bit, each have `|tripTank_bbl|` equal to the closed-pipe displacement from 0 to the bit, to 1e-6 bbl.
+Each result has one step, and that step's `pipeMd_ft` is `md`. These fields match at every grid MD, to the tolerances in the table above: `chase_bbl`, `stringCapacity_bbl`, `kmwInString_bbl`, `pillTop.md_ft`, `pillTop.tvd_ft`, `pillBottom.md_ft`, `pillBottom.tvd_ft`, and `spotted` lines, stations, shoe check, sections, and crossovers. `inPlace` is the same reference on both calls because it does not depend on pipe MD. `tripTank_bbl` and `pipeDelta_ft` are cumulative from `fromMd_ft`, so they differ between the two calls and are not part of this equality. The single-point call at the bit with `fromMd_ft: 0`, and the single-point call at 0 with `fromMd_ft` at the bit, each have `|tripTank_bbl|` equal to the closed-pipe displacement from 0 to the bit, to 1e-6 bbl.
 
 On D, also run 8400 ft to 8600 ft and the reverse, `stepMd_ft: 200`. Both land on 8400 and 8600. The per-MD fields match at those two depths. The trip-tank increment between them equals `(5.5² / 1029.4) × 80 + (4² / 1029.4) × 120` bbl to 1e-6 bbl, positive on the way in and negative on the way out.
 

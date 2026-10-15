@@ -2,6 +2,7 @@
 // The core in src/lib/core is the source of truth; do not redefine types here.
 export type {
   Job,
+  JobMeta,
   Fluid,
   FannReading,
   ColumnSegment,
@@ -68,9 +69,15 @@ export type {
   PasteMatch,
   PastePreview,
   PastePreviewError,
+  PastePreviewKind,
   PastePreviewRow,
   PasteResult,
+  SimulateDepth,
+  SimulateEmwStation,
   SimulateError,
+  SimulateFluidProfile,
+  SimulateFluidResult,
+  SimulateMeta,
   SimulateOptions,
   SimulateResult,
   SimulateStep,

@@ -138,11 +138,19 @@ export interface PumpInput {
   spm?: number | null;
 }
 
+/** Paste flags. Excluded from `inputHash`, so they do not move a preset baseline. */
+export interface JobMeta {
+  modified: boolean;
+  isExample: boolean;
+}
+
 export interface Job {
   schemaVersion: SchemaVersion;
   name: string;
   /** ISO-8601 timestamp. Excluded from `inputHash`. */
   savedAt: string;
+  /** Set by `applyPaste`. Absent on a preset. Excluded from `inputHash`. */
+  meta?: JobMeta;
   well: Well;
   /**
    * Shoe ESD (1.0.7.1). Pill fluid counts only where it stands above the shoe,

@@ -55,18 +55,31 @@ export interface PasteResult {
   errors: PasteError[];
 }
 
+export type PastePreviewKind = "number" | "text" | "bool" | "date";
+
 export interface PastePreviewRow {
   /** 2.0 field path. */
   field: string;
   /**
    * Unit shown with both values. The recognized sheet unit when the row has one,
    * otherwise the unit that field already uses. Null for text, bool, and date.
+   * The unit is not written into `oldDisplay` or `newDisplay`.
    */
   unit: string | null;
+  /**
+   * How the engine formatted the display strings.
+   * `number` uses the field precision. `bool` is Yes/No. `date` is ISO YYYY-MM-DD.
+   * `text` is the value as stored.
+   */
+  kind: PastePreviewKind;
   /** Value on `job` at `field`, in `unit`. Null when the job has no value there. */
   oldValue: unknown;
   /** Coerced value from `result.patch`, in the same `unit`. */
   newValue: unknown;
+  /** Engine-formatted `oldValue`. The UI prints this and does not format `oldValue`. */
+  oldDisplay: string;
+  /** Engine-formatted `newValue`. The UI prints this and does not format `newValue`. */
+  newDisplay: string;
   /** 1-based sheet row, copied from `matched`. */
   row: number;
   /** 1-based value column, copied from `matched.column`. */
@@ -864,15 +877,78 @@ export function parseWellPaste(text: string): PasteResult {
   };
 }
 
+function kindOf(value: unknown): PastePreviewKind | null {
+  if (value == null) return null;
+  if (typeof value === "number") return "number";
+  if (typeof value === "boolean") return "bool";
+  if (value instanceof Date) return "date";
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) return "date";
+  return "text";
+}
+
+/** Display step for a number. ppg 0.1, in 0.001, ft 1, psi 1, bbl 0.01, gpm 1. */
+function precisionStep(unit: string | null, field: string): number {
+  const token = (unit ?? "").toLowerCase().replace(/\s+/g, "");
+  if (token === "ppg" || token === "ppge" || field.endsWith("_ppg") || field.endsWith("density_ppg")) return 0.1;
+  if (token === "in" || field.endsWith("_in")) return 0.001;
+  if (token === "psi" || field.endsWith("_psi")) return 1;
+  if (token === "gpm" || field.endsWith("_gpm")) return 1;
+  if (
+    token === "bbl" ||
+    token === "bbl/stk" ||
+    token === "bblstk" ||
+    field.endsWith("bblPerStk") ||
+    field.endsWith("_bbl")
+  ) {
+    return 0.01;
+  }
+  return 1;
+}
+
+function formatDisplay(value: unknown, kind: PastePreviewKind, unit: string | null, field: string): string {
+  if (value == null) return "";
+  if (kind === "bool") {
+    if (value === true) return "Yes";
+    if (value === false) return "No";
+    return "";
+  }
+  if (kind === "date") {
+    if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+    if (typeof value === "string") {
+      const match = /^(\d{4}-\d{2}-\d{2})/.exec(value);
+      return match ? match[1] : value;
+    }
+    return "";
+  }
+  if (kind === "number") {
+    if (typeof value !== "number" || !Number.isFinite(value)) return "";
+    const step = precisionStep(unit, field);
+    const digits = step >= 1 ? 0 : Math.round(-Math.log10(step));
+    return value.toFixed(digits);
+  }
+  if (typeof value === "string") return value;
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+}
+
 export function previewPaste(job: Job, result: PasteResult): PastePreview {
-  const rows: PastePreviewRow[] = result.matched.map((match) => ({
-    field: match.field,
-    unit: match.unit ?? canonicalUnit(match.field),
-    oldValue: getPath(job, match.field),
-    newValue: getPath(result.patch, match.field),
-    row: match.row,
-    col: match.column,
-  }));
+  const rows: PastePreviewRow[] = result.matched.map((match) => {
+    const oldValue = getPath(job, match.field);
+    const newValue = getPath(result.patch, match.field);
+    const unit = match.unit ?? canonicalUnit(match.field);
+    const kind = kindOf(newValue) ?? kindOf(oldValue) ?? "text";
+    return {
+      field: match.field,
+      unit,
+      kind,
+      oldValue,
+      newValue,
+      oldDisplay: formatDisplay(oldValue, kind, unit, match.field),
+      newDisplay: formatDisplay(newValue, kind, unit, match.field),
+      row: match.row,
+      col: match.column,
+    };
+  });
   const errors: PastePreviewError[] = result.errors.map((item) => ({
     code: item.code,
     row: item.row,
@@ -885,7 +961,8 @@ export function previewPaste(job: Job, result: PasteResult): PastePreview {
 
 export function applyPaste(job: Job, preview: PastePreview): Job {
   if (!preview.canApply) throw new Error("Paste is blocked and was not applied.");
-  const next = structuredClone(job);
+  const next = structuredClone(job) as Job & { presetBaseline?: string };
+  delete next.presetBaseline;
   for (const row of preview.rows) {
     if (row.field === "spot.bottomMd_ft" && typeof row.newValue === "number") {
       applySpot(next, row.newValue);
@@ -903,5 +980,6 @@ export function applyPaste(job: Job, preview: PastePreview): Job {
     }
     setPath(next, row.field, row.newValue);
   }
+  next.meta = { modified: true, isExample: false };
   return next;
 }

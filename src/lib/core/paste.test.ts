@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { exampleB } from "@/lib/example-b";
 import type { Job } from "./job.schema";
+import { inputHash } from "./hash";
 import { applyPaste, getPath, parseWellPaste, previewPaste, setPath } from "./paste";
 
 function paste(text: string) {
@@ -81,8 +82,48 @@ describe("applyPaste", () => {
     const applied = applyPaste(job, preview);
     const expected = structuredClone(job);
     for (const row of preview.rows) setPath(expected, row.field, row.newValue);
+    expected.meta = { modified: true, isExample: false };
     expect(applied).toEqual(expected);
+    expect(applied.meta).toEqual({ modified: true, isExample: false });
     expect(job).toEqual(exampleB);
+    expect(exampleB.meta).toBeUndefined();
+  });
+
+  it("formats display strings and leaves the raw values", () => {
+    const preview = previewPaste(
+      exampleB,
+      paste(
+        [
+          "Well name\tPasted name",
+          "Current MW\t12.25\tppg",
+          "Current Well Depth (MD)\t10000\tft",
+          "SBP on connection\t400\tpsi",
+        ].join("\n"),
+      ),
+    );
+    const mw = preview.rows.find((row) => row.field === "fluids.0.density_ppg");
+    expect(mw?.kind).toBe("number");
+    expect(mw?.newValue).toBe(12.25);
+    expect(mw?.newDisplay).toBe("12.3");
+    expect(mw?.oldValue).toBe(11.4);
+    expect(mw?.oldDisplay).toBe("11.4");
+    expect(mw?.unit).toBe("ppg");
+    const name = preview.rows.find((row) => row.field === "name");
+    expect(name?.kind).toBe("text");
+    expect(name?.newValue).toBe("Pasted name");
+    expect(name?.newDisplay).toBe("Pasted name");
+    expect(name?.oldDisplay).toBe(exampleB.name);
+    const depth = preview.rows.find((row) => row.field === "well.bitMd_ft");
+    expect(depth?.kind).toBe("number");
+    expect(depth?.newValue).toBe(10000);
+    expect(depth?.newDisplay).toBe("10000");
+    expect(depth?.oldValue).toBe(10480);
+    expect(depth?.oldDisplay).toBe("10480");
+    const sbp = preview.rows.find((row) => row.field === "trip.sbpConn_psi");
+    expect(sbp?.newValue).toBe(400);
+    expect(sbp?.newDisplay).toBe("400");
+    expect(sbp?.oldValue).toBe(325);
+    expect(sbp?.oldDisplay).toBe("325");
   });
 
   it("throws when canApply is false and leaves the job unchanged", () => {
@@ -93,6 +134,24 @@ describe("applyPaste", () => {
     expect(preview.errors.some((item) => item.code === "BAD_NUMBER" && item.blocking)).toBe(true);
     expect(() => applyPaste(job, preview)).toThrow(/blocked/);
     expect(job).toEqual(before);
+    expect(job.meta).toBeUndefined();
+  });
+
+  it("flags the returned job and leaves the preset baseline untouched", () => {
+    const job = { ...structuredClone(exampleB), presetBaseline: "abc" } as Job & { presetBaseline?: string };
+    const before = structuredClone(job);
+    const beforeHash = inputHash(job);
+    const preview = previewPaste(job, paste("Well name\tPasted name"));
+    const applied = applyPaste(job, preview) as Job & { presetBaseline?: string };
+    expect(applied.meta).toEqual({ modified: true, isExample: false });
+    expect(applied.presetBaseline).toBeUndefined();
+    expect(applied.name).toBe("Pasted name");
+    expect(job).toEqual(before);
+    expect(job.presetBaseline).toBe("abc");
+    expect(inputHash(job)).toBe(beforeHash);
+    const { meta: _meta, ...withoutMeta } = applied;
+    expect(inputHash(applied)).toBe(inputHash(withoutMeta as Job));
+    expect(inputHash(applied)).not.toBe(beforeHash);
   });
 });
 

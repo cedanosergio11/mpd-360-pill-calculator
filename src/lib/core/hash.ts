@@ -29,8 +29,8 @@ export function fnv1a64(text: string): string {
   return hash.toString(16).padStart(16, "0");
 }
 
-/** Stable hash of the job JSON excluding `savedAt`. */
+/** Stable hash of the job JSON excluding `savedAt` and `meta`. */
 export function inputHash(job: Job): string {
-  const { savedAt: _savedAt, ...rest } = job;
+  const { savedAt: _savedAt, meta: _meta, ...rest } = job;
   return fnv1a64(stableStringify(rest));
 }
