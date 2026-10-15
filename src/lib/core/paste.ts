@@ -80,6 +80,11 @@ export interface PastePreviewRow {
   oldDisplay: string;
   /** Engine-formatted `newValue`. The UI prints this and does not format `newValue`. */
   newDisplay: string;
+  /**
+   * True when `oldValue` and `newValue` differ as raw values.
+   * Rounding in the display strings does not hide a change.
+   */
+  changed: boolean;
   /** 1-based sheet row, copied from `matched`. */
   row: number;
   /** 1-based value column, copied from `matched.column`. */
@@ -886,23 +891,38 @@ function kindOf(value: unknown): PastePreviewKind | null {
   return "text";
 }
 
-/** Display step for a number. ppg 0.1, in 0.001, ft 1, psi 1, bbl 0.01, gpm 1. */
+/** Display step for a number. ppg 0.01, in 0.001, ft 1, psi 1, bbl 0.01, bbl/stk 0.0001, gpm 1. */
 function precisionStep(unit: string | null, field: string): number {
   const token = (unit ?? "").toLowerCase().replace(/\s+/g, "");
-  if (token === "ppg" || token === "ppge" || field.endsWith("_ppg") || field.endsWith("density_ppg")) return 0.1;
+  if (
+    token === "bbl/stk" ||
+    token === "bbls/stk" ||
+    token === "bblstk" ||
+    token === "bblsstk" ||
+    field.endsWith("bblPerStk")
+  ) {
+    return 0.0001;
+  }
+  if (token === "ppg" || token === "ppge" || field.endsWith("_ppg") || field.endsWith("density_ppg")) return 0.01;
   if (token === "in" || field.endsWith("_in")) return 0.001;
   if (token === "psi" || field.endsWith("_psi")) return 1;
   if (token === "gpm" || field.endsWith("_gpm")) return 1;
-  if (
-    token === "bbl" ||
-    token === "bbl/stk" ||
-    token === "bblstk" ||
-    field.endsWith("bblPerStk") ||
-    field.endsWith("_bbl")
-  ) {
-    return 0.01;
-  }
+  if (token === "bbl" || token === "bbls" || field.endsWith("_bbl")) return 0.01;
   return 1;
+}
+
+function sameRaw(left: unknown, right: unknown): boolean {
+  if (Object.is(left, right)) return true;
+  if (left == null || right == null || typeof left !== "object" || typeof right !== "object") return false;
+  if (Array.isArray(left) || Array.isArray(right)) {
+    if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+    return left.every((item, index) => sameRaw(item, right[index]));
+  }
+  const a = left as Record<string, unknown>;
+  const b = right as Record<string, unknown>;
+  const keys = Object.keys(a);
+  if (keys.length !== Object.keys(b).length) return false;
+  return keys.every((key) => Object.prototype.hasOwnProperty.call(b, key) && sameRaw(a[key], b[key]));
 }
 
 function formatDisplay(value: unknown, kind: PastePreviewKind, unit: string | null, field: string): string {
@@ -945,6 +965,7 @@ export function previewPaste(job: Job, result: PasteResult): PastePreview {
       newValue,
       oldDisplay: formatDisplay(oldValue, kind, unit, match.field),
       newDisplay: formatDisplay(newValue, kind, unit, match.field),
+      changed: !sameRaw(oldValue, newValue),
       row: match.row,
       col: match.column,
     };

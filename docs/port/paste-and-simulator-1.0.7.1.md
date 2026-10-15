@@ -375,6 +375,11 @@ export interface PastePreviewRow {
   oldDisplay: string;
   /** Engine-formatted `newValue`. The UI prints this and does not format `newValue`. */
   newDisplay: string;
+  /**
+   * True when `oldValue` and `newValue` differ as raw values.
+   * Rounding in the display strings does not hide a change.
+   */
+  changed: boolean;
   /** 1-based sheet row, copied from `matched`. */
   row: number;
   /** 1-based value column, copied from `matched.column`. */
@@ -414,9 +419,9 @@ export function applyPaste(job: Job, preview: PastePreview): Job;
 
 A repeated label whose coerced value equals the value already patched is `ignored` with `DUPLICATE`. That is a warning. The first value stays, and `ok` can still be true. A repeated label whose coerced value differs is `CONFLICTING_DUPLICATE` on `errors`. That blocks the patch: `ok` is false, `patch` is `{}`, and `previewPaste` reports the conflict with `blocking: true`. Coerced equality is numeric after the thousands-separator rule, trimmed text, the normalized date, or the coerced bool. `1500` and `1,500` are the same value. `1,5` never becomes a number, so it cannot be a duplicate of anything.
 
-`previewPaste` is pure. One row per `matched` entry, in that order. `newValue` is the patched value. `oldValue` is read from `job` at `field`. Both stay raw. `kind` is `number`, `text`, `bool`, or `date`, taken from the new value when it is present and otherwise from the old value. `oldDisplay` and `newDisplay` are the strings the engine formats for that kind. The UI prints those strings and the separate `unit`. It does not format `oldValue` or `newValue`, and it does not put the unit inside the display string.
+`previewPaste` is pure. One row per `matched` entry, in that order. `newValue` is the patched value. `oldValue` is read from `job` at `field`. Both stay raw. `kind` is `number`, `text`, `bool`, or `date`, taken from the new value when it is present and otherwise from the old value. `oldDisplay` and `newDisplay` are the strings the engine formats for that kind. The UI prints those strings and the separate `unit`. It does not format `oldValue` or `newValue`, and it does not put the unit inside the display string. `changed` is true when the raw `oldValue` and `newValue` differ. It is not computed from the display strings, so a change still shows when rounding makes those strings equal.
 
-Number precision is per field: ppg and ppge use 0.1 (`12.25` displays `12.3`), inches use 0.001, feet (including md and tvd) use 1, psi uses 1, bbl and bbl/stk use 0.01, and gpm uses 1. The formatted number is `toFixed` at that step. It has no thousands separator. A bool displays `Yes` or `No`. A date displays ISO `YYYY-MM-DD`. Text is the stored string. A nested value (a casing interval, a survey station, or `stringSections`) is text and displays as JSON. Null displays as an empty string.
+Number precision is per field: ppg and ppge use 0.01 (`12.65` over `12.6` displays `12.65` and `12.60`), inches use 0.001, feet (including md and tvd) use 1, psi uses 1, bbl uses 0.01, bbl/stk uses 0.0001 (`0.0958` over `0.0962` displays `0.0958` and `0.0962`), and gpm uses 1. The formatted number is `toFixed` at that step. It has no thousands separator. A bool displays `Yes` or `No`. A date displays ISO `YYYY-MM-DD`. Text is the stored string. A nested value (a casing interval, a survey station, or `stringSections`) is text and displays as JSON. Null displays as an empty string.
 
 `errors` copies every `PasteError`, with `column` renamed to `col`. `blocking` is true for `BAD_NUMBER`, `CONFLICTING_DUPLICATE`, and the other blocking codes listed on `PastePreviewError`. It is false for `UNMAPPED_LABEL` and `NOT_A_2_0_INPUT`. `canApply` is false when any error is blocking. Ignored `DUPLICATE` and `CALCULATED` rows are not preview rows and are not preview errors.
 
@@ -424,7 +429,7 @@ Number precision is per field: ppg and ppge use 0.1 (`12.25` displays `12.3`), i
 
 ### Planned paste apply test
 
-Planned, not implemented in this spec. Build a `Job`, parse a sheet whose `previewPaste` result has `canApply: true`, and call `applyPaste(job, preview)`. The returned job deep-equals a copy of `job` on which each preview row's `newValue` has been set at `field`, plus `meta: { modified: true, isExample: false }`. No other field differs. `inputHash` of the returned job equals `inputHash` of that same job with `meta` removed. A job that also carries `presetBaseline` keeps that property on the input, and the returned job does not have it. A second call whose preview has `canApply: false` throws, and the job passed in is unchanged, including `meta`. A display check: current MW `12.25` ppg has `kind: "number"`, `newValue` `12.25`, and `newDisplay` `"12.3"`. A depth of `10000` ft displays `"10000"`. A well name displays as the text itself.
+Planned, not implemented in this spec. Build a `Job`, parse a sheet whose `previewPaste` result has `canApply: true`, and call `applyPaste(job, preview)`. The returned job deep-equals a copy of `job` on which each preview row's `newValue` has been set at `field`, plus `meta: { modified: true, isExample: false }`. No other field differs. `inputHash` of the returned job equals `inputHash` of that same job with `meta` removed. A job that also carries `presetBaseline` keeps that property on the input, and the returned job does not have it. A second call whose preview has `canApply: false` throws, and the job passed in is unchanged, including `meta`. A display check: current MW `12.65` ppg over `12.6` has `changed: true`, `newDisplay` `"12.65"`, and `oldDisplay` `"12.60"`. Pump displacement `0.0958` bbl/stk over `0.0962` has `changed: true`, with displays `"0.0958"` and `"0.0962"`. A depth of `10000` ft displays `"10000"`. A well name displays as the text itself.
 
 Same delimiters as 1.0: tab and newline, HTML table when `<table` or `<tr` is present. A comma never separates cells. The decimal mark is `.`. Dates stay month-day-year and Excel serial, written to a well-date string on the side, not to `job.savedAt`. Units are checked, not converted. A unit outside the set expected for that field is `UNIT_MISMATCH` and the value is not stored.
 

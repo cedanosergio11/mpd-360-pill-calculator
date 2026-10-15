@@ -104,9 +104,10 @@ describe("applyPaste", () => {
     const mw = preview.rows.find((row) => row.field === "fluids.0.density_ppg");
     expect(mw?.kind).toBe("number");
     expect(mw?.newValue).toBe(12.25);
-    expect(mw?.newDisplay).toBe("12.3");
+    expect(mw?.newDisplay).toBe("12.25");
     expect(mw?.oldValue).toBe(11.4);
-    expect(mw?.oldDisplay).toBe("11.4");
+    expect(mw?.oldDisplay).toBe("11.40");
+    expect(mw?.changed).toBe(true);
     expect(mw?.unit).toBe("ppg");
     const name = preview.rows.find((row) => row.field === "name");
     expect(name?.kind).toBe("text");
@@ -124,6 +125,44 @@ describe("applyPaste", () => {
     expect(sbp?.newDisplay).toBe("400");
     expect(sbp?.oldValue).toBe(325);
     expect(sbp?.oldDisplay).toBe("325");
+  });
+
+  it("shows a ppg change from the raw values at 0.01", () => {
+    const job = structuredClone(exampleB);
+    job.fluids[0].density_ppg = 12.6;
+    const preview = previewPaste(job, paste("Current MW\t12.65\tppg"));
+    const mw = preview.rows.find((row) => row.field === "fluids.0.density_ppg");
+    expect(mw?.changed).toBe(true);
+    expect(mw?.newValue).toBe(12.65);
+    expect(mw?.oldValue).toBe(12.6);
+    expect(mw?.newDisplay).toBe("12.65");
+    expect(mw?.oldDisplay).toBe("12.60");
+  });
+
+  it("shows a bbl/stk change from the raw values at 0.0001", () => {
+    const job = structuredClone(exampleB);
+    job.pump = { ...job.pump, bblPerStk: 0.0962 };
+    const preview = previewPaste(job, paste("Pump Displacement\t0.0958\tbbl/stk"));
+    const row = preview.rows.find((item) => item.field === "pump.bblPerStk");
+    expect(row?.kind).toBe("number");
+    expect(row?.unit).toBe("bbl/stk");
+    expect(row?.changed).toBe(true);
+    expect(row?.newValue).toBe(0.0958);
+    expect(row?.oldValue).toBe(0.0962);
+    expect(row?.newDisplay).toBe("0.0958");
+    expect(row?.oldDisplay).toBe("0.0962");
+  });
+
+  it("keeps changed true when rounding makes the display strings match", () => {
+    const job = structuredClone(exampleB);
+    job.fluids[0].density_ppg = 12.601;
+    const preview = previewPaste(job, paste("Current MW\t12.604\tppg"));
+    const mw = preview.rows.find((row) => row.field === "fluids.0.density_ppg");
+    expect(mw?.oldDisplay).toBe("12.60");
+    expect(mw?.newDisplay).toBe("12.60");
+    expect(mw?.oldValue).toBe(12.601);
+    expect(mw?.newValue).toBe(12.604);
+    expect(mw?.changed).toBe(true);
   });
 
   it("throws when canApply is false and leaves the job unchanged", () => {
