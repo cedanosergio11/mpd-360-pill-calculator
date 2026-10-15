@@ -26,5 +26,14 @@ export const exampleB: Job = {
   pipeColumn: [{ fluidId: "mud", topMd_ft: 0, bottomMd_ft: 10480 }],
   // EXAMPLE triplex pump, from MPGenie's strokes-example-b.expected.json basis.
   pump: { linerIn: 6, strokeIn: 12, efficiency: 0.97, spm: 40 },
-  trip: { speeds_ftmin: [40, 80, 100, 150, 200, 250, 300], pipeEnd: "closed", clinging: 0.45, eccentricity: 0, sbpConn_psi: 325, sbpCirc_psi: 0, flow_gpm: 300 },
+  trip: { speeds_ftmin: [40, 80, 100, 150, 200, 250, 300], pipeEnd: "closed", clinging: 0.45, eccentricity: 0, sbpConn_psi: 325, sbpCirc_psi: 0, flow_gpm: 300, standLength_ft: 93 },
 };
+
+/** EXAMPLE C matches EXAMPLE B except connection SBP is 550 psi, so planned SBP exceeds MASP. Stand length is seeded at 93 ft. */
+export const exampleC: Job = (() => {
+  const job = structuredClone(exampleB);
+  job.name = "EXAMPLE C, 8045 ft shoe, pill trip-in, SBP 550";
+  job.trip.sbpConn_psi = 550;
+  job.trip.standLength_ft = 93;
+  return job;
+})();

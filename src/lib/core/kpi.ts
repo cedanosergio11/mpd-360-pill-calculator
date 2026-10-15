@@ -2,13 +2,13 @@ import { annularBblFt, capBblFt, ceilingMath } from "@/lib/utils";
 import { pillPlacement, surfaceFluid } from "./column";
 import { pipePillBbl } from "./equalize";
 import { holeIdAt, intervalVolume, uniqueSorted } from "./geometry";
-import type { Job, PipeEnd, Well } from "./job.schema";
+import type { Job, Well } from "./job.schema";
 import { PSI_PER_PPG_FT } from "./result";
 
 /**
- * KPI pressures and volumes. Formulas are as specified for MPGenie review.
- * EXAMPLE B figures are unchecked until an expected file arrives.
+ * KPI pressures and volumes.
  * Pressures use TVD. Volumes use MD. Capacities are diameter² / 1029.4 bbl/ft.
+ * POOH stand length is `job.trip.standLength_ft`. Blank or ≤ 0 is STAND_LENGTH. It is not defaulted.
  */
 
 export interface KpiError {
@@ -18,7 +18,7 @@ export interface KpiError {
     | "MISSING_ANCHOR_TVD"
     | "MISSING_ACTIVE_MW"
     | "INVALID_SBP"
-    | "INVALID_STAND"
+    | "STAND_LENGTH"
     | "INVALID_SURFACE_LINE"
     | "MISSING_PILL"
     | "INVALID_GEOMETRY";
@@ -143,26 +143,28 @@ export interface PoohFillStand {
   runningTotal_bbl: number;
 }
 
+/** One pipe-end POOH table. Closed and open are both returned from a single call. */
+export interface PoohFillEnd {
+  displacement_bblFt: number;
+  /** One full stand. The last row may be the partial. */
+  perStand_bbl: number;
+  stands: PoohFillStand[];
+  total_bbl: number;
+}
+
 export interface PoohFillValue {
-  pipeEnd: PipeEnd;
   stringOd_in: number;
   stringId_in: number;
-  /** Closed pipe: OD² / 1029.4. */
-  closedDisplacement_bblFt: number;
-  /** Open pipe: (OD² − ID²) / 1029.4. No swab allowance. */
-  openDisplacement_bblFt: number;
-  /** Displacement used for the stands. Closed unless the job pipe end is open. */
-  displacement_bblFt: number;
   standLength_ft: number;
   /** Surface to bit, ft MD. */
   tripLength_ft: number;
   fullStandCount: number;
   /** Leftover footage after the full stands. 0 when the bit lands on a stand. */
   partialStand_ft: number;
-  /** One full stand. The last row may be the partial. */
-  perStand_bbl: number;
-  stands: PoohFillStand[];
-  total_bbl: number;
+  /** Closed pipe: OD² / 1029.4. No swab allowance. */
+  closed: PoohFillEnd;
+  /** Open pipe: (OD² − ID²) / 1029.4. No swab allowance. */
+  open: PoohFillEnd;
 }
 
 export type MaspResult = ({ ok: true } & MaspValue) | { ok: false; error: KpiError };
@@ -173,11 +175,6 @@ export type KmwBackfillResult = ({ ok: true } & KmwBackfillValue) | { ok: false;
 export type PoohFillResult = ({ ok: true } & PoohFillValue) | { ok: false; error: KpiError };
 
 export interface KpiVolumesInput {
-  /**
-   * Required. EXAMPLE B checks use 93 ft, which is not on the job.
-   * Omitted, blank, or ≤ 0 is an error.
-   */
-  standLength_ft?: number | null;
   /** Default 0. Reported separately from chase. */
   surfaceLine_bbl?: number | null;
   /**
@@ -556,11 +553,44 @@ export function kmwBackfill(job: Job): KmwBackfillResult {
   };
 }
 
-export function poohFill(job: Job, standLength_ft?: number | null): PoohFillResult {
+function standRows(
+  displacement_bblFt: number,
+  standLength_ft: number,
+  tripLength_ft: number,
+): { ok: true; end: PoohFillEnd } | { ok: false; error: KpiError } {
+  const stands: PoohFillStand[] = [];
+  let runningTotal_bbl = 0;
+  let remaining = tripLength_ft;
+  let n = 0;
+  while (remaining > 1e-6) {
+    n += 1;
+    const length_ft = Math.min(standLength_ft, remaining);
+    const bbl = displacement_bblFt * length_ft;
+    runningTotal_bbl += bbl;
+    if (!Number.isFinite(bbl) || !Number.isFinite(runningTotal_bbl)) {
+      return fail("INVALID_GEOMETRY", "well.stringOd_in", "POOH fill is not finite.");
+    }
+    stands.push({ n, length_ft, bbl, runningTotal_bbl });
+    remaining -= length_ft;
+  }
+  return {
+    ok: true,
+    end: {
+      displacement_bblFt,
+      perStand_bbl: displacement_bblFt * standLength_ft,
+      stands,
+      total_bbl: displacement_bblFt * tripLength_ft,
+    },
+  };
+}
+
+/** Closed and open POOH tables from `job.trip.standLength_ft`. No stand length is assumed. */
+export function poohFill(job: Job): PoohFillResult {
+  const entered = job.trip.standLength_ft;
   const stand = missingOrBad(
-    standLength_ft,
-    "INVALID_STAND",
-    "standLength_ft",
+    entered != null && Number.isNaN(entered) ? null : entered,
+    "STAND_LENGTH",
+    "trip.standLength_ft",
     "Stand length is blank.",
     "Stand length must be a finite number greater than 0.",
     false,
@@ -589,41 +619,23 @@ export function poohFill(job: Job, standLength_ft?: number | null): PoohFillResu
       "Open-pipe displacement is not a finite bbl/ft.",
     );
   }
-  const pipeEnd = job.trip.pipeEnd === "open" ? "open" : "closed";
-  const displacement_bblFt = pipeEnd === "open" ? openDisplacement_bblFt : closedDisplacement_bblFt;
   const tripLength_ft = job.well.bitMd_ft;
+  const closed = standRows(closedDisplacement_bblFt, stand.value, tripLength_ft);
+  if (!closed.ok) return closed;
+  const open = standRows(openDisplacement_bblFt, stand.value, tripLength_ft);
+  if (!open.ok) return open;
   const fullStandCount = Math.floor(tripLength_ft / stand.value + 1e-9);
   const partialStand_ft = tripLength_ft - fullStandCount * stand.value;
-  const stands: PoohFillStand[] = [];
-  let runningTotal_bbl = 0;
-  let remaining = tripLength_ft;
-  let n = 0;
-  while (remaining > 1e-6) {
-    n += 1;
-    const length_ft = Math.min(stand.value, remaining);
-    const bbl = displacement_bblFt * length_ft;
-    runningTotal_bbl += bbl;
-    if (!Number.isFinite(bbl) || !Number.isFinite(runningTotal_bbl)) {
-      return fail("INVALID_GEOMETRY", "well.stringOd_in", "POOH fill is not finite.");
-    }
-    stands.push({ n, length_ft, bbl, runningTotal_bbl });
-    remaining -= length_ft;
-  }
   return {
     ok: true,
-    pipeEnd,
     stringOd_in: job.well.stringOd_in,
     stringId_in: job.well.stringId_in,
-    closedDisplacement_bblFt,
-    openDisplacement_bblFt,
-    displacement_bblFt,
     standLength_ft: stand.value,
     tripLength_ft,
     fullStandCount,
     partialStand_ft: partialStand_ft > 1e-6 ? partialStand_ft : 0,
-    perStand_bbl: displacement_bblFt * stand.value,
-    stands,
-    total_bbl: displacement_bblFt * tripLength_ft,
+    closed: closed.end,
+    open: open.end,
   };
 }
 
@@ -667,7 +679,7 @@ export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesRes
   if (!inString.ok) return inString;
   const backfill = kmwBackfill(job);
   if (!backfill.ok) return backfill;
-  const fill = poohFill(job, input.standLength_ft);
+  const fill = poohFill(job);
   if (!fill.ok) return fill;
   const checks = separatePillChecks(job);
   if (!checks.ok) return checks;

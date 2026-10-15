@@ -1,7 +1,7 @@
 import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useState, type ReactNode } from "react";
-import type { KpiError, KpiVolumesResult, PoohFillResult, DepthKey, PumpError, Result, StrokesScheduleResult, TripLimit, TripScheduleRow } from "@/contract";
-import { HAS_PIPE_COLUMN, kpiVolumes, poohFill, strokesSchedule } from "@/contract";
+import type { KpiError, KpiVolumesResult, PoohFillValue, DepthKey, PumpError, Result, StrokesScheduleResult, TripLimit, TripScheduleRow } from "@/contract";
+import { HAS_PIPE_COLUMN, kpiVolumes, strokesSchedule } from "@/contract";
 import { getPath } from "@/lib/paths";
 import { Card, fmt, Grid, IssueList, NumField } from "@/components/fields";
 import { issuesFor, useStore } from "@/lib/store";
@@ -316,7 +316,7 @@ export function TripScreen() {
         <Grid>
           <NumField path="trip.clinging" label="Clinging constant" unit="–" /><NumField path="trip.eccentricity" label="Eccentricity" unit="–" />
           <NumField path="trip.sbpConn_psi" label="SBP on connection" unit="psi" /><NumField path="trip.sbpCirc_psi" label="SBP circulating" unit="psi" />
-          <NumField path="trip.flow_gpm" label="Flow rate" unit="gpm" />
+          <NumField path="trip.flow_gpm" label="Flow rate" unit="gpm" /><NumField path="trip.standLength_ft" label="Stand length" unit="ft" />
         </Grid>
       </Card>
       <Card title="Trip order (bands)" right={<span className="text-[11px] text-muted-foreground">Open a band, tap a step to highlight its limit</span>}>
@@ -425,19 +425,10 @@ function StrokesPrint() {
   </>);
 }
 
-/* ---------- KPI & volumes: display only. All numbers come from kpiVolumes(). ---------- */
-/** Stand length is not on the Job; the contract requires it as input. Fixed at 93 ft until it gets a home in the schema. */
-export const KPI_STAND_FT = 93;
-type KpiView = { k: KpiVolumesResult; closed: PoohFillResult; open: PoohFillResult };
-/** Closed and open POOH come from two contract calls (pipe end forced per call); the screen does no arithmetic. */
-function useKpi(): KpiView {
+/* ---------- KPI & volumes: display only. All numbers come from one kpiVolumes() call. ---------- */
+function useKpi(): KpiVolumesResult {
   const job = useStore((s) => s.job);
-  const withEnd = (pipeEnd: "closed" | "open") => ({ ...job, trip: { ...job.trip, pipeEnd } }) as typeof job;
-  return {
-    k: kpiVolumes(job, { standLength_ft: KPI_STAND_FT, surfaceLine_bbl: 0 }),
-    closed: poohFill(withEnd("closed"), KPI_STAND_FT),
-    open: poohFill(withEnd("open"), KPI_STAND_FT),
-  };
+  return kpiVolumes(job, { surfaceLine_bbl: 0 });
 }
 const KpiErr = ({ e }: { e: KpiError }) => (
   <p data-kpi-error={e.code} role="alert" className="text-xs text-danger">✖ {e.message} <span className="font-mono opacity-70">[{e.code} · {e.field}]</span></p>);
@@ -448,8 +439,8 @@ const Kv = ({ k, v, u, strong, id }: { k: string; v: string; u?: string; strong?
   </div>);
 const PILL_PENDING = "Pill volume basis pending Sergio's choice";
 
-function KpiBody({ k, closed, open, print }: { k: Extract<KpiVolumesResult, { ok: true }>; closed: PoohFillResult; open: PoohFillResult; print?: boolean }) {
-  const { masp: m, kmw: w, chase: c, kmwInString: s, kmwBackfill: b } = k;
+function KpiBody({ k, print }: { k: Extract<KpiVolumesResult, { ok: true }>; print?: boolean }) {
+  const { masp: m, kmw: w, chase: c, kmwInString: s, kmwBackfill: b, poohFill: fill } = k;
   const Box = ({ title, children }: { title: string; children: ReactNode }) => print
     ? <div className="print-avoid mb-2"><h4 className="kpi-print-h text-xs font-semibold">{title}</h4>{children}</div>
     : <Card title={title}>{children}</Card>;
@@ -481,12 +472,12 @@ function KpiBody({ k, closed, open, print }: { k: Extract<KpiVolumesResult, { ok
       <Kv k="Total" v={fx(b.volume_bbl, 3)} u="bbl" strong id="backfill" />
       {b.sections.map((x, i) => <Kv key={i} k={`${fx(x.topMd_ft, 0)}–${fx(x.bottomMd_ft, 0)} ft · ${fx(x.holeId_in, 3)} in`} v={fx(x.volume_bbl, 3)} u="bbl" id={`backfill-${i}`} />)}
     </Box>
-    <Box title={`POOH fill · ${fx(KPI_STAND_FT, 0)} ft stands`}>
-      {closed.ok ? <><Kv k="Per stand, closed pipe" v={fx(closed.perStand_bbl, 4)} u="bbl" id="pooh-stand-closed" />
-        <Kv k="Total, closed pipe" v={fx(closed.total_bbl, 3)} u="bbl" strong id="pooh-total-closed" /></> : <KpiErr e={closed.error} />}
-      {open.ok ? <><Kv k="Per stand, open pipe" v={fx(open.perStand_bbl, 4)} u="bbl" id="pooh-stand-open" />
-        <Kv k="Total, open pipe" v={fx(open.total_bbl, 3)} u="bbl" strong id="pooh-total-open" /></> : <KpiErr e={open.error} />}
-      {closed.ok && <Kv k="Rows" v={`${closed.stands.length} (${closed.fullStandCount} stands${closed.partialStand_ft ? ` + ${fx(closed.partialStand_ft, 0)} ft single` : ""})`} id="pooh-rows" />}
+    <Box title={`POOH fill · ${fx(fill.standLength_ft, 0)} ft stands`}>
+      <Kv k="Per stand, closed pipe" v={fx(fill.closed.perStand_bbl, 4)} u="bbl" id="pooh-stand-closed" />
+      <Kv k="Total, closed pipe" v={fx(fill.closed.total_bbl, 3)} u="bbl" strong id="pooh-total-closed" />
+      <Kv k="Per stand, open pipe" v={fx(fill.open.perStand_bbl, 4)} u="bbl" id="pooh-stand-open" />
+      <Kv k="Total, open pipe" v={fx(fill.open.total_bbl, 3)} u="bbl" strong id="pooh-total-open" />
+      <Kv k="Rows" v={`${fill.closed.stands.length} (${fill.fullStandCount} stands${fill.partialStand_ft ? ` + ${fx(fill.partialStand_ft, 0)} ft single` : ""})`} id="pooh-rows" />
     </Box>
     <Box title="Pill volume">
       <p data-kpi="pill-volume" className="text-xs italic text-muted-foreground">{PILL_PENDING}</p>
@@ -494,33 +485,33 @@ function KpiBody({ k, closed, open, print }: { k: Extract<KpiVolumesResult, { ok
   </div>);
 }
 
-function PoohRows({ closed, open, print }: { closed: PoohFillResult; open: PoohFillResult; print?: boolean }) {
-  if (!closed.ok) return null;
-  const openRows = open.ok ? open.stands : [];
+function PoohRows({ fill, print }: { fill: PoohFillValue; print?: boolean }) {
   const table = (
     <table data-testid="pooh-table" className="procedure-table w-full text-right font-mono text-xs">
       <thead className="text-muted-foreground"><tr>{["#", "Length (ft)", "Closed (bbl)", "Closed total", "Open (bbl)", "Open total"].map((h) => <th key={h} className="border-b px-2 py-1 font-normal">{h}</th>)}</tr></thead>
-      <tbody>{closed.stands.map((r, i) => { const o = openRows[i]; return (
+      <tbody>{fill.closed.stands.map((r, i) => { const o = fill.open.stands[i]; return (
         <tr key={r.n} data-pooh-row={r.n} className="border-b border-border/50 [&>td]:px-2 [&>td]:py-0.5">
           <td>{r.n}</td><td>{fx(r.length_ft, 0)}</td><td>{fx(r.bbl, 4)}</td><td className="font-semibold">{fx(r.runningTotal_bbl, 3)}</td>
           <td>{o ? fx(o.bbl, 4) : "—"}</td><td>{o ? fx(o.runningTotal_bbl, 3) : "—"}</td></tr>); })}</tbody>
     </table>);
   if (print) return table;
-  return (<details data-testid="pooh-details" className="rounded-md border p-2"><summary className="cursor-pointer text-xs font-semibold">POOH fill table · {closed.stands.length} rows</summary><div className="mt-2 overflow-x-auto">{table}</div></details>);
+  return (<details data-testid="pooh-details" className="rounded-md border p-2"><summary className="cursor-pointer text-xs font-semibold">POOH fill table · {fill.closed.stands.length} rows</summary><div className="mt-2 overflow-x-auto">{table}</div></details>);
 }
 
 export function KpiScreen() {
-  const { k, closed, open } = useKpi();
-  if (!k.ok) return (<div className="space-y-3"><Card title="KPI & volumes"><KpiErr e={k.error} /><p className="mt-2 text-xs text-muted-foreground">No KPI numbers until this input is fixed.</p></Card>
-    <Card title="Pill volume"><p data-kpi="pill-volume" className="text-xs italic text-muted-foreground">{PILL_PENDING}</p></Card></div>);
-  return (<div className="space-y-3"><KpiBody k={k} closed={closed} open={open} /><PoohRows closed={closed} open={open} /></div>);
+  const k = useKpi();
+  return (<div className="space-y-3">
+    <Card title="Stand length"><Grid><NumField path="trip.standLength_ft" label="Stand length" unit="ft" /></Grid></Card>
+    {k.ok ? <><KpiBody k={k} /><PoohRows fill={k.poohFill} /></> : <><Card title="KPI & volumes"><KpiErr e={k.error} /><p className="mt-2 text-xs text-muted-foreground">No KPI numbers until this input is fixed.</p></Card>
+      <Card title="Pill volume"><p data-kpi="pill-volume" className="text-xs italic text-muted-foreground">{PILL_PENDING}</p></Card></>}
+  </div>);
 }
 
 function KpiPrint() {
-  const { k, closed, open } = useKpi();
+  const k = useKpi();
   return (<section className="kpi-print mb-3">
     <h3 className="mb-1 font-semibold">KPI &amp; volumes{k.ok ? "" : " · not available"}</h3>
-    {k.ok ? <><KpiBody k={k} closed={closed} open={open} print /><h4 className="kpi-print-h mt-2 text-xs font-semibold">POOH fill · {KPI_STAND_FT} ft stands</h4><PoohRows closed={closed} open={open} print /></> : <KpiErr e={k.error} />}
+    {k.ok ? <><KpiBody k={k} print /><h4 className="kpi-print-h mt-2 text-xs font-semibold">POOH fill · {fx(k.poohFill.standLength_ft, 0)} ft stands</h4><PoohRows fill={k.poohFill} print /></> : <KpiErr e={k.error} />}
   </section>);
 }
 
@@ -571,6 +562,7 @@ function InputsTable() {
     ["Trip speeds", `${job.trip.speeds_ftmin.join(", ")} ft/min, pipe ${job.trip.pipeEnd}`],
     ["Pump liner / stroke / eff. / SPM", job.pump ? `${job.pump.linerIn ?? "—"} in / ${job.pump.strokeIn ?? "—"} in / ${job.pump.efficiency ?? "—"} / ${job.pump.spm ?? "—"} spm${job.pump.bblPerStk != null ? ` · override ${job.pump.bblPerStk} bbl/stk` : ""}` : "—"],
     ["SBP conn / circ · flow", `${job.trip.sbpConn_psi} / ${job.trip.sbpCirc_psi} psi · ${job.trip.flow_gpm} gpm`],
+    ["Stand length", job.trip.standLength_ft != null && Number.isFinite(job.trip.standLength_ft) ? `${job.trip.standLength_ft} ft` : "—"],
   ];
   return <table className="w-full text-xs"><tbody>{rows.map(([k, v]) => <tr key={k} className="border-b border-border/50"><td className="py-0.5 pr-2 text-muted-foreground">{k}</td><td className="font-mono">{v}</td></tr>)}</tbody></table>;
 }

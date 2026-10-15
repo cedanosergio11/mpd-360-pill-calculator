@@ -60,6 +60,7 @@ export {
   type KpiVolumesResult,
   type MaspResult,
   type MaspValue,
+  type PoohFillEnd,
   type PoohFillResult,
   type PoohFillStand,
   type PoohFillValue,

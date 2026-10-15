@@ -94,6 +94,12 @@ export interface TripInputs {
   /** Circulating surface backpressure, psi. Applied to ECD. */
   sbpCirc_psi: number;
   flow_gpm: number;
+  /**
+   * Stand length, ft. Required for POOH fill.
+   * Blank or ≤ 0 is STAND_LENGTH. Not defaulted.
+   * EXAMPLE B and EXAMPLE C seed 93.
+   */
+  standLength_ft?: number | null;
 }
 
 /**

@@ -39,6 +39,7 @@ export type {
   KmwInStringValue,
   KmwBackfillResult,
   KmwBackfillValue,
+  PoohFillEnd,
   PoohFillResult,
   PoohFillValue,
   PoohFillStand,
