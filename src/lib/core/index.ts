@@ -11,6 +11,7 @@ export {
   type PillMode,
   type PipeEnd,
   type SurveyStation,
+  type PumpInput,
   type TripInputs,
   type Well,
 } from "./job.schema";
@@ -29,3 +30,11 @@ export {
   type TripScheduleRow,
 } from "./result";
 export { validate } from "./validate";
+export {
+  pumpOutput_bblPerStk,
+  strokesSchedule,
+  type PumpError,
+  type PumpOutputResult,
+  type StrokesScheduleResult,
+  type StrokesScheduleRow,
+} from "./strokes";
