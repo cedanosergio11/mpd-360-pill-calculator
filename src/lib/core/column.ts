@@ -1,6 +1,7 @@
 import { capBblFt } from "@/lib/utils";
 import type { ColumnSegment, Fluid, Job, Well } from "./job.schema";
 import { intervalVolume } from "./geometry";
+import { stringVolumeBbl, usesTaperedString } from "./string";
 import { PSI_PER_PPG_FT } from "./result";
 import { tvdAt } from "./tvd";
 
@@ -147,8 +148,10 @@ export function columnDisplacedByPipe(job: Job, bitMd: number): Job | null {
     if (volume == null) return null;
     if (volume > 1e-8) slices.push({ fluidId: segment.fluidId, volume });
   }
-  const pipeVol = capBblFt(job.well.stringOd_in) * bit;
-  if (!Number.isFinite(pipeVol) || pipeVol < 0) return null;
+  const pipeVol = usesTaperedString(job.well)
+    ? stringVolumeBbl(job.well, 0, bit, "closed")
+    : capBblFt(job.well.stringOd_in) * bit;
+  if (pipeVol == null || !Number.isFinite(pipeVol) || pipeVol < 0) return null;
   let remove = pipeVol;
   const kept: FluidSlice[] = [];
   for (const slice of slices) {

@@ -1,6 +1,7 @@
 import { capBblFt } from "@/lib/utils";
 import { columnWithRaisedPill, esdAtMd, pillPlacement, type Span } from "./column";
 import { intervalVolume } from "./geometry";
+import { mdAboveByStringCapacity, stringVolumeBbl, usesTaperedString } from "./string";
 import type { Job } from "./job.schema";
 import { PSI_PER_PPG_FT } from "./result";
 import { tvdAt } from "./tvd";
@@ -17,6 +18,16 @@ export interface FloatBalance {
 
 /** Barrel of `fluidId` inside the string. */
 export function pipePillBbl(job: Job, fluidId: string): number {
+  if (usesTaperedString(job.well)) {
+    let volume = 0;
+    for (const segment of job.pipeColumn ?? []) {
+      if (segment.fluidId !== fluidId) continue;
+      const part = stringVolumeBbl(job.well, segment.topMd_ft, segment.bottomMd_ft, "capacity");
+      if (part == null) return 0;
+      volume += part;
+    }
+    return volume;
+  }
   const bore = capBblFt(job.well.stringId_in);
   if (!(bore > 0)) return 0;
   let volume = 0;
@@ -29,12 +40,23 @@ export function pipePillBbl(job: Job, fluidId: string): number {
 }
 
 function chaseBbl(job: Job, mudId: string, pillFluidId: string): number {
-  const bore = capBblFt(job.well.stringId_in);
-  if (!(bore > 0)) return 0;
   let pillTop = Number.POSITIVE_INFINITY;
   for (const segment of job.pipeColumn ?? []) {
     if (segment.fluidId === pillFluidId) pillTop = Math.min(pillTop, segment.topMd_ft);
   }
+  if (usesTaperedString(job.well)) {
+    let volume = 0;
+    for (const segment of job.pipeColumn ?? []) {
+      if (segment.fluidId !== mudId) continue;
+      if (!(segment.bottomMd_ft <= pillTop + 0.2)) continue;
+      const part = stringVolumeBbl(job.well, segment.topMd_ft, segment.bottomMd_ft, "capacity");
+      if (part == null) return 0;
+      volume += part;
+    }
+    return volume;
+  }
+  const bore = capBblFt(job.well.stringId_in);
+  if (!(bore > 0)) return 0;
   let volume = 0;
   for (const segment of job.pipeColumn ?? []) {
     if (segment.fluidId !== mudId) continue;
@@ -81,8 +103,16 @@ function pipeGauge(
 ): number | null {
   const bore = capBblFt(job.well.stringId_in);
   if (!(bore > 0)) return null;
-  const kmwTop = bitMd - Math.max(0, kmwVol) / bore;
-  const chaseTop = kmwTop - Math.max(0, chaseVol) / bore;
+  const kmwTop = usesTaperedString(job.well)
+    ? mdAboveByStringCapacity(job.well, bitMd, Math.max(0, kmwVol))
+    : bitMd - Math.max(0, kmwVol) / bore;
+  const chaseTop =
+    kmwTop == null
+      ? null
+      : usesTaperedString(job.well)
+        ? mdAboveByStringCapacity(job.well, kmwTop, Math.max(0, chaseVol))
+        : kmwTop - Math.max(0, chaseVol) / bore;
+  if (kmwTop == null || chaseTop == null) return null;
   const bitTvd = tvdAt(job.well, bitMd);
   const kmwTopTvd = tvdExt(job, kmwTop);
   const chaseTopTvd = tvdExt(job, chaseTop);

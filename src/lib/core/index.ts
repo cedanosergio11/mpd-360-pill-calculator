@@ -5,6 +5,7 @@ export {
   SCHEMA_VERSION,
   type CasingInterval,
   type ColumnSegment,
+  type StringSection,
   type FannReading,
   type Fluid,
   type Job,
@@ -69,6 +70,7 @@ export {
 export {
   emwProfile,
   type EmwCrossing,
+  type EmwCrossover,
   type EmwError,
   type EmwExceedance,
   type EmwLimits,
@@ -83,4 +85,5 @@ export {
   type EmwStation,
   type EmwStationEmw,
   type EmwStationLabel,
+  type EmwStringSection,
 } from "./emw-profile";

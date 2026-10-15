@@ -3,11 +3,27 @@ import { esdAtMd, fluidAt } from "./column";
 import { holeIdAt, uniqueSorted } from "./geometry";
 import type { Job } from "./job.schema";
 import { PSI_PER_PPG_FT } from "./result";
+import { placedStringSections, stringSectionAt, usesTaperedString } from "./string";
 import { tvdAt } from "./tvd";
 
 export interface EmwPair {
   surge_ppg: number;
   swab_ppg: number;
+}
+
+/** One annular piece: hole interval over one string section, split again on fluid. */
+export interface AnnularFrictionSegment {
+  topMd_ft: number;
+  bottomMd_ft: number;
+  length_ft: number;
+  holeId_in: number;
+  pipeOd_in: number;
+  pipeId_in: number;
+  fluidId: string;
+  density_ppg: number;
+  velocity_ftmin: number;
+  laminar: boolean;
+  friction_psi: number;
 }
 
 function rheologyOf(job: Job, md: number): Rheology | null {
@@ -33,6 +49,11 @@ function sliceMarks(job: Job, limit: number): number[] {
   const marks = [0, limit, job.well.shoeMd_ft];
   for (const interval of job.well.casing) marks.push(interval.topMd_ft, interval.bottomMd_ft);
   for (const segment of job.column) marks.push(segment.topMd_ft, segment.bottomMd_ft);
+  if (usesTaperedString(job.well)) {
+    for (const section of placedStringSections(job.well) ?? []) {
+      marks.push(section.topMd_ft, section.bottomMd_ft);
+    }
+  }
   return uniqueSorted(
     marks.filter((mark) => mark >= -1e-6 && mark <= limit + 1e-6),
     1e-3,
@@ -45,26 +66,38 @@ function sliceMarks(job: Job, limit: number): number[] {
  * Each column slice keeps its own density and Fann readings.
  * Null when geometry or rheology is missing — never a fabricated loss.
  */
-export function frictionPsi(
+/**
+ * Annular friction pieces from surface down to min(poiMd, bitMd).
+ * A tapered string splits the hole intervals on each section crossover.
+ * Each piece uses that annulus's velocity and its own laminar check.
+ */
+export function annularFrictionSegments(
   job: Job,
   poiMd: number,
   bitMd: number,
   motion: { kind: "flow" } | { kind: "trip"; speed_ftmin: number },
-): number | null {
+): AnnularFrictionSegment[] | null {
   const limit = Math.min(poiMd, bitMd);
-  if (!Number.isFinite(limit) || limit <= 0) return 0;
-  if (motion.kind === "flow" && !(job.trip.flow_gpm > 0)) return 0;
+  if (!Number.isFinite(limit) || limit <= 0) return [];
+  if (motion.kind === "flow" && !(job.trip.flow_gpm > 0)) return [];
   if (motion.kind === "trip" && !(motion.speed_ftmin > 0)) return null;
 
   const pts = sliceMarks(job, limit);
-  let psi = 0;
+  const tapered = usesTaperedString(job.well);
+  const segments: AnnularFrictionSegment[] = [];
   for (let i = 0; i < pts.length - 1; i++) {
     const length = pts[i + 1] - pts[i];
     if (length <= 1e-6) continue;
     const mid = (pts[i] + pts[i + 1]) / 2;
     const dh = holeIdAt(job.well, mid);
-    const dp = job.well.stringOd_in;
-    const di = job.well.stringId_in;
+    let dp = job.well.stringOd_in;
+    let di = job.well.stringId_in;
+    if (tapered) {
+      const section = stringSectionAt(job.well, mid);
+      if (!section) return null;
+      dp = section.od_in;
+      di = section.id_in;
+    }
     const fluid = fluidAt(job, mid);
     const rh = rheologyOf(job, mid);
     if (dh == null || !(dh > dp) || !fluid || !rh) return null;
@@ -84,10 +117,39 @@ export function frictionPsi(
       rh,
       true,
       job.trip.eccentricity,
-    ).p;
-    if (!Number.isFinite(loss)) return null;
-    psi += loss;
+    );
+    if (!Number.isFinite(loss.p)) return null;
+    segments.push({
+      topMd_ft: pts[i],
+      bottomMd_ft: pts[i + 1],
+      length_ft: length,
+      holeId_in: dh,
+      pipeOd_in: dp,
+      pipeId_in: di,
+      fluidId: fluid.fluid.id,
+      density_ppg: fluid.fluid.density_ppg,
+      velocity_ftmin: velocity,
+      laminar: loss.laminar,
+      friction_psi: loss.p,
+    });
   }
+  return segments;
+}
+
+export function frictionPsi(
+  job: Job,
+  poiMd: number,
+  bitMd: number,
+  motion: { kind: "flow" } | { kind: "trip"; speed_ftmin: number },
+): number | null {
+  const limit = Math.min(poiMd, bitMd);
+  if (!Number.isFinite(limit) || limit <= 0) return 0;
+  if (motion.kind === "flow" && !(job.trip.flow_gpm > 0)) return 0;
+  if (motion.kind === "trip" && !(motion.speed_ftmin > 0)) return null;
+  const segments = annularFrictionSegments(job, poiMd, bitMd, motion);
+  if (segments == null) return null;
+  let psi = 0;
+  for (const segment of segments) psi += segment.friction_psi;
   return psi;
 }
 

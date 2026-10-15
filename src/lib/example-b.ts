@@ -37,3 +37,14 @@ export const exampleC: Job = (() => {
   job.trip.standLength_ft = 93;
   return job;
 })();
+
+/** EXAMPLE D matches EXAMPLE C with a two-section string. Top pipe is the C OD/ID; the bottom 2,000 ft is 4.0 in OD / 3.34 in ID. */
+export const exampleD: Job = (() => {
+  const job = structuredClone(exampleC);
+  job.name = "EXAMPLE D (tapered)";
+  job.well.stringSections = [
+    { length_ft: 8480, od_in: 5.5, id_in: 4.778 },
+    { length_ft: 2000, od_in: 4, id_in: 3.34 },
+  ];
+  return job;
+})();

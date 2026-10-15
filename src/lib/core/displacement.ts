@@ -2,6 +2,7 @@ import { capBblFt } from "@/lib/utils";
 import { columnDisplacedByPipe, esdAtMd, pillPlacement, type Span } from "./column";
 import { balanceFloat, pipePillBbl } from "./equalize";
 import { intervalVolume, uniqueSorted } from "./geometry";
+import { stringVolumeBbl, usesTaperedString } from "./string";
 import { issue, type Issue } from "./issues";
 import type { Job } from "./job.schema";
 import type { Displacement, DisplacementStage } from "./result";
@@ -51,8 +52,6 @@ export function shoeEmwPpg(
  * 0 when the bit has not entered that fluid — a computed zero, not a placeholder.
  */
 export function pumpedPillBbl(job: Job, pill: Span, bitMd: number): number | null {
-  const cap = capBblFt(job.well.stringId_in);
-  if (!Number.isFinite(cap) || cap <= 0) return null;
   const own = job.column.filter(
     (segment) =>
       segment.fluidId === pill.fluidId &&
@@ -64,7 +63,13 @@ export function pumpedPillBbl(job: Job, pill: Span, bitMd: number): number | nul
     ? Math.max(...own.map((segment) => segment.bottomMd_ft))
     : pill.bottomMd;
   const covered = Math.max(0, Math.min(bitMd, bottom) - top);
-  return covered * cap;
+  if (!usesTaperedString(job.well)) {
+    const cap = capBblFt(job.well.stringId_in);
+    if (!Number.isFinite(cap) || cap <= 0) return null;
+    return covered * cap;
+  }
+  if (covered <= 0) return 0;
+  return stringVolumeBbl(job.well, top, Math.min(bitMd, bottom), "capacity");
 }
 
 function stageFromColumn(
