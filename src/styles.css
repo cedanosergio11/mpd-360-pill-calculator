@@ -33,6 +33,7 @@
   --color-formation: #2c2723;
   --color-warn: #c4a05a;
   --color-danger: #c45c4a;
+  --color-ok: #6aa882;
 }
 
 @layer base {
@@ -345,6 +346,30 @@
 }
 .bg-danger {
   background: var(--color-danger);
+}
+.kpi-flag-ok {
+  background: color-mix(in oklab, var(--color-ok) 22%, transparent);
+  color: var(--color-ok);
+  border: 1px solid var(--color-ok);
+}
+.kpi-flag-over {
+  background: var(--color-danger);
+  color: #fff;
+}
+@media print {
+  .kpi-flag-ok {
+    background: #dcefe3 !important;
+    color: #1d5e36 !important;
+    border-color: #1d5e36 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .kpi-flag-over {
+    background: #c45c4a !important;
+    color: #fff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }
 
 input[type="range"] {

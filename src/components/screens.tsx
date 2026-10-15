@@ -318,6 +318,7 @@ export function TripScreen() {
           <NumField path="trip.sbpConn_psi" label="SBP on connection" unit="psi" /><NumField path="trip.sbpCirc_psi" label="SBP circulating" unit="psi" />
           <NumField path="trip.flow_gpm" label="Flow rate" unit="gpm" /><NumField path="trip.standLength_ft" label="Stand length" unit="ft" />
         </Grid>
+        <StandLengthErr />
       </Card>
       <Card title="Trip order (bands)" right={<span className="text-[11px] text-muted-foreground">Open a band, tap a step to highlight its limit</span>}>
         <TripBands rows={r.tripSchedule} fit={r.depths.shoe.fit_ppg} sel={sel} onSel={setSel} />
@@ -437,6 +438,11 @@ const Kv = ({ k, v, u, strong, id }: { k: string; v: string; u?: string; strong?
     <span className="text-muted-foreground">{k}</span>
     <span data-kpi={id} className={`font-mono ${strong ? "text-sm font-semibold" : ""}`}>{v}{u ? <span className="ml-1 text-[11px] text-muted-foreground">{u}</span> : null}</span>
   </div>);
+/** Shows the contract's STAND_LENGTH error under the Trip inputs stand-length field. */
+function StandLengthErr() {
+  const k = useKpi();
+  return !k.ok && k.error.field === "trip.standLength_ft" ? <div className="mt-2"><KpiErr e={k.error} /></div> : null;
+}
 const PILL_PENDING = "Pill volume basis pending Sergio's choice";
 
 function KpiBody({ k, print }: { k: Extract<KpiVolumesResult, { ok: true }>; print?: boolean }) {
@@ -449,7 +455,7 @@ function KpiBody({ k, print }: { k: Extract<KpiVolumesResult, { ok: true }>; pri
       <Kv k="MASP = (FIT − MW) × 0.052 × shoe TVD" v={fx(m.masp_psi, 2)} u="psi" strong id="masp" />
       <Kv k="Planned SBP" v={fx(m.plannedSbp_psi, 0)} u="psi" id="sbp" />
       <Kv k="Margin (MASP − SBP)" v={fx(m.margin_psi, 2)} u="psi" id="margin" />
-      <div className="mt-1 text-xs"><span data-kpi="sbp-flag" className={`rounded px-2 py-0.5 font-semibold ${m.sbpExceedsMasp ? "procedure-hot bg-danger text-white" : "bg-success/20 text-success"}`}>{m.sbpExceedsMasp ? "SBP OVER MASP" : "OK"} · {m.sbpFlag}</span></div>
+      <div className="mt-1 text-xs"><span data-kpi="sbp-flag" className={`rounded px-2 py-0.5 font-semibold ${m.sbpExceedsMasp ? "kpi-flag-over" : "kpi-flag-ok"}`}>{m.sbpExceedsMasp ? "SBP OVER MASP" : "OK"} · {m.sbpFlag}</span></div>
       <p className="mt-1 text-[10px] text-muted-foreground">FIT {fx(m.fitEmw_ppg, 2)} · MW {fx(m.activeMw_ppg, 2)} ppg ({m.activeMwFluidId}) · shoe TVD {fx(m.shoeTvd_ft, 0)} ft</p>
     </Box>
     <Box title="Kill mud weight">
@@ -501,7 +507,7 @@ function PoohRows({ fill, print }: { fill: PoohFillValue; print?: boolean }) {
 export function KpiScreen() {
   const k = useKpi();
   return (<div className="space-y-3">
-    <Card title="Stand length"><Grid><NumField path="trip.standLength_ft" label="Stand length" unit="ft" /></Grid></Card>
+    <p className="text-[11px] text-muted-foreground print:hidden">Stand length is set in 6 Trip schedule → Trip inputs.</p>
     {k.ok ? <><KpiBody k={k} /><PoohRows fill={k.poohFill} /></> : <><Card title="KPI & volumes"><KpiErr e={k.error} /><p className="mt-2 text-xs text-muted-foreground">No KPI numbers until this input is fixed.</p></Card>
       <Card title="Pill volume"><p data-kpi="pill-volume" className="text-xs italic text-muted-foreground">{PILL_PENDING}</p></Card></>}
   </div>);
