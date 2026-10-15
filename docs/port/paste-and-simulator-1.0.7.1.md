@@ -4,7 +4,7 @@ Source commit: `99009230b0d3132c0f542b3b87fc2d05c6bc0660` (`9900923`), message "
 
 This note records those two features as they run at that commit, then proposes a 2.0 contract on the current core (`strokesSchedule`, `kpiVolumes`, `emwProfile`, tapered `stringSections`). The 2.0 contract does not call `src/lib/calc/engine-nodp.ts` and does not read `TRIP_TABLES` or `SURGE_*` from `src/lib/calc/tables.ts`.
 
-Paste and `simulate` share one `Job`. The parser returns a patch that is applied to that job. `simulate` is called with that same job. Neither feature keeps a second input record.
+Paste and `simulate` share one `Job`. `parseWellPaste` returns a parse result and does not take a job. `previewPaste` reads that result against the job, and `applyPaste` writes that preview onto the same job. `simulate` is called with that job. Neither feature keeps a second input record.
 
 Feature order: TBD, Sergio to decide.
 
@@ -327,24 +327,87 @@ export interface PasteIgnored {
   message: string;
 }
 
+export interface PasteMatch {
+  /** 2.0 field path. */
+  field: string;
+  /** 1-based sheet row. */
+  row: number;
+  /** 1-based column of the value cell. */
+  column: number;
+  /** Recognized unit cell on that row, or null when the row has none. */
+  unit: string | null;
+}
+
 /** Patch is a partial Job. Absent fields are left for the caller to keep. */
 export interface PasteResult {
   ok: boolean;
   patch: Partial<Job>;
-  /** 2.0 paths that received a value, in sheet order. */
-  matched: string[];
+  /** Patched fields, in sheet order. `field` is the 2.0 path. */
+  matched: PasteMatch[];
   ignored: PasteIgnored[];
   errors: PasteError[];
 }
 
 export function parseWellPaste(text: string): PasteResult;
+
+export interface PastePreviewRow {
+  /** 2.0 field path. */
+  field: string;
+  /**
+   * Unit shown with both values. The recognized sheet unit when the row has one,
+   * otherwise the unit that field already uses. Null for text, bool, and date.
+   */
+  unit: string | null;
+  /** Value on `job` at `field`, in `unit`. Null when the job has no value there. */
+  oldValue: unknown;
+  /** Coerced value from `result.patch`, in the same `unit`. */
+  newValue: unknown;
+  /** 1-based sheet row, copied from `matched`. */
+  row: number;
+  /** 1-based value column, copied from `matched.column`. */
+  col: number;
+}
+
+export interface PastePreviewError {
+  code: PasteError["code"];
+  row: number;
+  /** `PasteError.column`. */
+  col: number;
+  message: string;
+  /**
+   * True when this code blocks apply.
+   * Blocking codes: `BAD_NUMBER`, `CONFLICTING_DUPLICATE`, `EMPTY`, `BAD_DATE`,
+   * `BAD_SECTION`, `BAD_BOOL`, `UNIT_MISMATCH`.
+   * `UNMAPPED_LABEL` and `NOT_A_2_0_INPUT` are false.
+   */
+  blocking: boolean;
+}
+
+export interface PastePreview {
+  rows: PastePreviewRow[];
+  errors: PastePreviewError[];
+  /** False when any `errors` entry has `blocking: true`. */
+  canApply: boolean;
+}
+
+export function previewPaste(job: Job, result: PasteResult): PastePreview;
+
+export function applyPaste(job: Job, preview: PastePreview): Job;
 ```
+
+`parseWellPaste` takes the pasted text and nothing else. It has no `Job` argument, does not read the store, and does not look up the current value of a field. It does not write localStorage, does not build a simulator job, and does not fill `calcJob`.
 
 `ok` is true when `matched` is non-empty and `errors` is empty. `EMPTY` is the single error when the text has no usable row (`row: 0`, `column: 0`). A calculated label (the 1.0 `SKIP_LABELS` set) is `ignored` with `CALCULATED`, which is how MASP stays out of the job. A number, date, section, or bool that fails to parse is an `errors` entry and that field is not patched. `pillMode` on 1.0 is `Job.mode` on 2.0 and is not in the patch.
 
-A repeated label whose coerced value equals the value already patched is `ignored` with `DUPLICATE`. That is a warning. The first value stays, and `ok` can still be true. A repeated label whose coerced value differs is `CONFLICTING_DUPLICATE` on `errors`. That blocks the patch: `ok` is false, `patch` is `{}`, and the caller must not merge anything from that paste, including rows that parsed cleanly. `errors` still lists the conflict. Coerced equality is numeric after the thousands-separator rule, trimmed text, the normalized date, or the coerced bool. `1500` and `1,500` are the same value. `1,5` never becomes a number, so it cannot be a duplicate of anything.
+A repeated label whose coerced value equals the value already patched is `ignored` with `DUPLICATE`. That is a warning. The first value stays, and `ok` can still be true. A repeated label whose coerced value differs is `CONFLICTING_DUPLICATE` on `errors`. That blocks the patch: `ok` is false, `patch` is `{}`, and `previewPaste` reports the conflict with `blocking: true`. Coerced equality is numeric after the thousands-separator rule, trimmed text, the normalized date, or the coerced bool. `1500` and `1,500` are the same value. `1,5` never becomes a number, so it cannot be a duplicate of anything.
 
-`patch` is the only value the parser returns that may be written. The caller merges it onto the canonical `Job` (`useStore` `job` on this branch). The parser does not write localStorage, does not build a simulator job, and does not fill `calcJob`. After the merge, `simulate` is called with that same `Job`.
+`previewPaste` is pure. One row per `matched` entry, in that order. `newValue` is the patched value. `oldValue` is read from `job` at `field`. `unit` is shown with both values: the screen prints the old number and the new number each followed by that unit, and it does not convert either value. `errors` copies every `PasteError`, with `column` renamed to `col`. `blocking` is true for `BAD_NUMBER`, `CONFLICTING_DUPLICATE`, and the other blocking codes listed on `PastePreviewError`. It is false for `UNMAPPED_LABEL` and `NOT_A_2_0_INPUT`. `canApply` is false when any error is blocking. Ignored `DUPLICATE` and `CALCULATED` rows are not preview rows and are not preview errors.
+
+`applyPaste` returns a new `Job`. It writes exactly `preview.rows` and nothing else: each `newValue` is set at `field`, and every field that is not in `rows` stays as it was, including `mode`. It does not write localStorage and does not fill `calcJob`. It throws when `canApply` is false and returns no job. After a successful apply, `simulate` is called with that returned job.
+
+### Planned paste apply test
+
+Planned, not implemented in this spec. Build a `Job`, parse a sheet whose `previewPaste` result has `canApply: true`, and call `applyPaste(job, preview)`. The returned job deep-equals a copy of `job` on which each preview row's `newValue` has been set at `field`. No other field differs. A second call whose preview has `canApply: false` throws, and the job passed in is unchanged.
 
 Same delimiters as 1.0: tab and newline, HTML table when `<table` or `<tr` is present. A comma never separates cells. The decimal mark is `.`. Dates stay month-day-year and Excel serial, written to a well-date string on the side, not to `job.savedAt`. Units are checked, not converted. A unit outside the set expected for that field is `UNIT_MISMATCH` and the value is not stored.
 
@@ -385,7 +448,7 @@ Mapping onto the 2.0 `Job` at `feat/tapered-strings`:
 
 There is one input record: the app `Job`. Paste and the simulator both read it and, when the user edits, both write it.
 
-- `parseWellPaste` returns `PasteResult`. The app applies `patch` onto that `Job` and discards the patch. It does not keep a pasted copy beside the job.
+- `parseWellPaste(text)` returns `PasteResult` and does not take a job. `previewPaste(job, result)` is the diff. `applyPaste(job, preview)` writes that diff onto the job when `canApply` is true. The app does not keep a pasted copy beside the job.
 - `simulate(job, opts)` takes that same `Job`. `opts` is the pipe-MD range for this call (start, end, step). It is not a second well.
 - A step may call `emwProfile`, `chaseVolume`, `kmwInString`, and `columnDisplacedByPipe` with `bitMd_ft` set to that step's pipe MD. That argument is dropped when the call returns. It is not saved, and it is not a simulator-owned job.
 - The `kpi` and `pump` fields on `SimulateResult` are outputs of this job. They are not inputs and they are not stored on the simulator.
