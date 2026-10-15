@@ -9,10 +9,17 @@ export const LEGACY_JOB_META: JobMeta = {
   modified: true,
 };
 
-const PRESETS: Record<Exclude<PresetId, "D">, Job> = {
+/** Presets this branch can load. D returns with #6 (tapered strings). */
+export const AVAILABLE_PRESETS = ["B", "C"] as const;
+
+const PRESETS: Record<(typeof AVAILABLE_PRESETS)[number], Job> = {
   B: exampleB,
   C: exampleC,
 };
+
+function isOffered(id: PresetId): id is (typeof AVAILABLE_PRESETS)[number] {
+  return (AVAILABLE_PRESETS as readonly PresetId[]).includes(id);
+}
 
 /** `meta` from a saved job. Missing `meta` is the legacy object. */
 export function metaFromSaved(meta: unknown): JobMeta {
@@ -28,8 +35,8 @@ export function metaFromSaved(meta: unknown): JobMeta {
 
 /** The preset job, flagged as an unmodified example. EXAMPLE D waits for tapered strings. */
 export function loadPreset(id: PresetId): Job {
-  // re-enable when #6 (tapered strings) lands
-  if (id === "D") throw new Error("EXAMPLE D is not available until tapered strings land.");
+  // D returns with #6 (tapered strings).
+  if (!isOffered(id)) throw new Error("EXAMPLE D is not available until tapered strings land.");
   const job = structuredClone(PRESETS[id]);
   job.meta = { presetId: id, isExample: true, modified: false };
   return job;

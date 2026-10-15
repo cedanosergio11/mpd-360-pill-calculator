@@ -103,6 +103,7 @@ export {
   DEFAULT_STEP_FT,
   MIN_STEP_FT,
   MAX_STEPS,
+  AVAILABLE_PRESETS,
   LEGACY_JOB_META,
   appDefaultJob,
   jobLabel,

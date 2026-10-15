@@ -443,7 +443,7 @@ export interface JobMeta {
 
 An older save with no `meta` loads as `{ presetId: null, isExample: false, modified: true }`. That save is not an EXAMPLE.
 
-`loadPreset(id)` returns the B, C, or D job with `{ presetId: id, isExample: true, modified: false }`. It does not mutate the preset constant.
+`loadPreset(id)` returns the B or C job with `{ presetId: id, isExample: true, modified: false }`. It does not mutate the preset constant. `AVAILABLE_PRESETS` is `["B", "C"]`. D returns with #6 (tapered strings); `loadPreset("D")` throws until then.
 
 `resetToPreset(job)` returns that preset when `meta.presetId` is B, C, or D. When `presetId` is null, or `meta` is absent, it returns the app default (EXAMPLE Well A) with `{ presetId: null, isExample: true, modified: false }`.
 

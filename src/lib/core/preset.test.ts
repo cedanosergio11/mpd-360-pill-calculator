@@ -3,7 +3,7 @@ import { exampleB, exampleC } from "@/lib/example-b";
 import { exampleJob } from "@/lib/example-job";
 import { inputHash } from "./hash";
 import type { PresetId } from "./job.schema";
-import { appDefaultJob, jobLabel, loadPreset, markEdited, resetToPreset } from "./preset";
+import { AVAILABLE_PRESETS, appDefaultJob, jobLabel, loadPreset, markEdited, resetToPreset } from "./preset";
 
 function presetReady(id: PresetId): boolean {
   try {
@@ -16,6 +16,15 @@ function presetReady(id: PresetId): boolean {
 
 /** EXAMPLE D is absent until tapered strings. The D label test runs once `loadPreset("D")` succeeds. */
 const exampleDReady = presetReady("D");
+
+describe("AVAILABLE_PRESETS", () => {
+  it("does not offer EXAMPLE D", () => {
+    // D returns with #6 (tapered strings).
+    expect([...AVAILABLE_PRESETS]).toEqual(["B", "C"]);
+    expect(AVAILABLE_PRESETS).not.toContain("D");
+    expect(() => loadPreset("D")).toThrow(/tapered strings/);
+  });
+});
 
 describe("jobLabel", () => {
   it("returns EXAMPLE B", () => {

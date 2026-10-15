@@ -69,6 +69,7 @@ export {
   type PoohFillValue,
 } from "./kpi";
 export {
+  AVAILABLE_PRESETS,
   LEGACY_JOB_META,
   appDefaultJob,
   jobLabel,
