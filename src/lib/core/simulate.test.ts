@@ -5,6 +5,9 @@ import { emwProfile, type EmwLines, type EmwProfileResult } from "./emw-profile"
 import type { Job } from "./job.schema";
 import { kpiVolumes } from "./kpi";
 import {
+  DEFAULT_STEP_FT,
+  MAX_STEPS,
+  MIN_STEP_FT,
   simulate,
   type SimulateFluidResult,
   type SimulateResult,
@@ -451,11 +454,12 @@ describe.skip("simulate spotted profile", () => {
 describe("simulate step size", () => {
   it("defaults to 100 ft and records the step count", () => {
     const sim = defaultSim(exampleB);
-    expect(sim.meta.stepFt).toBe(100);
+    expect(sim.meta.stepFt).toBe(DEFAULT_STEP_FT);
     expect(sim.stepMd_ft).toBe(sim.meta.stepFt);
-    expect(sim.meta.stepsLength).toBe(sim.steps.length);
+    expect(sim.meta.stepCount).toBe(sim.steps.length);
+    expect(sim.meta.stepsLength).toBe(sim.meta.stepCount);
     expect(sim.steps.length).toBe(106);
-    expect(sim.steps.length).toBeLessThanOrEqual(1000);
+    expect(sim.steps.length).toBeLessThanOrEqual(MAX_STEPS);
   });
 
   it("rejects a step below 10 ft and does not raise it", () => {
@@ -468,9 +472,10 @@ describe("simulate step size", () => {
 
   it("allows a 10 ft step on a short span", () => {
     const sim = okSim(simulate(exampleB, { fromMd_ft: 0, toMd_ft: 100, stepMd_ft: 10 }));
-    expect(sim.meta.stepFt).toBe(10);
-    expect(sim.stepMd_ft).toBe(10);
-    expect(sim.meta.stepsLength).toBe(sim.steps.length);
+    expect(sim.meta.stepFt).toBe(MIN_STEP_FT);
+    expect(sim.stepMd_ft).toBe(MIN_STEP_FT);
+    expect(sim.meta.stepCount).toBe(sim.steps.length);
+    expect(sim.meta.stepsLength).toBe(sim.meta.stepCount);
     expect(sim.steps.map((step) => step.pipeMd_ft)).toEqual([0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
   });
 
@@ -481,23 +486,33 @@ describe("simulate step size", () => {
     expect(result.error).toEqual({
       code: "STEP_LIMIT",
       field: "stepMd_ft",
-      message: "This range is more than 1000 steps. The step is not coarsened.",
+      message: `This range is more than ${MAX_STEPS} steps. The step is not coarsened.`,
+      minStepFt: MIN_STEP_FT,
+      maxSteps: MAX_STEPS,
+      requestedSteps: 1049,
     });
   });
 
   it("returns STEP_LIMIT for an explicit list longer than 1000", () => {
-    const mds = Array.from({ length: 1001 }, (_, index) => index);
+    const mds = Array.from({ length: MAX_STEPS + 1 }, (_, index) => index);
     const result = simulate(exampleB, { mds });
     expect(result.ok).toBe(false);
     if (result.ok) return;
-    expect(result.error.code).toBe("STEP_LIMIT");
-    expect(result.error.field).toBe("stepMd_ft");
+    expect(result.error).toEqual({
+      code: "STEP_LIMIT",
+      field: "stepMd_ft",
+      message: `This range is more than ${MAX_STEPS} steps. The step is not coarsened.`,
+      minStepFt: MIN_STEP_FT,
+      maxSteps: MAX_STEPS,
+      requestedSteps: MAX_STEPS + 1,
+    });
   });
 
   it("keeps stepFt at 100 when mds is set and the step is omitted", () => {
     const sim = okSim(simulate(exampleB, { mds: [0, 100], fromMd_ft: 0 }));
-    expect(sim.meta.stepFt).toBe(100);
-    expect(sim.meta.stepsLength).toBe(2);
+    expect(sim.meta.stepFt).toBe(DEFAULT_STEP_FT);
+    expect(sim.meta.stepCount).toBe(2);
+    expect(sim.meta.stepsLength).toBe(sim.meta.stepCount);
     expect(sim.steps).toHaveLength(2);
   });
 

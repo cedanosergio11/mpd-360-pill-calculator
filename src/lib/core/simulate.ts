@@ -21,24 +21,29 @@ import { capBblFt } from "@/lib/utils";
  * There is no carried inventory and no second well.
  */
 
+/** Default pipe-MD step, ft. */
+export const DEFAULT_STEP_FT = 100;
+/** Smallest accepted pipe-MD step, ft. Below this is `INVALID_STEP`. */
+export const MIN_STEP_FT = 10;
 /** Inclusive cap. A longer list is `STEP_LIMIT`; the step is not coarsened. */
-const STEP_CAP = 1000;
+export const MAX_STEPS = 1000;
 
 export interface SimulateOptions {
   /** Start pipe MD, ft. Default `job.well.bitMd_ft`. Still the trip-tank origin when `mds` is set. */
   fromMd_ft?: number;
   /** End pipe MD, ft. Default 0. Ignored for the step list when `mds` is set. */
   toMd_ft?: number;
-  /** Pipe-MD step, ft. Default 100. Must be finite and at least 10, including when `mds` is set. */
+  /** Pipe-MD step, ft. Default `DEFAULT_STEP_FT`. Must be finite and at least `MIN_STEP_FT`, including when `mds` is set. */
   stepMd_ft?: number;
   /**
    * Explicit pipe MDs, ft, in this order. When set, `steps` are these depths and nothing else.
    * A single-point evaluation is a one-element list. `fromMd_ft` still anchors `tripTank_bbl` and `pipeDelta_ft`.
-   * Longer than 1000 is `STEP_LIMIT`.
+   * Longer than `MAX_STEPS` is `STEP_LIMIT`.
    */
   mds?: number[];
 }
 
+/** Pill top or bottom. `null` on either depth means the pill is not in the hole. */
 export interface SimulateDepth {
   md_ft: number | null;
   tvd_ft: number | null;
@@ -70,9 +75,9 @@ export interface SimulateStep {
   pipeTvd_ft: number | null;
   /** `pipeMd_ft - fromMd_ft`. Negative while pulling. */
   pipeDelta_ft: number;
-  /** Pill top at this pipe MD. Both depths come from `pillPlacement` and `tvdAt`. */
+  /** Pill top at this pipe MD. `{ md_ft, tvd_ft }`, each `number | null`. Null means not in the hole. */
   pillTop: SimulateDepth;
-  /** Pill bottom at this pipe MD. */
+  /** Pill bottom at this pipe MD. Same shape as `pillTop`. */
   pillBottom: SimulateDepth;
   /** `chaseVolume` at this pipe MD. */
   chase_bbl: number | null;
@@ -86,25 +91,38 @@ export interface SimulateStep {
    */
   tripTank_bbl: number;
   /**
-   * Full `emwProfile` at this pipe MD: both pill-state lines, stations, limits,
-   * and shoe check. At pipe MD 0 the spotted side is the pipe-out copy of the
-   * in-place profile. `emwProfile` rejects a non-positive bit.
+   * Full `emwProfile` at this pipe MD, including the in-place side and the spotted side:
+   * both pill-state lines, stations, limits, and shoe check. At pipe MD 0 the spotted
+   * side is the pipe-out copy of the in-place profile. `emwProfile` rejects a non-positive bit.
    */
   spotted: EmwProfileResult;
 }
 
 export interface SimulateMeta {
   /** Equal to `steps.length`. */
+  stepCount: number;
+  /**
+   * @deprecated Use `stepCount`. Equal to `stepCount` and to `steps.length`.
+   */
   stepsLength: number;
-  /** Resolved step, ft. Default 100. Minimum 10. */
+  /** Resolved step, ft. Default `DEFAULT_STEP_FT`. Minimum `MIN_STEP_FT`. */
   stepFt: number;
 }
 
-export interface SimulateError {
-  code: "INVALID_STEP" | "INVALID_DEPTH" | "MISSING_BIT" | "STEP_LIMIT";
+interface SimulateErrorBase {
   field: "stepMd_ft" | "fromMd_ft" | "toMd_ft" | "well.bitMd_ft";
   message: string;
 }
+
+export type SimulateError =
+  | (SimulateErrorBase & { code: "INVALID_STEP" | "INVALID_DEPTH" | "MISSING_BIT" })
+  | (SimulateErrorBase & {
+      code: "STEP_LIMIT";
+      field: "stepMd_ft";
+      minStepFt: typeof MIN_STEP_FT;
+      maxSteps: typeof MAX_STEPS;
+      requestedSteps: number;
+    });
 
 export type SimulateResult =
   | {
@@ -112,11 +130,11 @@ export type SimulateResult =
       stepMd_ft: number;
       fromMd_ft: number;
       toMd_ft: number;
-      /** `stepsLength` equals `steps.length`. `stepFt` equals `stepMd_ft`. */
+      /** `stepCount` equals `steps.length`. `stepsLength` is the deprecated alias. `stepFt` equals `stepMd_ft`. */
       meta: SimulateMeta;
       /**
-       * In-place EMW of the job passed in, computed once.
-       * Not recomputed per step. Stations and shoe check are the in-place side only.
+       * Reference only. The in-place side of the job passed in, computed once as `SimulateFluidResult`.
+       * Not the full profile on each step, and not recomputed per step.
        */
       inPlace: SimulateFluidResult;
       /** `kpiVolumes(job)` for the job passed in. Output only. */
@@ -128,11 +146,34 @@ export type SimulateResult =
   | { ok: false; error: SimulateError };
 
 function fail(
-  code: SimulateError["code"],
-  field: SimulateError["field"],
+  code: "INVALID_STEP" | "INVALID_DEPTH" | "MISSING_BIT",
+  field: SimulateErrorBase["field"],
   message: string,
 ): SimulateResult {
   return { ok: false, error: { code, field, message } };
+}
+
+function stepLimit(requestedSteps: number): SimulateResult {
+  return {
+    ok: false,
+    error: {
+      code: "STEP_LIMIT",
+      field: "stepMd_ft",
+      message: `This range is more than ${MAX_STEPS} steps. The step is not coarsened.`,
+      minStepFt: MIN_STEP_FT,
+      maxSteps: MAX_STEPS,
+      requestedSteps,
+    },
+  };
+}
+
+/** How many pipe MDs `from` → `to` at `step` would emit, including both ends. */
+function requestedStepCount(from: number, to: number, step: number): number {
+  const span = Math.abs(to - from);
+  if (span <= 1e-9) return 1;
+  const full = Math.floor((span + 1e-9) / step);
+  if (span - full * step <= 1e-9) return full + 1;
+  return full + 2;
 }
 
 function inSpan(md: number, td: number): boolean {
@@ -145,7 +186,7 @@ function walk(from: number, to: number, step: number): number[] {
   if (Math.abs(to - from) <= 1e-9) return mds;
   const sign = to > from ? 1 : -1;
   let cursor = from;
-  for (let guard = 0; guard < STEP_CAP + 2; guard++) {
+  for (let guard = 0; guard < MAX_STEPS + 2; guard++) {
     const next = cursor + sign * step;
     const reached = sign > 0 ? next >= to - 1e-9 : next <= to + 1e-9;
     if (reached) {
@@ -154,7 +195,7 @@ function walk(from: number, to: number, step: number): number[] {
     }
     cursor = next;
     mds.push(cursor);
-    if (mds.length > STEP_CAP) return mds;
+    if (mds.length > MAX_STEPS) return mds;
   }
   return mds;
 }
@@ -259,9 +300,9 @@ export function simulate(job: Job, opts: SimulateOptions = {}): SimulateResult {
     return fail("INVALID_DEPTH", "toMd_ft", "TD must be a finite depth greater than or equal to 0.");
   }
 
-  const stepMd = opts.stepMd_ft ?? 100;
-  if (!Number.isFinite(stepMd) || stepMd < 10) {
-    return fail("INVALID_STEP", "stepMd_ft", "Pipe step must be a finite number of at least 10 ft.");
+  const stepMd = opts.stepMd_ft ?? DEFAULT_STEP_FT;
+  if (!Number.isFinite(stepMd) || stepMd < MIN_STEP_FT) {
+    return fail("INVALID_STEP", "stepMd_ft", `Pipe step must be a finite number of at least ${MIN_STEP_FT} ft.`);
   }
 
   const fromMd = opts.fromMd_ft ?? bit;
@@ -278,8 +319,8 @@ export function simulate(job: Job, opts: SimulateOptions = {}): SimulateResult {
         return fail("INVALID_DEPTH", "toMd_ft", "Pipe MD must lie between 0 and TD.");
       }
     }
-    if (explicit.length > STEP_CAP) {
-      return fail("STEP_LIMIT", "stepMd_ft", "This range is more than 1000 steps. The step is not coarsened.");
+    if (explicit.length > MAX_STEPS) {
+      return stepLimit(explicit.length);
     }
     mds = [...explicit];
     toMd = opts.toMd_ft ?? explicit[explicit.length - 1] ?? fromMd;
@@ -291,10 +332,10 @@ export function simulate(job: Job, opts: SimulateOptions = {}): SimulateResult {
     if (!inSpan(toMd, td)) {
       return fail("INVALID_DEPTH", "toMd_ft", "Pipe MD must lie between 0 and TD.");
     }
+    const requested = requestedStepCount(fromMd, toMd, stepMd);
+    if (requested > MAX_STEPS) return stepLimit(requested);
     mds = walk(fromMd, toMd, stepMd);
-    if (mds.length > STEP_CAP) {
-      return fail("STEP_LIMIT", "stepMd_ft", "This range is more than 1000 steps. The step is not coarsened.");
-    }
+    if (mds.length > MAX_STEPS) return stepLimit(mds.length);
   }
 
   return {
@@ -302,7 +343,7 @@ export function simulate(job: Job, opts: SimulateOptions = {}): SimulateResult {
     stepMd_ft: stepMd,
     fromMd_ft: fromMd,
     toMd_ft: toMd,
-    meta: { stepsLength: mds.length, stepFt: stepMd },
+    meta: { stepCount: mds.length, stepsLength: mds.length, stepFt: stepMd },
     inPlace: fluidSide(emwProfile(job), "inPlace"),
     kpi: kpiVolumes(job),
     pump: strokesSchedule(job, calculate(job)),

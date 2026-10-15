@@ -91,6 +91,9 @@ export {
   type PasteResult,
 } from "./paste";
 export {
+  DEFAULT_STEP_FT,
+  MAX_STEPS,
+  MIN_STEP_FT,
   simulate,
   type SimulateDepth,
   type SimulateEmwStation,

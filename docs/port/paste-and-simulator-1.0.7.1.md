@@ -527,30 +527,35 @@ Two flags next to that split are unused:
 
 Pure function of the canonical `Job`. The UI holds an index into `steps` for scrub, play, and pause. Speed is how fast the index advances. It is not an input to the physics. There is no `engine-nodp` call and no SafeVision table.
 
-1.0 stepped the pipe by 50 ft on the slider, 100 ft on the arrow keys, and 500 ft on the coarse buttons, each click as one shot (`floatDrainOnMove` uses the whole delta). 2.0 keeps pipe MD as the axis. Default `stepMd_ft` is 100. The minimum is 10. A step below 10, or a non-finite step, is `INVALID_STEP` on `stepMd_ft`. The value is not raised to 10. Pass 50 or 500 to match the other 1.0 controls; both are at least 10. The sequence includes `fromMd_ft` and `toMd_ft`. When the span is not a multiple of the step, the last interval is the remainder, so the end depth is exact.
+1.0 stepped the pipe by 50 ft on the slider, 100 ft on the arrow keys, and 500 ft on the coarse buttons, each click as one shot (`floatDrainOnMove` uses the whole delta). 2.0 keeps pipe MD as the axis. `DEFAULT_STEP_FT` is 100. `MIN_STEP_FT` is 10. A step below 10, or a non-finite step, is `INVALID_STEP` on `stepMd_ft`. The value is not raised to 10. Pass 50 or 500 to match the other 1.0 controls; both are at least 10. The sequence includes `fromMd_ft` and `toMd_ft`. When the span is not a multiple of the step, the last interval is the remainder, so the end depth is exact.
 
-The walk is capped at 1000 steps, inclusive. A generated walk or an explicit `mds` list longer than 1000 returns `STEP_LIMIT` on `stepMd_ft` and no `steps`. The step is not coarsened to fit. `meta.stepsLength` equals `steps.length`. `meta.stepFt` is the resolved step, which stays 100 when `mds` is set and `stepMd_ft` is omitted. A step below 10 is still `INVALID_STEP` when `mds` is set. `stepMd_ft` on the result equals `meta.stepFt`.
+The walk is capped at `MAX_STEPS` (1000), inclusive. A generated walk or an explicit `mds` list longer than that returns `STEP_LIMIT` on `stepMd_ft` and no `steps`. The error carries `{ code: "STEP_LIMIT", minStepFt, maxSteps, requestedSteps }` with `minStepFt` = `MIN_STEP_FT`, `maxSteps` = `MAX_STEPS`, and `requestedSteps` the count the call asked for. The step is not coarsened to fit. `meta.stepCount` equals `steps.length`. `meta.stepsLength` is the deprecated alias and equals `stepCount`. `meta.stepFt` is the resolved step, which stays 100 when `mds` is set and `stepMd_ft` is omitted. A step below 10 is still `INVALID_STEP` when `mds` is set. `stepMd_ft` on the result equals `meta.stepFt`.
 
 The default range is unchanged: omit `opts` and the walk still starts at `well.bitMd_ft` and ends at 0 ft, step 100 ft. On a 10480 ft bit that is 10480, 10380, …, 80, then 0. The main run is RIH from 0 to the bit, same step: `fromMd_ft: 0`, `toMd_ft: well.bitMd_ft`. On that 10480 ft bit the steps are 0, 100, …, 10400, then 10480.
 
 Each step is recomputed from the original job at that bit depth. 1.0 carried `pipeKmwVolume`, `pipeChaseVolume`, `pillVolume`, and `equalized` from the previous click. 2.0 does not port that inventory. `columnDisplacedByPipe` already returns the annular column for a bit depth. On this branch the trip tank uses one pipe OD. The tapered `stringVolumeBbl` split is #6.
 
 ```ts
+export const DEFAULT_STEP_FT = 100;
+export const MIN_STEP_FT = 10;
+export const MAX_STEPS = 1000;
+
 export interface SimulateOptions {
   /** Start pipe MD, ft. Default `job.well.bitMd_ft`. Still the trip-tank origin when `mds` is set. */
   fromMd_ft?: number;
   /** End pipe MD, ft. Default 0. Ignored for the step list when `mds` is set. */
   toMd_ft?: number;
-  /** Pipe-MD step, ft. Default 100. Minimum 10, including when `mds` is set. */
+  /** Pipe-MD step, ft. Default `DEFAULT_STEP_FT`. Minimum `MIN_STEP_FT`, including when `mds` is set. */
   stepMd_ft?: number;
   /**
    * Explicit pipe MDs, ft, in this order. When set, `steps` are these depths and nothing else.
    * A single-point evaluation is a one-element list. `fromMd_ft` still anchors `tripTank_bbl` and `pipeDelta_ft`.
-   * Longer than 1000 is `STEP_LIMIT`.
+   * Longer than `MAX_STEPS` is `STEP_LIMIT`.
    */
   mds?: number[];
 }
 
+/** Pill top or bottom. `null` on either depth means the pill is not in the hole. */
 export interface SimulateDepth {
   md_ft: number | null;
   tvd_ft: number | null;
@@ -582,9 +587,9 @@ export interface SimulateStep {
   pipeTvd_ft: number | null;
   /** `pipeMd_ft - fromMd_ft`. Negative while pulling. */
   pipeDelta_ft: number;
-  /** Pill top at this pipe MD. Both depths come from `pillPlacement` and `tvdAt`. */
+  /** Pill top. `{ md_ft: number | null, tvd_ft: number | null }`. Null means not in the hole. */
   pillTop: SimulateDepth;
-  /** Pill bottom at this pipe MD. */
+  /** Pill bottom. Same shape as `pillTop`. */
   pillBottom: SimulateDepth;
   /** `chaseVolume` at this pipe MD. */
   chase_bbl: number | null;
@@ -598,25 +603,36 @@ export interface SimulateStep {
    */
   tripTank_bbl: number;
   /**
-   * Full `emwProfile` at this pipe MD: both pill-state lines, stations, limits,
-   * and shoe check. At pipe MD 0 the spotted side is the pipe-out copy of the
-   * in-place profile. `emwProfile` rejects a non-positive bit.
+   * Full `emwProfile` at this pipe MD, including the in-place side and the spotted side.
+   * At pipe MD 0 the spotted side is the pipe-out copy of the in-place profile.
+   * `emwProfile` rejects a non-positive bit.
    */
   spotted: EmwProfileResult;
 }
 
 export interface SimulateMeta {
   /** Equal to `steps.length`. */
+  stepCount: number;
+  /** @deprecated Use `stepCount`. Equal to `stepCount`. */
   stepsLength: number;
-  /** Resolved step, ft. Default 100. Minimum 10. */
+  /** Resolved step, ft. Default `DEFAULT_STEP_FT`. Minimum `MIN_STEP_FT`. */
   stepFt: number;
 }
 
-export interface SimulateError {
-  code: "INVALID_STEP" | "INVALID_DEPTH" | "MISSING_BIT" | "STEP_LIMIT";
-  field: "stepMd_ft" | "fromMd_ft" | "toMd_ft" | "well.bitMd_ft";
-  message: string;
-}
+export type SimulateError =
+  | {
+      code: "INVALID_STEP" | "INVALID_DEPTH" | "MISSING_BIT";
+      field: "stepMd_ft" | "fromMd_ft" | "toMd_ft" | "well.bitMd_ft";
+      message: string;
+    }
+  | {
+      code: "STEP_LIMIT";
+      field: "stepMd_ft";
+      message: string;
+      minStepFt: 10;
+      maxSteps: 1000;
+      requestedSteps: number;
+    };
 
 export type SimulateResult =
   | {
@@ -624,11 +640,11 @@ export type SimulateResult =
       stepMd_ft: number;
       fromMd_ft: number;
       toMd_ft: number;
-      /** `stepsLength` equals `steps.length`. `stepFt` equals `stepMd_ft`. */
+      /** `stepCount` equals `steps.length`. `stepsLength` is the deprecated alias. `stepFt` equals `stepMd_ft`. */
       meta: SimulateMeta;
       /**
-       * In-place EMW of the job passed in, computed once.
-       * Not recomputed per step. Stations and shoe check are the in-place side only.
+       * Reference only. `SimulateFluidResult` for the in-place side of the job passed in, computed once.
+       * Not the full profile carried on each step, and not recomputed per step.
        */
       inPlace: SimulateFluidResult;
       /** `kpiVolumes(job)` for the job passed in. Output only. */
@@ -644,16 +660,16 @@ export function simulate(job: Job, opts?: SimulateOptions): SimulateResult;
 
 Work per call:
 
-1. Reject a non-finite `stepMd_ft`, or a step below 10 ft, with `INVALID_STEP`, including when `mds` is set. Do not raise it to 10. Reject a from/to MD outside `0…well.mdTd_ft`, or any explicit MD that is non-finite or outside that span, with `INVALID_DEPTH`. Do not clip the way 1.0 `clamp` did and then continue silently. Count the steps before building them. More than 1000 is `STEP_LIMIT` and the call returns no `steps`. Do not coarsen the step. When `mds` is set and the list is within the cap, `steps.length` equals `mds.length` and `steps[i].pipeMd_ft` equals `mds[i]`. `meta.stepsLength` equals that length and `meta.stepFt` is the resolved step.
+1. Reject a non-finite `stepMd_ft`, or a step below `MIN_STEP_FT`, with `INVALID_STEP`, including when `mds` is set. Do not raise it to 10. Reject a from/to MD outside `0…well.mdTd_ft`, or any explicit MD that is non-finite or outside that span, with `INVALID_DEPTH`. Do not clip the way 1.0 `clamp` did and then continue silently. Count the steps before building them. More than `MAX_STEPS` is `STEP_LIMIT` and the call returns no `steps`. That error is `{ code: "STEP_LIMIT", field: "stepMd_ft", message, minStepFt, maxSteps, requestedSteps }`. Do not coarsen the step. When `mds` is set and the list is within the cap, `steps.length` equals `mds.length` and `steps[i].pipeMd_ft` equals `mds[i]`. `meta.stepCount` equals that length, `meta.stepsLength` equals `stepCount`, and `meta.stepFt` is the resolved step.
 2. `kpi = kpiVolumes(job)` once, on the job passed in. That supplies MASP, KMW, chase at the procedure bit, `pillVolume_bbl` (`stringCapOverPillInterval_bbl + chase_bbl`), the breakdown, backfill, and POOH fill. Stand length still belongs to `poohFill` inside that result. A `STAND_LENGTH` error stays on `poohFill` and does not drop the steps.
 3. `pump = strokesSchedule(job, calculate(job))` once, on that same job. Stage bbl, strokes, and minutes are that function's rows. SPM blank leaves minutes null. This replaces the 1.0 `desiredResolution` ladder. The pipe steps do not walk these rows.
 4. For each pipe MD, call the existing functions with `bitMd_ft` set to that MD and discard the argument afterward.
    - `placed = columnDisplacedByPipe` at that MD.
-   - Pill top and bottom from `pillPlacement(placed)`, each as `{ md_ft, tvd_ft }` with TVD from `tvdAt`.
+   - Pill top and bottom from `pillPlacement(placed)`, each `{ md_ft: number | null, tvd_ft: number | null }`. TVD comes from `tvdAt` when the measured depth exists. Null on either depth means the pill is not in the hole.
    - `chaseVolume` and `kmwInString` for the bbl fields.
    - `tripTank_bbl` is the signed closed-pipe displacement from `fromMd_ft` to this MD. Closed-pipe displacement is the one string OD: `stringOd_in`² / 1029.4 bbl/ft times the feet between the two MDs. The first step is 0. A later step equals the previous step plus the signed increment between those two MDs. On EXAMPLE B and EXAMPLE C a step from 8400 to 8600 ft is `(stringOd_in² / 1029.4) × 200` bbl, and the reverse step is the negative of that.
    - An increment that contains a string crossover is split at that crossover once #6 lands. The rate above the boundary is the upper section's OD. The rate below it is the lower section's OD. The two pieces are summed. They are not replaced by one rate times the whole increment. On EXAMPLE D the boundary is 8480 ft MD (5.5 in OD above, 4.0 in OD below). A step from 8400 to 8600 ft is `(5.5² / 1029.4) × 80 + (4² / 1029.4) × 120` bbl, and the reverse step is the negative of that. That case stays in the repo as `describe.skip`, with the comment `// re-enable when #6 (tapered strings) lands`.
-   - `spotted` is the full `emwProfile` at that MD: both pill-state lines, stations, limits, and shoe check. Sections and crossovers are part of the skipped EXAMPLE D case and are not fields on this branch. The UI plots `spotted.spotted.lines`. It does not sample a second hydrostatic. At pipe MD 0 the spotted side of that profile is the pipe-out copy. `inPlace` on the result is still the in-place side of the job passed in, computed once, and is not recomputed per step.
+   - `spotted` is the full `emwProfile` at that MD, including the in-place side and the spotted side: both pill-state lines, stations, limits, and shoe check. Sections and crossovers are part of the skipped EXAMPLE D case and are not fields on this branch. The UI plots `spotted.spotted.lines`. It does not sample a second hydrostatic. At pipe MD 0 the spotted side of that profile is the pipe-out copy. `inPlace` on the result is a reference-only `SimulateFluidResult` for the in-place side of the job passed in, computed once, and is not the full profile and not recomputed per step.
 
 Play, pause, and scrub are the index into `steps`. They are not arguments of `simulate`. A playback speed of one step per tick moves `stepMd_ft` per tick. Choosing 50, 100, or 500 is the 1.0 slider, arrow key, and coarse button.
 
@@ -687,7 +703,7 @@ All three results are `ok: true`. `step.pipeMd_ft` equals `job.well.bitMd_ft` ex
 | `pillTop.md_ft`, `pillBottom.md_ft` | `pillPlacement` of the spotted column `emwProfile` builds with `columnDisplacedByPipe(job, job.well.bitMd_ft)` | 1e-4 ft |
 | `pillTop.tvd_ft`, `pillBottom.tvd_ft` | `tvdAt` of those measured depths | 1e-4 ft |
 
-`pillTop` is that spotted column. It is not required to equal `kpi.kmwInString.pillTopMd_ft`, which is the pill on the stored column. `inPlace` is the in-place side of the job passed in, computed once. `steps[0].spotted` is the full `emwProfile` at the procedure bit, including lines, stations, limits, and shoe check. The skipped EXAMPLE D case also checks `sections` and `crossovers` against `emw.sections` and `emw.crossovers` (exact `md_ft`, `tvd_ft`, `id_in`, `od_in`, labels). Those fields are not on this branch.
+`pillTop` and `pillBottom` are `{ md_ft: number | null, tvd_ft: number | null }`. Null means the pill is not in the hole. `pillTop` is that spotted column. It is not required to equal `kpi.kmwInString.pillTopMd_ft`, which is the pill on the stored column. `inPlace` is a reference-only `SimulateFluidResult` for the in-place side of the job passed in, computed once. `steps[0].spotted` is the full `emwProfile` at the procedure bit, including the in-place side: lines, stations, limits, and shoe check. The skipped EXAMPLE D case also checks `sections` and `crossovers` against `emw.sections` and `emw.crossovers` (exact `md_ft`, `tvd_ft`, `id_in`, `od_in`, labels). Those fields are not on this branch.
 
 `simulate(job).kpi` matches `kpiVolumes(job)` on `pillVolume_bbl`, `pillVolumeBreakdown.stringCapOverPillInterval_bbl`, and `pillVolumeBreakdown.chase_bbl` to 1e-6 bbl. That `kpi` value is an output of the same job. `pillVolumeBreakdown.chase_bbl` also matches `steps[0].chase_bbl` to 1e-6 bbl. `steps[0].tripTank_bbl` is 0, because that step is `fromMd_ft`.
 
