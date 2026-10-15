@@ -1,0 +1,36 @@
+{
+  "case": "EXAMPLE B 8045 ft shoe pill trip-in, target 12 ppg",
+  "pump": {
+    "liner_in": 6,
+    "stroke_in": 12,
+    "eff": 0.97,
+    "bblPerStk": 0.101827,
+    "spm": 40
+  },
+  "rows": [
+    {
+      "n": 0,
+      "stage_bbl": 0,
+      "cum_bbl": 0,
+      "strokes": 0.0,
+      "cumStrokes": 0.0,
+      "min": 0.0
+    },
+    {
+      "n": 1,
+      "stage_bbl": 0,
+      "cum_bbl": 0,
+      "strokes": 0.0,
+      "cumStrokes": 0.0,
+      "min": 0.0
+    },
+    {
+      "n": 2,
+      "stage_bbl": 53.669,
+      "cum_bbl": 53.669,
+      "strokes": 527.1,
+      "cumStrokes": 527.1,
+      "min": 13.18
+    }
+  ]
+}

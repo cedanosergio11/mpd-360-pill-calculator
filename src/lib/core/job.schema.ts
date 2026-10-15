@@ -96,6 +96,27 @@ export interface TripInputs {
   flow_gpm: number;
 }
 
+/**
+ * Triplex pump for the strokes schedule. Not required to run `calculate`.
+ * `bblPerStk`, when a finite number greater than 0, overrides the liner formula.
+ * Omitted liner, stroke, and efficiency are allowed only with that override.
+ */
+export interface PumpInput {
+  /** Liner ID, in. */
+  linerIn?: number | null;
+  /** Stroke length, in. */
+  strokeIn?: number | null;
+  /** Volumetric efficiency as a fraction in (0, 1]. */
+  efficiency?: number | null;
+  /** Direct output, bbl/stk. Explicit 0 is an error and does not fall through. */
+  bblPerStk?: number | null;
+  /**
+   * Strokes per minute. Omitted, null, or 0 leaves schedule `minutes` and `cumMinutes` null.
+   * A negative or non-finite value is an error.
+   */
+  spm?: number | null;
+}
+
 export interface Job {
   schemaVersion: SchemaVersion;
   name: string;
@@ -117,4 +138,6 @@ export interface Job {
   /** Fluids inside the string, surface to the bit. Same shape as `column`. */
   pipeColumn: ColumnSegment[];
   trip: TripInputs;
+  /** Optional. `strokesSchedule` reports MISSING_PUMP when this is absent. */
+  pump?: PumpInput;
 }

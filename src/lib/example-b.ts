@@ -24,5 +24,7 @@ export const exampleB: Job = {
     { fluidId: "mud", topMd_ft: 10480, bottomMd_ft: 10530 },
   ],
   pipeColumn: [{ fluidId: "mud", topMd_ft: 0, bottomMd_ft: 10480 }],
+  // EXAMPLE triplex pump, from MPGenie's strokes-example-b.expected.json basis.
+  pump: { linerIn: 6, strokeIn: 12, efficiency: 0.97, spm: 40 },
   trip: { speeds_ftmin: [40, 80, 100, 150, 200, 250, 300], pipeEnd: "closed", clinging: 0.45, eccentricity: 0, sbpConn_psi: 325, sbpCirc_psi: 0, flow_gpm: 300 },
 };
