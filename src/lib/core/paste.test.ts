@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { exampleB } from "@/lib/example-b";
 import type { Job } from "./job.schema";
+import { loadPreset } from "./preset";
 import { inputHash } from "./hash";
 import { applyPaste, getPath, parseWellPaste, previewPaste, setPath } from "./paste";
 
@@ -82,9 +83,9 @@ describe("applyPaste", () => {
     const applied = applyPaste(job, preview);
     const expected = structuredClone(job);
     for (const row of preview.rows) setPath(expected, row.field, row.newValue);
-    expected.meta = { modified: true, isExample: false };
+    expected.meta = { presetId: null, modified: true, isExample: false };
     expect(applied).toEqual(expected);
-    expect(applied.meta).toEqual({ modified: true, isExample: false });
+    expect(applied.meta).toEqual({ presetId: null, isExample: false, modified: true });
     expect(job).toEqual(exampleB);
     expect(exampleB.meta).toBeUndefined();
   });
@@ -182,7 +183,7 @@ describe("applyPaste", () => {
     const beforeHash = inputHash(job);
     const preview = previewPaste(job, paste("Well name\tPasted name"));
     const applied = applyPaste(job, preview) as Job & { presetBaseline?: string };
-    expect(applied.meta).toEqual({ modified: true, isExample: false });
+    expect(applied.meta).toEqual({ presetId: null, isExample: false, modified: true });
     expect(applied.presetBaseline).toBeUndefined();
     expect(applied.name).toBe("Pasted name");
     expect(job).toEqual(before);
@@ -191,6 +192,14 @@ describe("applyPaste", () => {
     const { meta: _meta, ...withoutMeta } = applied;
     expect(inputHash(applied)).toBe(inputHash(withoutMeta as Job));
     expect(inputHash(applied)).not.toBe(beforeHash);
+  });
+
+  it("keeps the preset id when marking the paste edited", () => {
+    const job = loadPreset("B");
+    const applied = applyPaste(job, previewPaste(job, paste("Well name\tPasted name")));
+    expect(applied.meta).toEqual({ presetId: "B", isExample: false, modified: true });
+    expect(applied.name).toBe("Pasted name");
+    expect(job.meta).toEqual({ presetId: "B", isExample: true, modified: false });
   });
 });
 

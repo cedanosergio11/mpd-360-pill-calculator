@@ -90,12 +90,11 @@ export interface SimulateStep {
    */
   tripTank_bbl: number;
   /**
-   * Spotted EMW at this pipe MD. `spottedColumn` uses `columnDisplacedByPipe(job, pipeMd)`.
-   * Stations carry only the spotted EMW. `shoeCheck` is the spotted rows.
-   * `sections` and `crossovers` are the string at this pipe MD.
-   * At pipe MD 0 this is the pipe-out copy of the in-place profile.
+   * Full `emwProfile` at this pipe MD: both pill-state lines, stations, limits,
+   * shoe check, sections, and crossovers. At pipe MD 0 the spotted side is the
+   * pipe-out copy of the in-place profile. `emwProfile` rejects a non-positive bit.
    */
-  spotted: SimulateFluidResult;
+  spotted: EmwProfileResult;
 }
 
 export interface SimulateMeta {
@@ -226,11 +225,11 @@ function fluidSide(profile: EmwProfileResult, pillState: "inPlace" | "spotted"):
   };
 }
 
-function spottedAt(job: Job, pipeMd: number): SimulateFluidResult {
-  if (pipeMd > 0) return fluidSide(emwProfile(withBit(job, pipeMd)), "spotted");
+function spottedAt(job: Job, pipeMd: number): EmwProfileResult {
+  if (pipeMd > 0) return emwProfile(withBit(job, pipeMd));
   const profile = emwProfile(job);
-  if (!profile.ok) return fluidSide(profile, "spotted");
-  return fluidSide(pipeOutProfile(profile), "spotted");
+  if (!profile.ok) return profile;
+  return pipeOutProfile(profile);
 }
 
 function stepAt(job: Job, index: number, pipeMd: number, fromMd: number): SimulateStep {

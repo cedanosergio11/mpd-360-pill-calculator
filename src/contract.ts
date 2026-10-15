@@ -3,6 +3,7 @@
 export type {
   Job,
   JobMeta,
+  PresetId,
   Fluid,
   FannReading,
   ColumnSegment,
@@ -102,6 +103,12 @@ export {
   previewPaste,
   applyPaste,
   simulate,
+  LEGACY_JOB_META,
+  appDefaultJob,
+  loadPreset,
+  markEdited,
+  metaFromSaved,
+  resetToPreset,
 } from "@/lib/core";
 /** True once the core schema grows `pipeColumn` (fluid intervals inside the string). In core since e232618. */
 export const HAS_PIPE_COLUMN = true as const;

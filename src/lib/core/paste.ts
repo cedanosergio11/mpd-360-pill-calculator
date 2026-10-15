@@ -1,4 +1,5 @@
 import type { Job, StringSection } from "./job.schema";
+import { markEdited } from "./preset";
 
 /**
  * Excel paste for the 2.0 job.
@@ -1001,6 +1002,5 @@ export function applyPaste(job: Job, preview: PastePreview): Job {
     }
     setPath(next, row.field, row.newValue);
   }
-  next.meta = { modified: true, isExample: false };
-  return next;
+  return markEdited(next);
 }

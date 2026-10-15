@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { exampleB, exampleC, exampleD } from "@/lib/example-b";
 import { columnDisplacedByPipe, pillPlacement } from "./column";
-import { emwProfile, type EmwLines } from "./emw-profile";
+import { emwProfile, type EmwLines, type EmwProfileResult } from "./emw-profile";
 import type { Job } from "./job.schema";
 import { kpiVolumes } from "./kpi";
 import {
@@ -84,6 +84,39 @@ function expectFluid(left: SimulateFluidResult, right: SimulateFluidResult, labe
   expect(a.crossovers, label).toEqual(b.crossovers);
 }
 
+function okEmw(emw: EmwProfileResult, where: string): Extract<EmwProfileResult, { ok: true }> {
+  if (!emw.ok) throw new Error(`${where}: ${emw.error.message}`);
+  return emw;
+}
+
+function expectProfile(left: EmwProfileResult, right: EmwProfileResult, label: string) {
+  const a = okEmw(left, label);
+  const b = okEmw(right, label);
+  expect(a.inPlace.label, label).toBe(b.inPlace.label);
+  expect(a.spotted.label, label).toBe(b.spotted.label);
+  expectFullLines(a.inPlace.lines, b.inPlace.lines, `${label} inPlace`);
+  expectFullLines(a.spotted.lines, b.spotted.lines, `${label} spotted`);
+  expect(a.limits, label).toEqual(b.limits);
+  expect(a.stations.length, label).toBe(b.stations.length);
+  for (let i = 0; i < a.stations.length; i++) {
+    expect(a.stations[i].label, label).toBe(b.stations[i].label);
+    for (const name of LINES) {
+      near(a.stations[i].emw.inPlace[name], b.stations[i].emw.inPlace[name], 1e-6, `${label} station inPlace ${name}`);
+      near(a.stations[i].emw.spotted[name], b.stations[i].emw.spotted[name], 1e-6, `${label} station spotted ${name}`);
+    }
+  }
+  expect(a.shoeCheck.length, label).toBe(b.shoeCheck.length);
+  for (let i = 0; i < a.shoeCheck.length; i++) {
+    expect(a.shoeCheck[i].line, label).toBe(b.shoeCheck[i].line);
+    expect(a.shoeCheck[i].pillState, label).toBe(b.shoeCheck[i].pillState);
+    near(a.shoeCheck[i].emw_ppg, b.shoeCheck[i].emw_ppg, 1e-6, `${label} shoe emw`);
+    near(a.shoeCheck[i].margin_ppg, b.shoeCheck[i].margin_ppg, 1e-6, `${label} shoe margin ppg`);
+    near(a.shoeCheck[i].margin_psi, b.shoeCheck[i].margin_psi, 1e-4, `${label} shoe margin psi`);
+  }
+  expect(a.sections, label).toEqual(b.sections);
+  expect(a.crossovers, label).toEqual(b.crossovers);
+}
+
 function expectPipeFields(left: SimulateStep, right: SimulateStep, label: string) {
   near(left.chase_bbl, right.chase_bbl, 1e-6, `${label} chase`);
   near(left.stringCapacity_bbl, right.stringCapacity_bbl, 1e-6, `${label} string`);
@@ -92,7 +125,7 @@ function expectPipeFields(left: SimulateStep, right: SimulateStep, label: string
   near(left.pillTop.tvd_ft, right.pillTop.tvd_ft, 1e-4, `${label} pill top tvd`);
   near(left.pillBottom.md_ft, right.pillBottom.md_ft, 1e-4, `${label} pill bottom md`);
   near(left.pillBottom.tvd_ft, right.pillBottom.tvd_ft, 1e-4, `${label} pill bottom tvd`);
-  expectFluid(left.spotted, right.spotted, `${label} spotted`);
+  expectProfile(left.spotted, right.spotted, `${label} spotted`);
 }
 
 function mdGrid(bit: number, step = 80): number[] {
@@ -141,39 +174,44 @@ describe("simulate steps[0]", () => {
     );
     near(step.chase_bbl, kpi.pillVolumeBreakdown.chase_bbl, 1e-6, "step chase");
 
-    const spotted = okFluid(step.spotted, "step spotted");
+    const profile = okEmw(step.spotted, "step spotted");
     const inPlace = okFluid(sim.inPlace, "result inPlace");
+    expect(profile.limits).toEqual(emw.limits);
     expect(inPlace.label).toBe(emw.inPlace.label);
-    expect(spotted.label).toBe(emw.spotted.label);
+    expect(profile.inPlace.label).toBe(emw.inPlace.label);
+    expect(profile.spotted.label).toBe(emw.spotted.label);
     expect(inPlace.label).toBe("Pill in place (pipe out)");
-    expect(spotted.label).toBe("After RIH to bit (closed pipe)");
+    expect(profile.spotted.label).toBe("After RIH to bit (closed pipe)");
     expectLinesAt(inPlace.lines, emw.inPlace.lines, [job.well.shoeMd_ft, job.well.bitMd_ft], "inPlace");
-    expectLinesAt(spotted.lines, emw.spotted.lines, [job.well.shoeMd_ft, job.well.bitMd_ft], "spotted");
-    expect(spotted.stations.length).toBe(emw.stations.length);
+    expectLinesAt(profile.inPlace.lines, emw.inPlace.lines, [job.well.shoeMd_ft, job.well.bitMd_ft], "profile inPlace");
+    expectLinesAt(profile.spotted.lines, emw.spotted.lines, [job.well.shoeMd_ft, job.well.bitMd_ft], "spotted");
+    expect(profile.stations.length).toBe(emw.stations.length);
     expect(inPlace.stations.length).toBe(emw.stations.length);
     for (let i = 0; i < emw.stations.length; i++) {
       for (const name of LINES) {
         near(inPlace.stations[i].emw[name], emw.stations[i].emw.inPlace[name], 1e-6, `station inPlace ${name}`);
-        near(spotted.stations[i].emw[name], emw.stations[i].emw.spotted[name], 1e-6, `station spotted ${name}`);
+        near(profile.stations[i].emw.inPlace[name], emw.stations[i].emw.inPlace[name], 1e-6, `profile station inPlace ${name}`);
+        near(profile.stations[i].emw.spotted[name], emw.stations[i].emw.spotted[name], 1e-6, `station spotted ${name}`);
       }
     }
     const inPlaceShoe = emw.shoeCheck.filter((row) => row.pillState === "inPlace");
     const spottedShoe = emw.shoeCheck.filter((row) => row.pillState === "spotted");
     expect(inPlace.shoeCheck.length).toBe(inPlaceShoe.length);
-    expect(spotted.shoeCheck.length).toBe(spottedShoe.length);
+    expect(profile.shoeCheck.length).toBe(emw.shoeCheck.length);
     for (let i = 0; i < inPlaceShoe.length; i++) {
       expect(inPlace.shoeCheck[i].pillState).toBe("inPlace");
       near(inPlace.shoeCheck[i].emw_ppg, inPlaceShoe[i].emw_ppg, 1e-6, "inPlace shoe emw");
       near(inPlace.shoeCheck[i].margin_psi, inPlaceShoe[i].margin_psi, 1e-4, "inPlace shoe psi");
     }
     for (let i = 0; i < spottedShoe.length; i++) {
-      expect(spotted.shoeCheck[i].pillState).toBe("spotted");
-      near(spotted.shoeCheck[i].emw_ppg, spottedShoe[i].emw_ppg, 1e-6, "spotted shoe emw");
-      near(spotted.shoeCheck[i].margin_ppg, spottedShoe[i].margin_ppg, 1e-6, "spotted shoe margin");
-      near(spotted.shoeCheck[i].margin_psi, spottedShoe[i].margin_psi, 1e-4, "spotted shoe psi");
+      const row = profile.shoeCheck.find((item) => item.pillState === "spotted" && item.line === spottedShoe[i].line);
+      expect(row?.pillState).toBe("spotted");
+      near(row?.emw_ppg ?? null, spottedShoe[i].emw_ppg, 1e-6, "spotted shoe emw");
+      near(row?.margin_ppg ?? null, spottedShoe[i].margin_ppg, 1e-6, "spotted shoe margin");
+      near(row?.margin_psi ?? null, spottedShoe[i].margin_psi, 1e-4, "spotted shoe psi");
     }
-    expect(spotted.sections).toEqual(emw.sections);
-    expect(spotted.crossovers).toEqual(emw.crossovers);
+    expect(profile.sections).toEqual(emw.sections);
+    expect(profile.crossovers).toEqual(emw.crossovers);
     expect(inPlace.sections).toEqual(emw.sections);
     expect(inPlace.crossovers).toEqual(emw.crossovers);
 
@@ -202,24 +240,36 @@ describe("simulate pipe-out", () => {
       [last, sim.inPlace],
       [rih.steps[0], rih.inPlace],
     ] as const) {
-      const spotted = okFluid(step.spotted, job.name);
+      const profile = okEmw(step.spotted, job.name);
       const inPlace = okFluid(reference, job.name);
       expect(inPlace.label).toBe("Pill in place (pipe out)");
-      expect(spotted.label).toBe("After RIH to bit (closed pipe)");
-      expectFullLines(spotted.lines, inPlace.lines, job.name);
-      expect(spotted.stations.length).toBe(inPlace.stations.length);
-      for (let i = 0; i < spotted.stations.length; i++) {
+      expect(profile.inPlace.label).toBe("Pill in place (pipe out)");
+      expect(profile.spotted.label).toBe("After RIH to bit (closed pipe)");
+      expect(profile.limits.fit_ppg).toBe(job.well.fit_ppg);
+      expect(profile.sections.length).toBeGreaterThan(0);
+      expect(Array.isArray(profile.crossovers)).toBe(true);
+      expectFullLines(profile.spotted.lines, profile.inPlace.lines, job.name);
+      expectFullLines(profile.spotted.lines, inPlace.lines, job.name);
+      expect(profile.stations.length).toBe(inPlace.stations.length);
+      for (let i = 0; i < profile.stations.length; i++) {
         for (const name of LINES) {
           near(
-            spotted.stations[i].emw[name],
+            profile.stations[i].emw.spotted[name],
+            profile.stations[i].emw.inPlace[name],
+            1e-6,
+            `${job.name} ${profile.stations[i].label} ${name}`,
+          );
+          near(
+            profile.stations[i].emw.spotted[name],
             inPlace.stations[i].emw[name],
             1e-6,
-            `${job.name} ${spotted.stations[i].label} ${name}`,
+            `${job.name} ref ${profile.stations[i].label} ${name}`,
           );
         }
       }
-      expect(spotted.shoeCheck.length).toBe(inPlace.shoeCheck.length);
-      for (const row of spotted.shoeCheck) {
+      const spottedShoe = profile.shoeCheck.filter((row) => row.pillState === "spotted");
+      expect(spottedShoe.length).toBe(inPlace.shoeCheck.length);
+      for (const row of spottedShoe) {
         const other = inPlace.shoeCheck.find((item) => item.line === row.line);
         near(row.emw_ppg, other?.emw_ppg ?? null, 1e-6, `${job.name} shoe ${row.line}`);
         near(row.margin_ppg, other?.margin_ppg ?? null, 1e-6, `${job.name} margin ${row.line}`);
@@ -265,6 +315,30 @@ describe("simulate EXAMPLE D trip tank", () => {
     const outDelta = outward.steps[1].tripTank_bbl - outward.steps[0].tripTank_bbl;
     near(inDelta, expected, 1e-6, "inward split");
     near(outDelta, -expected, 1e-6, "outward split");
+  });
+});
+
+describe("simulate spotted profile", () => {
+  it("is a full EMW profile, including limits, on EXAMPLE D", () => {
+    const sim = okSim(simulate(exampleD, { mds: [exampleD.well.bitMd_ft], fromMd_ft: 0 }));
+    const spotted = sim.steps[0].spotted;
+    const full = emwProfile(exampleD);
+    expect(spotted.ok).toBe(true);
+    expect(full.ok).toBe(true);
+    if (!spotted.ok || !full.ok) return;
+    expect(spotted.inPlace.lines.static.length).toBeGreaterThan(0);
+    expect(spotted.spotted.lines.static.length).toBeGreaterThan(0);
+    expect(spotted.spotted.lines.staticSbp.length).toBeGreaterThan(0);
+    expect(spotted.spotted.lines.ecd.length).toBeGreaterThan(0);
+    expect(spotted.stations.length).toBeGreaterThan(0);
+    expect(spotted.stations).toEqual(full.stations);
+    expect(spotted.limits).toEqual(full.limits);
+    expect(spotted.shoeCheck.length).toBeGreaterThan(0);
+    expect(spotted.shoeCheck).toEqual(full.shoeCheck);
+    expect(spotted.sections.length).toBeGreaterThan(0);
+    expect(spotted.sections).toEqual(full.sections);
+    expect(spotted.crossovers.length).toBeGreaterThan(0);
+    expect(spotted.crossovers).toEqual(full.crossovers);
   });
 });
 

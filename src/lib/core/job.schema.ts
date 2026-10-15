@@ -138,10 +138,19 @@ export interface PumpInput {
   spm?: number | null;
 }
 
-/** Paste flags. Excluded from `inputHash`, so they do not move a preset baseline. */
+/** EXAMPLE B, C, or D. Null is the app default, not one of those presets. */
+export type PresetId = "B" | "C" | "D";
+
+/**
+ * Preset flags. Saved and loaded with the job.
+ * Excluded from `inputHash`, so they do not move a preset baseline.
+ * Absent on the preset constants until `loadPreset`. An older save with no `meta`
+ * loads as `{ presetId: null, isExample: false, modified: true }`.
+ */
 export interface JobMeta {
-  modified: boolean;
+  presetId: PresetId | null;
   isExample: boolean;
+  modified: boolean;
 }
 
 export interface Job {
@@ -149,7 +158,7 @@ export interface Job {
   name: string;
   /** ISO-8601 timestamp. Excluded from `inputHash`. */
   savedAt: string;
-  /** Set by `applyPaste`. Absent on a preset. Excluded from `inputHash`. */
+  /** Preset flags. Excluded from `inputHash`. */
   meta?: JobMeta;
   well: Well;
   /**

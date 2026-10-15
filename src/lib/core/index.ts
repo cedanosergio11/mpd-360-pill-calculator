@@ -10,6 +10,7 @@ export {
   type Fluid,
   type Job,
   type JobMeta,
+  type PresetId,
   type PillMode,
   type PipeEnd,
   type SurveyStation,
@@ -68,6 +69,14 @@ export {
   type PoohFillStand,
   type PoohFillValue,
 } from "./kpi";
+export {
+  LEGACY_JOB_META,
+  appDefaultJob,
+  loadPreset,
+  markEdited,
+  metaFromSaved,
+  resetToPreset,
+} from "./preset";
 export {
   applyPaste,
   parseWellPaste,
