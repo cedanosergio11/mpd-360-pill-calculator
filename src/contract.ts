@@ -26,6 +26,23 @@ export type {
   TripScheduleRow,
   Issue,
   IssueLevel,
+  KpiError,
+  KpiVolumesInput,
+  KpiVolumesResult,
+  MaspResult,
+  MaspValue,
+  KmwResult,
+  KmwValue,
+  ChaseResult,
+  ChaseValue,
+  KmwInStringResult,
+  KmwInStringValue,
+  KmwBackfillResult,
+  KmwBackfillValue,
+  PoohFillResult,
+  PoohFillValue,
+  PoohFillStand,
+  AnnularSection,
 } from "@/lib/core";
 export type { TripEmw, TripPointKey, SpeedEmw } from "@/lib/core";
 export {
@@ -35,6 +52,13 @@ export {
   SCHEMA_VERSION,
   pumpOutput_bblPerStk,
   strokesSchedule,
+  masp,
+  kmw,
+  chaseVolume,
+  kmwInString,
+  kmwBackfill,
+  poohFill,
+  kpiVolumes,
 } from "@/lib/core";
 /** True once the core schema grows `pipeColumn` (fluid intervals inside the string). In core since e232618. */
 export const HAS_PIPE_COLUMN = true as const;
