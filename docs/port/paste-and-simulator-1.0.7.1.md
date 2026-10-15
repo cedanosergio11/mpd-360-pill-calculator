@@ -449,6 +449,8 @@ An older save with no `meta` loads as `{ presetId: null, isExample: false, modif
 
 `markEdited(job)` is pure. It sets `isExample` to false and `modified` to true and keeps `presetId`. Every input edit uses it, including `applyPaste` and the store's field setter.
 
+`jobLabel(job)` is pure. The screen header and the print title both use it. When `meta.isExample` is true it returns `EXAMPLE B/C/D`. Otherwise, including a legacy save, it returns `Modified, not an EXAMPLE`.
+
 ### Planned paste apply test
 
 Planned, not implemented in this spec. Build a `Job`, parse a sheet whose `previewPaste` result has `canApply: true`, and call `applyPaste(job, preview)`. The returned job deep-equals a copy of `job` on which each preview row's `newValue` has been set at `field`, plus `meta` from `markEdited` (`isExample: false`, `modified: true`, `presetId` kept, or null when the job had none). No other field differs. `inputHash` of the returned job equals `inputHash` of that same job with `meta` removed. A job that also carries `presetBaseline` keeps that property on the input, and the returned job does not have it. A second call whose preview has `canApply: false` throws, and the job passed in is unchanged, including `meta`. A display check: current MW `12.65` ppg over `12.6` has `changed: true`, `newDisplay` `"12.65"`, and `oldDisplay` `"12.60"`. Pump displacement `0.0958` bbl/stk over `0.0962` has `changed: true`, with displays `"0.0958"` and `"0.0962"`. A depth of `10000` ft displays `"10000"`. A well name displays as the text itself.

@@ -105,6 +105,7 @@ export {
   simulate,
   LEGACY_JOB_META,
   appDefaultJob,
+  jobLabel,
   loadPreset,
   markEdited,
   metaFromSaved,

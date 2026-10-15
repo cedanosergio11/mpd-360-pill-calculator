@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inputHash, loadPreset, markEdited } from "@/contract";
+import { inputHash, jobLabel, loadPreset, markEdited } from "@/contract";
 import { exampleC } from "@/lib/example-b";
 import { parseSaved, toSaved, useStore } from "@/lib/store";
 
@@ -40,6 +40,7 @@ describe("saved job presetBaseline", () => {
     const parsed = parseSaved(JSON.stringify(exampleC));
     expect(parsed).not.toBeNull();
     expect(parsed!.job.meta).toEqual({ presetId: null, isExample: false, modified: true });
+    expect(jobLabel(parsed!.job)).toBe("Modified, not an EXAMPLE");
     expect(parsed!.job.name).toBe(exampleC.name);
   });
 });

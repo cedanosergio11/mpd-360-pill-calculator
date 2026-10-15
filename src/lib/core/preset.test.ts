@@ -2,7 +2,20 @@ import { describe, expect, it } from "vitest";
 import { exampleB, exampleC, exampleD } from "@/lib/example-b";
 import { exampleJob } from "@/lib/example-job";
 import { inputHash } from "./hash";
-import { appDefaultJob, loadPreset, markEdited, resetToPreset } from "./preset";
+import { appDefaultJob, jobLabel, loadPreset, markEdited, resetToPreset } from "./preset";
+
+describe("jobLabel", () => {
+  it("returns EXAMPLE B/C/D when the job is an example", () => {
+    for (const id of ["B", "C", "D"] as const) {
+      expect(jobLabel(loadPreset(id))).toBe("EXAMPLE B/C/D");
+    }
+  });
+
+  it("returns Modified, not an EXAMPLE when the job is not an example", () => {
+    expect(jobLabel(markEdited(loadPreset("B")))).toBe("Modified, not an EXAMPLE");
+    expect(jobLabel(exampleC)).toBe("Modified, not an EXAMPLE");
+  });
+});
 
 describe("resetToPreset", () => {
   it("returns the loaded preset", () => {

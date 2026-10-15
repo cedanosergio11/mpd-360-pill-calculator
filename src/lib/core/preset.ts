@@ -49,6 +49,14 @@ export function resetToPreset(job: Job): Job {
 }
 
 /**
+ * Screen header and print title. An example is `EXAMPLE B/C/D`.
+ * Anything else, including a legacy save, is `Modified, not an EXAMPLE`.
+ */
+export function jobLabel(job: Job): string {
+  return job.meta?.isExample === true ? "EXAMPLE B/C/D" : "Modified, not an EXAMPLE";
+}
+
+/**
  * Any input edit. Keeps `presetId`. Clears the example flag and marks the job modified.
  * Does not mutate `job`.
  */
