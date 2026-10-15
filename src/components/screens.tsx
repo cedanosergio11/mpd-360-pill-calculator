@@ -486,9 +486,8 @@ function KpiBody({ k, print }: { k: Extract<KpiVolumesResult, { ok: true }>; pri
         <Kv k="Rows" v={`${fill.closed.stands.length} (${fill.fullStandCount} stands${fill.partialStand_ft ? ` + ${fx(fill.partialStand_ft, 0)} ft single` : ""})`} id="pooh-rows" /></> : <KpiErr e={fill.error} />}
     </Box>
     <Box title="Pill volume">
-      <Kv k="String capacity over pill" v={fx(k.pillVolumeBreakdown.stringCapOverPillInterval_bbl, 3)} u="bbl" id="pill-string" />
-      <Kv k="Chase" v={fx(k.pillVolumeBreakdown.chase_bbl, 3)} u="bbl" id="pill-chase" />
       <Kv k="Pill volume" v={fx(k.pillVolume_bbl, 3)} u="bbl" strong id="pill-volume" />
+      <p data-kpi="pill-breakdown" className="mt-1 font-mono text-[11px] text-muted-foreground">String capacity over pill interval {fx(k.pillVolumeBreakdown.stringCapOverPillInterval_bbl, 3)} bbl + chase {fx(k.pillVolumeBreakdown.chase_bbl, 3)} bbl</p>
     </Box>
   </div>);
 }
