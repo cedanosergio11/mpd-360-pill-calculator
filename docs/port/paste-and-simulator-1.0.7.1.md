@@ -43,7 +43,7 @@ Header handling:
 
 Decimals, locale, units:
 
-- Numbers: commas are removed first (thousands separators), then every character outside `[0-9.eE+-]` is removed, then `Number()` (`parseNumber`, lines 154–159). The decimal mark is `.`. `1,234.5` becomes `1234.5`. `1,5` becomes `15`, not `1.5`. There is no locale and no comma-as-decimal.
+- Numbers: commas are removed first (every comma, with no check that three digits follow), then every character outside `[0-9.eE+-]` is removed, then `Number()` (`parseNumber`, lines 154–159). The decimal mark is `.`. `1,234.5` becomes `1234.5`. `1,5` becomes `15`. There is no locale and no comma-as-decimal. The 2.0 parser does not keep this strip-every-comma rule.
 - A cell whose normalized text is in the unit set is skipped while looking for the value (lines 247–250). The number is stored as entered. Nothing converts ft to m, in to mm, or ppg to ppge.
 - Recognized unit tokens, after `norm` (`paste.ts` lines 11–33): `ft`, `ft.`, `in`, `in.`, `ppg`, `ppge`, `ppge.`, `psi`, `gpm`, `bbl`, `bbls`, `bbls.`, `bbl/stk`, `bbls/stk`, `bbls/ft`, `bbls/ft.`, `stk`, `md`, `tvd`.
 - Dates (`parseDate`, lines 161–178): `YYYY-MM-DD` prefix kept; `M.D.YY`, `M/D/YY`, or `M-D-YY` read as month, day, year (the fixture `8.19.26` becomes `2026-08-19`); a two-digit year at or above 70 becomes `19xx`, otherwise `20xx`; a bare number strictly between 20000 and 80000 is an Excel serial from 1899-12-30 UTC. Anything else is kept as trimmed text.
@@ -312,7 +312,8 @@ export interface PasteError {
     | "BAD_SECTION"
     | "BAD_BOOL"
     | "UNIT_MISMATCH"
-    | "NOT_A_2_0_INPUT";
+    | "NOT_A_2_0_INPUT"
+    | "CONFLICTING_DUPLICATE";
   /** 2.0 field path when the label mapped, otherwise the raw label. */
   field: string;
   message: string;
@@ -339,11 +340,15 @@ export interface PasteResult {
 export function parseWellPaste(text: string): PasteResult;
 ```
 
-`ok` is true when `matched` is non-empty and `errors` is empty. `EMPTY` is the single error when the text has no usable row (`row: 0`, `column: 0`). A calculated label (the 1.0 `SKIP_LABELS` set) is `ignored` with `CALCULATED`, which is how MASP stays out of the job. A second label for a field already patched is `ignored` with `DUPLICATE`. A number, date, section, or bool that fails to parse is an `errors` entry and that field is not patched. The rest of the sheet still applies. `pillMode` on 1.0 is `Job.mode` on 2.0 and is not in the patch.
+`ok` is true when `matched` is non-empty and `errors` is empty. `EMPTY` is the single error when the text has no usable row (`row: 0`, `column: 0`). A calculated label (the 1.0 `SKIP_LABELS` set) is `ignored` with `CALCULATED`, which is how MASP stays out of the job. A number, date, section, or bool that fails to parse is an `errors` entry and that field is not patched. `pillMode` on 1.0 is `Job.mode` on 2.0 and is not in the patch.
+
+A repeated label whose coerced value equals the value already patched is `ignored` with `DUPLICATE`. That is a warning. The first value stays, and `ok` can still be true. A repeated label whose coerced value differs is `CONFLICTING_DUPLICATE` on `errors`. That blocks the patch: `ok` is false, `patch` is `{}`, and the caller must not merge anything from that paste, including rows that parsed cleanly. `errors` still lists the conflict. Coerced equality is numeric after the thousands-separator rule, trimmed text, the normalized date, or the coerced bool. `1500` and `1,500` are the same value. `1,5` never becomes a number, so it cannot be a duplicate of anything.
 
 `patch` is the only value the parser returns that may be written. The caller merges it onto the canonical `Job` (`useStore` `job` on this branch). The parser does not write localStorage, does not build a simulator job, and does not fill `calcJob`. After the merge, `simulate` is called with that same `Job`.
 
-Same delimiters as 1.0: tab and newline, HTML table when `<table` or `<tr` is present, comma is a thousands separator inside `parseNumber` and never a column break. Decimal point is `.`. Dates stay month-day-year and Excel serial, written to a well-date string on the side, not to `job.savedAt`. Units are checked, not converted. A unit outside the set expected for that field is `UNIT_MISMATCH` and the value is not stored.
+Same delimiters as 1.0: tab and newline, HTML table when `<table` or `<tr` is present. A comma never separates cells. The decimal mark is `.`. Dates stay month-day-year and Excel serial, written to a well-date string on the side, not to `job.savedAt`. Units are checked, not converted. A unit outside the set expected for that field is `UNIT_MISMATCH` and the value is not stored.
+
+A comma inside a number is a thousands separator only when exactly three digits follow it and the character after those three digits is the end of the cell, a decimal point, or another comma. Each such group is removed and the number is then parsed. `1,500` is 1500. `1,234.5` is 1234.5. `1,234,567` is 1234567. Any other comma is `BAD_NUMBER`. The comma is not stripped and the cell is not given a fallback value. `1,5` is `BAD_NUMBER`, not 15 and not 1.5. `1,50` and `1,2345` are `BAD_NUMBER`.
 
 Mapping onto the 2.0 `Job` at `feat/tapered-strings`:
 
@@ -413,7 +418,9 @@ Two flags next to that split are unused:
 
 Pure function of the canonical `Job`. The UI holds an index into `steps` for scrub, play, and pause. Speed is how fast the index advances. It is not an input to the physics. There is no `engine-nodp` call and no SafeVision table.
 
-1.0 stepped the pipe by 50 ft on the slider, 100 ft on the arrow keys, and 500 ft on the coarse buttons, each click as one shot (`floatDrainOnMove` uses the whole delta). 2.0 keeps pipe MD as the axis. Default `stepMd_ft` is 100. Pass 50 or 500 to match the other 1.0 controls. The sequence includes `fromMd_ft` and `toMd_ft`. When the span is not a multiple of the step, the last interval is the remainder, so the end depth is exact. Example: 10480 ft down to 0 ft at 100 ft yields 10480, 10380, …, 80, then 0.
+1.0 stepped the pipe by 50 ft on the slider, 100 ft on the arrow keys, and 500 ft on the coarse buttons, each click as one shot (`floatDrainOnMove` uses the whole delta). 2.0 keeps pipe MD as the axis. Default `stepMd_ft` is 100. Pass 50 or 500 to match the other 1.0 controls. The sequence includes `fromMd_ft` and `toMd_ft`. When the span is not a multiple of the step, the last interval is the remainder, so the end depth is exact.
+
+The default range is unchanged: omit `opts` and the walk still starts at `well.bitMd_ft` and ends at 0 ft, step 100 ft. On a 10480 ft bit that is 10480, 10380, …, 80, then 0. The main run is RIH from 0 to the bit, same step: `fromMd_ft: 0`, `toMd_ft: well.bitMd_ft`. On that 10480 ft bit the steps are 0, 100, …, 10400, then 10480.
 
 Each step is recomputed from the original job at that bit depth. 1.0 carried `pipeKmwVolume`, `pipeChaseVolume`, `pillVolume`, and `equalized` from the previous click. 2.0 does not port that inventory. `columnDisplacedByPipe` already returns the annular column for a bit depth, and on a tapered string it removes `stringVolumeBbl(well, 0, bit, "closed")` (`column.ts` on this branch).
 
@@ -437,11 +444,17 @@ export interface SimulateStep {
   pillTopTvd_ft: number | null;
   pillBottomMd_ft: number | null;
   pillBottomTvd_ft: number | null;
-  /** `chaseVolume(stepJob).chase_bbl`. */
+  /** `chaseVolume` at this pipe MD. */
   chase_bbl: number | null;
   /** Surface-to-bit string capacity at this pipe MD. Not the pill-interval term. */
   stringCapacity_bbl: number | null;
   kmwInString_bbl: number | null;
+  /**
+   * Closed-pipe displacement, bbl, cumulative from `fromMd_ft` to `pipeMd_ft`.
+   * Positive when this MD is deeper than `fromMd_ft`, negative when it is shallower, 0 at `fromMd_ft`.
+   * Each section contributes OD² / 1029.4 × the feet of that section inside the interval.
+   */
+  tripTank_bbl: number;
   /**
    * `emwProfile(stepJob)`.
    * `inPlace` is pipe out. `spotted` is this pipe MD, because `spottedColumn`
@@ -485,6 +498,8 @@ Work per call:
    - `placed = columnDisplacedByPipe` at that MD.
    - Pill top and bottom from `pillPlacement(placed)`, TVD from `tvdAt`.
    - `chaseVolume` and `kmwInString` for the bbl fields. Tapered capacity stays inside those functions.
+   - `tripTank_bbl` is the signed closed-pipe displacement from `fromMd_ft` to this MD. Closed-pipe displacement is each section's own OD: OD² / 1029.4 bbl/ft, the same quantity as `stringVolumeBbl(well, lo, hi, "closed")`. The first step is 0. A later step equals the previous step plus the signed increment between those two MDs.
+   - An increment that contains a string crossover is split at that crossover. The rate above the boundary is the upper section's OD. The rate below it is the lower section's OD. The two pieces are summed. They are not replaced by one rate times the whole increment. On EXAMPLE D the boundary is 8480 ft MD (5.5 in OD above, 4.0 in OD below). A step from 8400 to 8600 ft is `(5.5² / 1029.4) × 80 + (4² / 1029.4) × 120` bbl, and the reverse step is the negative of that.
    - `emw = emwProfile` at that MD. The UI plots `emw.spotted.lines` and reads `sections` and `crossovers` from the same object. It does not sample a second hydrostatic.
 
 Play, pause, and scrub are the index into `steps`. They are not arguments of `simulate`. A playback speed of one step per tick moves `stepMd_ft` per tick. Choosing 50, 100, or 500 is the 1.0 slider, arrow key, and coarse button.
@@ -519,4 +534,27 @@ All three results are `ok: true`. `step.pipeMd_ft` equals `job.well.bitMd_ft` ex
 
 `pillTopMd_ft` is that spotted column. It is not required to equal `kpi.kmwInString.pillTopMd_ft`, which is the pill on the stored column.
 
-`simulate(job).kpi` matches `kpiVolumes(job)` on `pillVolume_bbl`, `pillVolumeBreakdown.stringCapOverPillInterval_bbl`, and `pillVolumeBreakdown.chase_bbl` to 1e-6 bbl. That `kpi` value is an output of the same job. `pillVolumeBreakdown.chase_bbl` also matches `steps[0].chase_bbl` to 1e-6 bbl.
+`simulate(job).kpi` matches `kpiVolumes(job)` on `pillVolume_bbl`, `pillVolumeBreakdown.stringCapOverPillInterval_bbl`, and `pillVolumeBreakdown.chase_bbl` to 1e-6 bbl. That `kpi` value is an output of the same job. `pillVolumeBreakdown.chase_bbl` also matches `steps[0].chase_bbl` to 1e-6 bbl. `steps[0].tripTank_bbl` is 0, because that step is `fromMd_ft`.
+
+### Pipe-out invariant
+
+Planned, not implemented in this spec. On EXAMPLE B, C, and D, take the step whose `pipeMd_ft` is 0 (the last step of the default walk, and the first step of the RIH run). On that step the spotted profile equals the in-place profile to 1e-6 ppg:
+
+- `emw.spotted.lines.{static,staticSbp,ecd}` and `emw.inPlace.lines` at each shared MD, `emw_ppg`
+- `emw.stations[].emw.spotted.{static,staticSbp,ecd}` and `emw.stations[].emw.inPlace`
+- `emw.shoeCheck` rows with the same `line`, spotted versus in-place, `emw_ppg` and `margin_ppg`
+
+Pipe MD 0 removes no closed-pipe volume, so `columnDisplacedByPipe` leaves the pipe-out column. Labels stay the contract strings. This comparison is ppg only.
+
+### Direction test
+
+Planned, not implemented in this spec. On EXAMPLE B, C, and D, run both
+
+- RIH: `simulate(job, { fromMd_ft: 0, toMd_ft: job.well.bitMd_ft })`
+- POOH: `simulate(job, { fromMd_ft: job.well.bitMd_ft, toMd_ft: 0 })`
+
+with the same `stepMd_ft`. At every `pipeMd_ft` that appears in both results, these fields match to the tolerances in the table above: `chase_bbl`, `stringCapacity_bbl`, `kmwInString_bbl`, `pillTopMd_ft`, `pillBottomMd_ft`, and the `emw` lines, stations, shoe check, sections, and crossovers. `tripTank_bbl` and `pipeDelta_ft` are cumulative from `fromMd_ft`, so they differ between the two runs and are not part of this equality. The magnitude of `tripTank_bbl` at the far end of each run equals the closed-pipe displacement of the whole interval from 0 to the bit, to 1e-6 bbl.
+
+On D, also run 8400 ft to 8600 ft and the reverse, `stepMd_ft: 200`. Both land on 8400 and 8600. The per-MD fields match at those two depths. The trip-tank increment between them equals `(5.5² / 1029.4) × 80 + (4² / 1029.4) × 120` bbl to 1e-6 bbl, positive on the way in and negative on the way out.
+
+This match is path-independent only for closed pipe with no fluid exchange. The step column is `columnDisplacedByPipe` at that MD, which removes closed-pipe volume for the pipe that is in the hole and does not depend on the previous step. Open-end pipe, or a float that drains KMW as the pipe moves, would require revisiting this test.
