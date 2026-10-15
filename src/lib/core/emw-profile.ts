@@ -4,6 +4,7 @@ import { uniqueSorted } from "./geometry";
 import { ecdPpg, frictionPsi } from "./hydraulics";
 import type { Job } from "./job.schema";
 import { PSI_PER_PPG_FT } from "./result";
+import { placedStringSections, usesTaperedString } from "./string";
 import { tvdAt } from "./tvd";
 
 /**
@@ -174,6 +175,13 @@ function depthStations(job: Job): { ok: true; grid: GridPoint[] } | EmwFailure {
     return fail("INVALID_GEOMETRY", "well.bitMd_ft", "Profile depth is not finite.");
   }
   const raw: number[] = [job.well.shoeMd_ft, job.well.anchorMd_ft, job.well.bitMd_ft];
+  if (usesTaperedString(job.well)) {
+    for (const section of placedStringSections(job.well) ?? []) {
+      if (section.bottomMd_ft > 0.5 && section.bottomMd_ft < end - 1e-3) {
+        raw.push(section.bottomMd_ft);
+      }
+    }
+  }
   for (let md = GRID_FT; md < end - 1e-4; md += GRID_FT) raw.push(md);
   if (Math.abs(end % GRID_FT) > 1e-4) raw.push(end);
   const grid: GridPoint[] = [];

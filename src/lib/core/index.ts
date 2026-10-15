@@ -5,6 +5,7 @@ export {
   SCHEMA_VERSION,
   type CasingInterval,
   type ColumnSegment,
+  type StringSection,
   type FannReading,
   type Fluid,
   type Job,

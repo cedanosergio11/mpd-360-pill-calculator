@@ -5,6 +5,7 @@ export type {
   Fluid,
   FannReading,
   ColumnSegment,
+  StringSection,
   CasingInterval,
   SurveyStation,
   TripInputs,

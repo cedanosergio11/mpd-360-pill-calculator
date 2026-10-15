@@ -2,6 +2,12 @@ import { annularBblFt, capBblFt, ceilingMath } from "@/lib/utils";
 import { pillPlacement, surfaceFluid } from "./column";
 import { pipePillBbl } from "./equalize";
 import { holeIdAt, intervalVolume, uniqueSorted } from "./geometry";
+import {
+  placedStringSections,
+  stringSectionAt,
+  stringVolumeBbl,
+  usesTaperedString,
+} from "./string";
 import type { Job, Well } from "./job.schema";
 import { PSI_PER_PPG_FT } from "./result";
 
@@ -375,6 +381,11 @@ function annularBreakdown(
   if (to <= from + 1e-6) return { ok: true, sections: [] };
   const marks = [from, to, well.shoeMd_ft];
   for (const interval of well.casing) marks.push(interval.topMd_ft, interval.bottomMd_ft);
+  if (usesTaperedString(well)) {
+    for (const section of placedStringSections(well) ?? []) {
+      marks.push(section.topMd_ft, section.bottomMd_ft);
+    }
+  }
   const pts = uniqueSorted(
     marks.filter((mark) => mark >= from - 1e-6 && mark <= to + 1e-6),
     1e-4,
@@ -385,10 +396,12 @@ function annularBreakdown(
     const bottomMd_ft = pts[i + 1];
     const length_ft = bottomMd_ft - topMd_ft;
     if (length_ft <= 1e-6) continue;
-    const holeId_in = holeIdAt(well, (topMd_ft + bottomMd_ft) / 2);
+    const mid = (topMd_ft + bottomMd_ft) / 2;
+    const holeId_in = holeIdAt(well, mid);
     const volume_bbl = intervalVolume(well, topMd_ft, bottomMd_ft, "annular");
+    const pipeOd = usesTaperedString(well) ? stringSectionAt(well, mid)?.od_in : well.stringOd_in;
     const annularCap_bblFt =
-      holeId_in == null ? Number.NaN : annularBblFt(holeId_in, well.stringOd_in);
+      holeId_in == null || pipeOd == null ? Number.NaN : annularBblFt(holeId_in, pipeOd);
     if (
       holeId_in == null ||
       volume_bbl == null ||
@@ -407,7 +420,7 @@ function annularBreakdown(
       bottomMd_ft,
       length_ft,
       holeId_in,
-      stringOd_in: well.stringOd_in,
+      stringOd_in: pipeOd ?? well.stringOd_in,
       annularCap_bblFt,
       volume_bbl,
     });
@@ -491,9 +504,14 @@ export function chaseVolume(
     return fail("INVALID_GEOMETRY", "pipeColumn", "Pill volume in the string is not finite.");
   }
   const stringLength_ft = job.well.bitMd_ft;
-  const stringCapacity_bbl = bore.cap * stringLength_ft;
+  const stringCapacity_bbl = usesTaperedString(job.well)
+    ? stringVolumeBbl(job.well, 0, stringLength_ft, "capacity")
+    : bore.cap * stringLength_ft;
+  if (stringCapacity_bbl == null || !Number.isFinite(stringCapacity_bbl)) {
+    return fail("INVALID_GEOMETRY", "well.stringId_in", "Chase volume is not finite.");
+  }
   const chase_bbl = stringCapacity_bbl + full - pillInString_bbl;
-  if (!Number.isFinite(stringCapacity_bbl) || !Number.isFinite(chase_bbl)) {
+  if (!Number.isFinite(chase_bbl)) {
     return fail("INVALID_GEOMETRY", "well.stringId_in", "Chase volume is not finite.");
   }
   return {
@@ -527,11 +545,22 @@ export function kmwInString(job: Job): KmwInStringResult {
     );
   }
   const belowPillTop_ft = Math.max(0, job.well.bitMd_ft - pill.topMd);
-  const belowPillTop_bbl = bore.cap * belowPillTop_ft;
+  const belowPillTopRaw = usesTaperedString(job.well)
+    ? stringVolumeBbl(job.well, job.well.bitMd_ft - belowPillTop_ft, job.well.bitMd_ft, "capacity")
+    : bore.cap * belowPillTop_ft;
+  const belowPillTop_bbl = belowPillTopRaw ?? Number.NaN;
   // Pill wholly in the annulus: the string figure is the whole string.
   // Pill inside the string: only that pipe column, never the annular pill volume.
   const height_ft = pill.source === "pipe" ? belowPillTop_ft : job.well.bitMd_ft;
-  const bbl = bore.cap * height_ft;
+  const bblRaw = usesTaperedString(job.well)
+    ? stringVolumeBbl(
+        job.well,
+        pill.source === "pipe" ? job.well.bitMd_ft - height_ft : 0,
+        pill.source === "pipe" ? job.well.bitMd_ft : height_ft,
+        "capacity",
+      )
+    : bore.cap * height_ft;
+  const bbl = bblRaw ?? Number.NaN;
   if (!Number.isFinite(bbl) || !Number.isFinite(belowPillTop_bbl)) {
     return fail("INVALID_GEOMETRY", "well.stringId_in", "String volume is not finite.");
   }
@@ -568,6 +597,54 @@ export function kmwBackfill(job: Job): KmwBackfillResult {
     stringOd_in: job.well.stringOd_in,
     volume_bbl: full,
     sections: annular.sections,
+  };
+}
+
+function taperedStandRows(
+  well: Well,
+  kind: "closed" | "open",
+  standLength_ft: number,
+  tripLength_ft: number,
+): { ok: true; end: PoohFillEnd } | { ok: false; error: KpiError } {
+  const total = stringVolumeBbl(well, 0, tripLength_ft, kind);
+  if (total == null || !Number.isFinite(total)) {
+    return fail(
+      "INVALID_GEOMETRY",
+      "well.stringSections",
+      "POOH fill is not finite for the tapered string.",
+    );
+  }
+  const stands: PoohFillStand[] = [];
+  let runningTotal_bbl = 0;
+  let remaining = tripLength_ft;
+  let cursor = 0;
+  let n = 0;
+  let firstFull: number | null = null;
+  while (remaining > 1e-6) {
+    n += 1;
+    const length_ft = Math.min(standLength_ft, remaining);
+    const bbl = stringVolumeBbl(well, cursor, cursor + length_ft, kind);
+    if (bbl == null || !Number.isFinite(bbl) || !Number.isFinite(runningTotal_bbl + bbl)) {
+      return fail(
+        "INVALID_GEOMETRY",
+        "well.stringSections",
+        "POOH fill is not finite for the tapered string.",
+      );
+    }
+    runningTotal_bbl += bbl;
+    if (firstFull == null && length_ft >= standLength_ft - 1e-6) firstFull = bbl;
+    stands.push({ n, length_ft, bbl, runningTotal_bbl });
+    cursor += length_ft;
+    remaining -= length_ft;
+  }
+  return {
+    ok: true,
+    end: {
+      displacement_bblFt: tripLength_ft > 0 ? total / tripLength_ft : 0,
+      perStand_bbl: firstFull ?? stands[0]?.bbl ?? 0,
+      stands,
+      total_bbl: total,
+    },
   };
 }
 
@@ -621,6 +698,33 @@ export function poohFill(job: Job): PoohFillResult {
       "Bit depth must be a finite number greater than or equal to 0.",
     );
   }
+  const tripLength_ft = job.well.bitMd_ft;
+  if (usesTaperedString(job.well)) {
+    if (!placedStringSections(job.well)) {
+      return fail(
+        "INVALID_GEOMETRY",
+        "well.stringSections",
+        "String sections are not a valid taper.",
+      );
+    }
+    const closedTaper = taperedStandRows(job.well, "closed", stand.value, tripLength_ft);
+    if (!closedTaper.ok) return closedTaper;
+    const openTaper = taperedStandRows(job.well, "open", stand.value, tripLength_ft);
+    if (!openTaper.ok) return openTaper;
+    const fullStandCount = Math.floor(tripLength_ft / stand.value + 1e-9);
+    const partialStand_ft = tripLength_ft - fullStandCount * stand.value;
+    return {
+      ok: true,
+      stringOd_in: job.well.stringOd_in,
+      stringId_in: job.well.stringId_in,
+      standLength_ft: stand.value,
+      tripLength_ft,
+      fullStandCount,
+      partialStand_ft: partialStand_ft > 1e-6 ? partialStand_ft : 0,
+      closed: closedTaper.end,
+      open: openTaper.end,
+    };
+  }
   const closedDisplacement_bblFt = capBblFt(job.well.stringOd_in);
   const openDisplacement_bblFt = annularBblFt(job.well.stringOd_in, job.well.stringId_in);
   if (!Number.isFinite(closedDisplacement_bblFt) || closedDisplacement_bblFt <= 0) {
@@ -637,7 +741,6 @@ export function poohFill(job: Job): PoohFillResult {
       "Open-pipe displacement is not a finite bbl/ft.",
     );
   }
-  const tripLength_ft = job.well.bitMd_ft;
   const closed = standRows(closedDisplacement_bblFt, stand.value, tripLength_ft);
   if (!closed.ok) return closed;
   const open = standRows(openDisplacement_bblFt, stand.value, tripLength_ft);
@@ -740,9 +843,12 @@ function separatePillChecks(
   const bore = stringCapacity(job.well);
   if (!bore.ok) return bore;
   const annular = intervalVolume(job.well, pill.topMd, pill.bottomMd, "annular");
-  const stringCapOverPillInterval_bbl = bore.cap * length;
+  const stringCapOverPillInterval_bbl = usesTaperedString(job.well)
+    ? stringVolumeBbl(job.well, pill.topMd, pill.bottomMd, "capacity")
+    : bore.cap * length;
   if (
     annular == null ||
+    stringCapOverPillInterval_bbl == null ||
     !Number.isFinite(annular) ||
     !Number.isFinite(stringCapOverPillInterval_bbl)
   ) {

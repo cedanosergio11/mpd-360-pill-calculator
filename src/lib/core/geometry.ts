@@ -1,5 +1,6 @@
 import { annularBblFt, capBblFt } from "@/lib/utils";
 import type { Well } from "./job.schema";
+import { placedStringSections, stringSectionAt, usesTaperedString } from "./string";
 
 /** Collapse near-duplicate measured depths, preserving order. */
 export function uniqueSorted(values: number[], eps = 1e-3): number[] {
@@ -36,6 +37,11 @@ function breaksBetween(well: Well, from: number, to: number): number[] {
   for (const interval of well.casing) {
     marks.push(interval.topMd_ft, interval.bottomMd_ft);
   }
+  if (usesTaperedString(well)) {
+    for (const section of placedStringSections(well) ?? []) {
+      marks.push(section.topMd_ft, section.bottomMd_ft);
+    }
+  }
   return uniqueSorted(
     marks.filter((mark) => mark > from + 1e-6 && mark < to - 1e-6).concat([from, to]),
     1e-4,
@@ -57,7 +63,13 @@ export function intervalVolume(
     const mid = (pts[i] + pts[i + 1]) / 2;
     const id = holeIdAt(well, mid);
     if (id == null) return null;
-    const cap = kind === "full" ? capBblFt(id) : annularBblFt(id, well.stringOd_in);
+    let pipeOd = well.stringOd_in;
+    if (kind === "annular" && usesTaperedString(well)) {
+      const section = stringSectionAt(well, mid);
+      if (!section) return null;
+      pipeOd = section.od_in;
+    }
+    const cap = kind === "full" ? capBblFt(id) : annularBblFt(id, pipeOd);
     if (!Number.isFinite(cap) || cap <= 0) return null;
     volume += cap * (pts[i + 1] - pts[i]);
   }

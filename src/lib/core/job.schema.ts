@@ -45,6 +45,16 @@ export interface CasingInterval {
   liner?: boolean;
 }
 
+/**
+ * One drill-string section, top-down.
+ * Capacity is ID² / 1029.4. Closed-pipe displacement is OD² / 1029.4.
+ */
+export interface StringSection {
+  length_ft: number;
+  id_in: number;
+  od_in: number;
+}
+
 export interface SurveyStation {
   md_ft: number;
   tvd_ft: number;
@@ -79,6 +89,11 @@ export interface Well {
   openHoleId_in: number;
   stringOd_in: number;
   stringId_in: number;
+  /**
+   * Tapered string, top-down from the surface. Omitted or empty: one section
+   * of `stringOd_in` / `stringId_in` from surface to the bit.
+   */
+  stringSections?: StringSection[];
   survey?: SurveyStation[];
 }
 
