@@ -1,6 +1,6 @@
 import { calculate } from "./calculate";
 import { columnDisplacedByPipe, pillPlacement } from "./column";
-import { demandSupported, jobSupport } from "./job-support";
+import { demandSupported, DEPTH_BEYOND_TD, jobSupport, markPipeStep, type DepthBeyondField } from "./job-support";
 import {
   emwProfile,
   type EmwError,
@@ -11,7 +11,7 @@ import {
   type EmwStationEmw,
   type EmwStationLabel,
 } from "./emw-profile";
-import type { Job } from "./job.schema";
+import type { Job, PresetId } from "./job.schema";
 import { chaseVolume, kmwInString, kpiVolumes, type KpiVolumesResult } from "./kpi";
 import { strokesSchedule, type StrokesScheduleResult } from "./strokes";
 import { tvdAt } from "./tvd";
@@ -124,7 +124,8 @@ export type SimulateError =
       maxSteps: typeof MAX_STEPS;
       requestedSteps: number;
     })
-  | { code: "SIM_REQUIRES_TAPERED"; presetId: "D" };
+  | { code: "SIM_REQUIRES_TAPERED"; presetId: PresetId | null }
+  | { code: "DEPTH_BEYOND_TD"; fields: DepthBeyondField[] };
 
 export type SimulateResult =
   | {
@@ -153,11 +154,19 @@ export type SimulateResult =
  */
 export function canSimulate(job: Job): { ok: boolean; reason?: string } {
   const support = jobSupport(job);
-  return support.ok ? { ok: true } : { ok: false, reason: support.reason };
+  if (!support.ok && support.code === "TAPERED_STRING_UNSUPPORTED") {
+    return { ok: false, reason: support.reason };
+  }
+  return { ok: true };
 }
 
-function taperedRefusal(): SimulateResult {
-  return { ok: false, error: { code: "SIM_REQUIRES_TAPERED", presetId: "D" } };
+function presetFromMeta(job: Job): PresetId | null {
+  const id = job.meta?.presetId;
+  return id === "B" || id === "C" || id === "D" ? id : null;
+}
+
+function taperedRefusal(job: Job): SimulateResult {
+  return { ok: false, error: { code: "SIM_REQUIRES_TAPERED", presetId: presetFromMeta(job) } };
 }
 
 function fail(
@@ -224,7 +233,9 @@ function tripTankBbl(job: Job, fromMd: number, pipeMd: number): number {
 }
 
 function withBit(job: Job, bitMd: number): Job {
-  return { ...job, well: { ...job.well, bitMd_ft: bitMd } };
+  const step = { ...job, well: { ...job.well, bitMd_ft: bitMd } };
+  markPipeStep(step);
+  return step;
 }
 
 /**
@@ -305,7 +316,11 @@ function stepAt(job: Job, index: number, pipeMd: number, fromMd: number): Simula
 }
 
 export function simulate(job: Job, opts: SimulateOptions = {}): SimulateResult {
-  if (!canSimulate(job).ok) return taperedRefusal();
+  const support = jobSupport(job);
+  if (!support.ok && support.code === "TAPERED_STRING_UNSUPPORTED") return taperedRefusal(job);
+  if (!support.ok && support.code === DEPTH_BEYOND_TD) {
+    return { ok: false, error: { code: DEPTH_BEYOND_TD, fields: support.fields } };
+  }
 
   const bit = job.well.bitMd_ft;
   if (!Number.isFinite(bit) || bit < 0) {

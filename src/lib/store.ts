@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Issue, Job, Result } from "@/contract";
-import { calculate, inputHash, isTaperedRefusal, jobSupport, markEdited, resetToPreset, restoreSaved, type RestoreSavedResult } from "@/contract";
+import { calculate, inputHash, isCalcRefusal, jobSupport, markEdited, resetToPreset, restoreSaved, TAPERED_STRING_UNSUPPORTED, type RestoreSavedResult } from "@/contract";
 import { exampleJob } from "@/lib/example-job";
 import { setPath } from "@/lib/paths";
 
@@ -28,7 +28,7 @@ type State = {
 
 function calcOrNull(job: Job): Result | null {
   const result = calculate(job);
-  return isTaperedRefusal(result) ? null : result;
+  return isCalcRefusal(result) ? null : result;
 }
 
 export const useStore = create<State>((set, get) => ({
@@ -45,7 +45,8 @@ export const useStore = create<State>((set, get) => ({
   },
   set: (path, v) => {
     const current = get().job;
-    if (!jobSupport(current).ok) return;
+    const support = jobSupport(current);
+    if (!support.ok && support.code === TAPERED_STRING_UNSUPPORTED) return;
     set({ job: markEdited(setPath(current, path, v)), saved: false });
   },
   replace: (j) => { const { presetBaseline: _pb, ...rest } = j as SavedJob; const job = { ...rest, pipeColumn: rest.pipeColumn ?? [] } as Job; set({ job, saved: false, result: calcOrNull(job), calcJob: job, baselineHash: inputHash(job) }); },

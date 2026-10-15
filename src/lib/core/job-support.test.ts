@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { exampleC } from "@/lib/example-b";
+import { exampleB, exampleC } from "@/lib/example-b";
 import { exampleJob } from "@/lib/example-job";
 import { useStore } from "@/lib/store";
 import { calculate } from "./calculate";
-import { buildDisplacement } from "./displacement";
+import { buildDisplacement, rihStageCount } from "./displacement";
 import { emwProfile } from "./emw-profile";
 import type { Issue } from "./issues";
 import type { Job } from "./job.schema";
 import {
-  isTaperedRefusal,
+  DEPTH_BEYOND_TD,
+  isCalcRefusal,
   jobSupport,
   TAPERED_STRING_UNSUPPORTED,
   type TaperedStringRefusal,
@@ -127,8 +128,8 @@ describe("jobSupport on a restored D save", () => {
     const job = loadPreset(id);
     expect(jobSupport(job)).toEqual({ ok: true });
     const result = calculate(job);
-    expect(isTaperedRefusal(result)).toBe(false);
-    if (isTaperedRefusal(result)) return;
+    expect(isCalcRefusal(result)).toBe(false);
+    if (isCalcRefusal(result)) return;
     expect(result.depths.shoe.esd_ppg).toEqual(expect.any(Number));
     expect(kpiVolumes(job).ok).toBe(true);
     expect(emwProfile(job).ok).toBe(true);
@@ -136,5 +137,41 @@ describe("jobSupport on a restored D save", () => {
     const edited = markEdited(job);
     expect(edited.meta).toEqual({ presetId: id, isExample: false, modified: true });
     expect(job.meta).toEqual({ presetId: id, isExample: true, modified: false });
+  });
+});
+
+describe("depth beyond TD", () => {
+  function restoredShallowBit(): Job {
+    const input = structuredClone(exampleB);
+    input.well.bitMd_ft = 9000;
+    const restored = restoreSaved(input);
+    if (!restored?.ok) throw new Error("expected a single-string restore");
+    return restored.job;
+  }
+
+  it("jobSupport lists the fields on a restored save and calcs return no numbers", () => {
+    const job = restoredShallowBit();
+    expect(jobSupport(job)).toEqual({
+      ok: false,
+      code: DEPTH_BEYOND_TD,
+      fields: [
+        { field: "well.anchorMd_ft", value: 10480, limit: 9000, limitField: "well.bitMd_ft" },
+        { field: "well.anchorTvd_ft", value: 10466, limit: 9000, limitField: "well.bitMd_ft" },
+        { field: "column[1].bottomMd_ft", value: 10480, limit: 9000, limitField: "well.bitMd_ft" },
+      ],
+    });
+    for (const result of [calculate(job), kpiVolumes(job), emwProfile(job), chaseVolume(job), kmwInString(job), kmwBackfill(job), poohFill(job)]) {
+      expect(result).toEqual({ ok: false, code: DEPTH_BEYOND_TD });
+      expect(JSON.stringify(result)).not.toMatch(/\d/);
+    }
+  });
+
+  it("returns NO_PIPE_BELOW_BIT instead of a bare null when the pill is below the bit", () => {
+    const job = structuredClone(exampleB);
+    job.well.bitMd_ft = 9000;
+    expect(rihStageCount(job)).toEqual({ stages: null, reason: "NO_PIPE_BELOW_BIT" });
+    const counted = rihStageCount(exampleB);
+    expect(counted.stages).toEqual(expect.any(Number));
+    expect(counted).not.toHaveProperty("reason");
   });
 });

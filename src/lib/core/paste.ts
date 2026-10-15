@@ -1,5 +1,5 @@
 import type { Job } from "./job.schema";
-import { refuseTaperedJob } from "./job-support";
+import { depthBeyondFields, type DepthBeyondField, refuseTaperedJob } from "./job-support";
 import { markEdited } from "./preset";
 
 /**
@@ -23,7 +23,8 @@ export interface PasteError {
     | "UNIT_MISMATCH"
     | "NOT_A_2_0_INPUT"
     | "TAPERED_STRING"
-    | "CONFLICTING_DUPLICATE";
+    | "CONFLICTING_DUPLICATE"
+    | "DEPTH_BEYOND_TD";
   /** 2.0 field path when the label mapped, otherwise the raw label. */
   field: string;
   message: string;
@@ -103,10 +104,12 @@ export interface PastePreviewError {
   /**
    * True when this code blocks apply.
    * Blocking codes: `BAD_NUMBER`, `CONFLICTING_DUPLICATE`, `EMPTY`, `BAD_DATE`,
-   * `BAD_SECTION`, `BAD_BOOL`, `UNIT_MISMATCH`, `TAPERED_STRING`.
+   * `BAD_SECTION`, `BAD_BOOL`, `UNIT_MISMATCH`, `TAPERED_STRING`, `DEPTH_BEYOND_TD`.
    * `UNMAPPED_LABEL` and `NOT_A_2_0_INPUT` are false.
    */
   blocking: boolean;
+  /** Set for `DEPTH_BEYOND_TD`: every field past TD or past the bit, with its value and limit. */
+  fields?: DepthBeyondField[];
 }
 
 export interface PastePreview {
@@ -125,6 +128,7 @@ const BLOCKING: ReadonlySet<PasteError["code"]> = new Set([
   "BAD_BOOL",
   "UNIT_MISMATCH",
   "TAPERED_STRING",
+  "DEPTH_BEYOND_TD",
 ]);
 
 type Kind = "text" | "number" | "date" | "section" | "bool";
@@ -551,11 +555,10 @@ function assignmentsFrom(hits: Map<string, Hit>): Assignment[] {
     direct(field);
   }
 
+  // 1.0.7.1 maps "Current well depth" to currentDepthMd only (src/lib/calc/paste.ts:71 at 9900923).
+  // tdDepth is a separate label. This branch writes that one field to well.bitMd_ft.
   const depth = hits.get("currentDepthMd");
-  if (depth) {
-    push("well.bitMd_ft", depth.value, depth, depth.unit);
-    if (!hits.has("tdDepth")) push("well.mdTd_ft", depth.value, depth, depth.unit);
-  }
+  if (depth) push("well.bitMd_ft", depth.value, depth, depth.unit);
   const td = hits.get("tdDepth");
   if (td) push("well.mdTd_ft", td.value, td, td.unit);
 
@@ -994,17 +997,30 @@ export function previewPaste(job: Job, result: PasteResult): PastePreview {
     message: item.message,
     blocking: BLOCKING.has(item.code),
   }));
+  if (errors.every((item) => !item.blocking)) {
+    const projected = structuredClone(job);
+    writePreviewRows(projected, rows);
+    const fields = depthBeyondFields(projected);
+    if (fields.length > 0) {
+      errors.push({
+        code: "DEPTH_BEYOND_TD",
+        row: 0,
+        col: 0,
+        message: fields
+          .map((item) => `${item.field} is ${item.value} ft, deeper than ${item.limitField} ${item.limit} ft`)
+          .join("; "),
+        blocking: true,
+        fields,
+      });
+    }
+  }
   return { rows, errors, canApply: errors.every((item) => !item.blocking) };
 }
 
-export function applyPaste(job: Job, preview: PastePreview): Job {
-  refuseTaperedJob(job);
-  if (!preview.canApply) throw new Error("Paste is blocked and was not applied.");
-  const next = structuredClone(job) as Job & { presetBaseline?: string };
-  delete next.presetBaseline;
-  for (const row of preview.rows) {
+function writePreviewRows(job: Job, rows: PastePreviewRow[]) {
+  for (const row of rows) {
     if (row.field === "spot.bottomMd_ft" && typeof row.newValue === "number") {
-      applySpot(next, row.newValue);
+      applySpot(job, row.newValue);
       continue;
     }
     if (
@@ -1014,10 +1030,18 @@ export function applyPaste(job: Job, preview: PastePreview): Job {
       "md_ft" in row.newValue &&
       "tvd_ft" in row.newValue
     ) {
-      applySurveySpot(next, row.newValue as { md_ft: number; tvd_ft: number });
+      applySurveySpot(job, row.newValue as { md_ft: number; tvd_ft: number });
       continue;
     }
-    setPath(next, row.field, row.newValue);
+    setPath(job, row.field, row.newValue);
   }
+}
+
+export function applyPaste(job: Job, preview: PastePreview): Job {
+  refuseTaperedJob(job);
+  if (!preview.canApply) throw new Error("Paste is blocked and was not applied.");
+  const next = structuredClone(job) as Job & { presetBaseline?: string };
+  delete next.presetBaseline;
+  writePreviewRows(next, preview.rows);
   return markEdited(next);
 }

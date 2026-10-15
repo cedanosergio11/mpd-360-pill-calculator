@@ -173,7 +173,11 @@ function expectTaperRefusal(job: Job) {
   const result = simulate(job);
   expect(result.ok).toBe(false);
   if (result.ok) return;
-  expect(result.error).toEqual({ code: "SIM_REQUIRES_TAPERED", presetId: "D" });
+  const presetId = job.meta?.presetId;
+  expect(result.error).toEqual({
+    code: "SIM_REQUIRES_TAPERED",
+    presetId: presetId === "B" || presetId === "C" || presetId === "D" ? presetId : null,
+  });
   expect(result).not.toHaveProperty("steps");
 }
 

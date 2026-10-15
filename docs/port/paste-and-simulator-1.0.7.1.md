@@ -63,7 +63,7 @@ Sheet order in the Momentum fixture (`paste.test.ts` lines 4–33), which is the
 | Client | `client` | text | | Client |
 | Date | `date` | date | | Well date, stored `YYYY-MM-DD` |
 | Produced By | `producedBy` | text | | Author |
-| Current Well Depth (MD) | `currentDepthMd` | number | ft | Current MD. One of the depths the simulator takes as well depth |
+| Current Well Depth (MD) | `currentDepthMd` | number | ft | Current MD. One `WellInputs` field: `currentDepthMd` at `9900923` `src/lib/calc/paste.ts:71`. The label does not write `tdDepth` (line 99) |
 | Anchor Point (BOC) (MD) | `anchorMd` | number | ft | Anchor MD |
 | Anchor Point (BOC) (TVD) | `anchorTvd` | number | ft | Anchor TVD |
 | Casing Depth (MD) | `casingMd` | number | ft | Casing shoe MD |
@@ -446,9 +446,11 @@ An older save with no `meta` loads as `{ presetId: null, isExample: false, modif
 
 `loadPreset(id)` returns the B or C job with `{ presetId: id, isExample: true, modified: false }`. It does not mutate the preset constant. `AVAILABLE_PRESETS` is `["B", "C"]`. D returns with #6 (tapered strings); `loadPreset("D")` throws until then.
 
-`restoreSaved(input)` is the saved-job and legacy-job path, including the call to `metaFromSaved`. It never throws. Invalid input returns null. A single string returns `{ ok: true, job, baselineHash }`. `metaFromSaved` runs only on that returned copy. A saved string with more than one section, a crossover depth, or an OD/ID change returns `{ ok: false, code: "TAPERED_STRING_UNSUPPORTED", saved }`. `saved` is the original object, deep-equal to the input, and is not rewritten as one section. The code is the exported `TAPERED_STRING_UNSUPPORTED`. Restore does not write storage. EXAMPLE B and EXAMPLE C restore normally. `canSimulate` and `simulate` on that saved object still return `SIM_REQUIRES_TAPERED`.
+`restoreSaved(input)` is the saved-job and legacy-job path, including the call to `metaFromSaved`. It never throws. Invalid input returns null. A single string returns `{ ok: true, job, baselineHash }`. `metaFromSaved` runs only on that returned copy. A saved string with more than one section, a crossover depth, or an OD/ID change returns `{ ok: false, code: "TAPERED_STRING_UNSUPPORTED", saved }`. `saved` is the original object, deep-equal to the input, and is not rewritten as one section. The code is the exported `TAPERED_STRING_UNSUPPORTED`. Restore does not write storage. EXAMPLE B and EXAMPLE C restore normally. `canSimulate` and `simulate` on that saved object still return `SIM_REQUIRES_TAPERED`. The `presetId` on that error is `job.meta.presetId` when it is B, C, or D, and null when `meta` is absent.
 
-`jobSupport(job)` is that same geometry check for the UI lock. It returns `{ ok: true }` or `{ ok: false, code: "TAPERED_STRING_UNSUPPORTED", reason }`. `calculate`, `kpiVolumes`, `chaseVolume`, `kmwInString`, `kmwBackfill`, `poohFill`, `emwProfile`, `strokesSchedule`, `buildDisplacement`, and `buildTripSchedule` return `{ ok: false, code: "TAPERED_STRING_UNSUPPORTED" }` and no numbers. `jobLabel` is not gated.
+`jobSupport(job)` is the shared lock. A tapered string returns `{ ok: false, code: "TAPERED_STRING_UNSUPPORTED", reason }` first. A single string returns `{ ok: false, code: "DEPTH_BEYOND_TD", fields }` when the pill top or bottom, anchor MD or TVD, pipe-column end, bit, shoe, or last survey station is deeper than `well.mdTd_ft`, or when the pill or anchor is deeper than `well.bitMd_ft`. Each entry is `{ field, value, limit, limitField }` with `limitField` of `well.mdTd_ft` or `well.bitMd_ft`. Equal to the limit is inside the well. EXAMPLE B and EXAMPLE C return `{ ok: true }`. `calculate`, `kpiVolumes`, `chaseVolume`, `kmwInString`, `kmwBackfill`, `poohFill`, `emwProfile`, `strokesSchedule`, `buildDisplacement`, and `buildTripSchedule` return `{ ok: false, code }` and no numbers for either refusal. The field list stays on `jobSupport` and on the paste error. `jobLabel` is not gated. `previewPaste` applies the rows to a clone and runs that depth check on the resulting job. One blocking `DEPTH_BEYOND_TD` lists every offending field and sets `canApply` to false. A depth error does not throw from `markEdited`, `applyPaste`, `resetToPreset`, or a store edit. `restoreSaved` still refuses only a tapered string. `simulate` checks the job first. A pipe step then moves `bitMd_ft` and is not a second `DEPTH_BEYOND_TD`.
+
+`Displacement.minStagesRih` is a `StageCount`: `{ stages: number }` or `{ stages: null, reason: "NO_PILL" | "NO_PIPE_BELOW_BIT" | "GEOMETRY" }`. It is never a bare null. Print states the reason when `stages` is null. `rihStageCount` returns `NO_PIPE_BELOW_BIT` when the pill is past the bit. A job that passes `jobSupport` does not reach that reason through `calculate`.
 
 `resetToPreset(job)` returns that preset when `meta.presetId` is B, C, or D. When `presetId` is null, or `meta` is absent, it returns the app default (EXAMPLE Well A) with `{ presetId: null, isExample: true, modified: false }`. A tapered job throws `TAPERED_STRING_UNSUPPORTED` and is not replaced.
 
@@ -458,7 +460,7 @@ An older save with no `meta` loads as `{ presetId: null, isExample: false, modif
 
 ### Planned paste apply test
 
-Planned, not implemented in this spec. Build a `Job`, parse a sheet whose `previewPaste` result has `canApply: true`, and call `applyPaste(job, preview)`. The returned job deep-equals a copy of `job` on which each preview row's `newValue` has been set at `field`, plus `meta` from `markEdited` (`isExample: false`, `modified: true`, `presetId` kept, or null when the job had none). No other field differs. `inputHash` of the returned job equals `inputHash` of that same job with `meta` removed. A job that also carries `presetBaseline` keeps that property on the input, and the returned job does not have it. A second call whose preview has `canApply: false` throws, and the job passed in is unchanged, including `meta`. A display check: current MW `12.65` ppg over `12.6` has `changed: true`, `newDisplay` `"12.65"`, and `oldDisplay` `"12.60"`. Pump displacement `0.0958` bbl/stk over `0.0962` has `changed: true`, with displays `"0.0958"` and `"0.0962"`. A depth of `10000` ft displays `"10000"`. A well name displays as the text itself.
+Planned, not implemented in this spec. Build a `Job`, parse a sheet whose `previewPaste` result has `canApply: true`, and call `applyPaste(job, preview)`. The returned job deep-equals a copy of `job` on which each preview row's `newValue` has been set at `field`, plus `meta` from `markEdited` (`isExample: false`, `modified: true`, `presetId` kept, or null when the job had none). No other field differs. `inputHash` of the returned job equals `inputHash` of that same job with `meta` removed. A job that also carries `presetBaseline` keeps that property on the input, and the returned job does not have it. A second call whose preview has `canApply: false` throws, and the job passed in is unchanged, including `meta`. A display check: current MW `12.65` ppg over `12.6` has `changed: true`, `newDisplay` `"12.65"`, and `oldDisplay` `"12.60"`. Pump displacement `0.0958` bbl/stk over `0.0962` has `changed: true`, with displays `"0.0958"` and `"0.0962"`. A current well depth of `10500` ft displays `"10500"`. On EXAMPLE B that depth stays above the pill bottom and the anchor (`10480`). `9000` is `DEPTH_BEYOND_TD` and `canApply` is false, because 1.0.7.1 writes only `well.bitMd_ft` and leaves `well.mdTd_ft` at `10530`. The last survey is listed when `TD Depth` (`tdDepth`, `9900923` `src/lib/calc/paste.ts:99`) moves TD above that station. A well name displays as the text itself.
 
 Same delimiters as 1.0: tab and newline, HTML table when `<table` or `<tr` is present. A comma never separates cells. The decimal mark is `.`. Dates stay month-day-year and Excel serial, written to a well-date string on the side, not to `job.savedAt`. Units are checked, not converted. A unit outside the set expected for that field is `UNIT_MISMATCH` and the value is not stored.
 
@@ -469,7 +471,7 @@ Mapping onto the 2.0 `Job` on this branch (one string, before tapered strings):
 | 1.0 field | 2.0 |
 |---|---|
 | `wellName` | `name` |
-| `currentDepthMd` | `well.bitMd_ft`. Also `well.mdTd_ft` when `tdDepth` was not pasted |
+| `currentDepthMd` | `well.bitMd_ft` only. 1.0.7.1 (`9900923`, `src/lib/calc/paste.ts:71`) maps the label "current well depth" to the one field `currentDepthMd`. `tdDepth` (line 99) is the label that writes `well.mdTd_ft` |
 | `tdDepth` | `well.mdTd_ft` |
 | `anchorMd` / `anchorTvd` | `well.anchorMd_ft` / `well.anchorTvd_ft` |
 | `casingMd` / `casingTvd` | `well.shoeMd_ft` / `well.shoeTvd_ft`, and one `well.casing` interval ending at the shoe |
@@ -638,13 +640,17 @@ export type SimulateError =
       maxSteps: 1000;
       requestedSteps: number;
     }
-  | { code: "SIM_REQUIRES_TAPERED"; presetId: "D" };
+  | { code: "SIM_REQUIRES_TAPERED"; presetId: PresetId | null }
+  | { code: "DEPTH_BEYOND_TD"; fields: DepthBeyondField[] };
 
 export function canSimulate(job: Job): { ok: boolean; reason?: string };
 
 export function jobSupport(
   job: Job,
-): { ok: true } | { ok: false; code: "TAPERED_STRING_UNSUPPORTED"; reason: string };
+):
+  | { ok: true }
+  | { ok: false; code: "TAPERED_STRING_UNSUPPORTED"; reason: string }
+  | { ok: false; code: "DEPTH_BEYOND_TD"; fields: DepthBeyondField[] };
 
 export type SimulateResult =
   | {
@@ -672,7 +678,7 @@ export function simulate(job: Job, opts?: SimulateOptions): SimulateResult;
 
 Work per call:
 
-1. `canSimulate(job)` runs first and does not read `meta.presetId`. It returns `{ ok: true }` for one constant OD/ID, including a single `stringSections` entry that matches `stringOd_in` and `stringId_in`, and including an empty list. It returns `{ ok: false, reason }` when the drill string has more than one section, a crossover depth (`crossovers` or `crossoverMd_ft`), or an OD/ID change along the string. Those are the fields EXAMPLE D carries (`stringSections` of `{ length_ft, od_in, id_in }`, two sections, the 8480 ft boundary). In that case `simulate` returns `{ ok: false, error: { code: "SIM_REQUIRES_TAPERED", presetId: "D" } }` and no `steps`, before the bit and step checks. The `presetId` on that error names the tapered model. It is not copied from `job.meta`. EXAMPLE B and EXAMPLE C still simulate. A saved D, a D after `markEdited`, and a D with `meta` stripped all refuse from the geometry. The six EXAMPLE D simulate tests stay skipped until #6.
+1. `canSimulate(job)` runs first and does not read `meta.presetId`. It returns `{ ok: true }` for one constant OD/ID, including a single `stringSections` entry that matches `stringOd_in` and `stringId_in`, and including an empty list. It returns `{ ok: false, reason }` when the drill string has more than one section, a crossover depth (`crossovers` or `crossoverMd_ft`), or an OD/ID change along the string. Those are the fields EXAMPLE D carries (`stringSections` of `{ length_ft, od_in, id_in }`, two sections, the 8480 ft boundary). In that case `simulate` returns `{ ok: false, error: { code: "SIM_REQUIRES_TAPERED", presetId } }` and no `steps`, before the bit and step checks. `presetId` is `PresetId | null`, copied from `job.meta.presetId` when that value is B, C, or D, and null when `meta` is absent or the id is not one of those. It is never hard-coded to `"D"`. A depth that fails `jobSupport` is a separate `{ code: "DEPTH_BEYOND_TD", fields }` error with no `steps`. `canSimulate` stays the taper check only, so a depth-bad single string is not `SIM_REQUIRES_TAPERED`. EXAMPLE B and EXAMPLE C still simulate. A saved D, a D after `markEdited`, and a D with `meta` stripped all refuse from the geometry. The saved D keeps `presetId: "D"` when meta still says D. A stripped or legacy save reports `presetId: null`. The six EXAMPLE D simulate tests stay skipped until #6.
 2. Reject a non-finite `stepMd_ft`, or a step below `MIN_STEP_FT`, with `INVALID_STEP`, including when `mds` is set. Do not raise it to 10. Reject a from/to MD outside `0…well.mdTd_ft`, or any explicit MD that is non-finite or outside that span, with `INVALID_DEPTH`. Do not clip the way 1.0 `clamp` did and then continue silently. Count the steps before building them. More than `MAX_STEPS` is `STEP_LIMIT` and the call returns no `steps`. That error is `{ code: "STEP_LIMIT", field: "stepMd_ft", message, minStepFt, maxSteps, requestedSteps }`. Do not coarsen the step. When `mds` is set and the list is within the cap, `steps.length` equals `mds.length` and `steps[i].pipeMd_ft` equals `mds[i]`. `meta.stepCount` equals that length, `meta.stepsLength` equals `stepCount`, and `meta.stepFt` is the resolved step.
 3. `kpi = kpiVolumes(job)` once, on the job passed in. That supplies MASP, KMW, chase at the procedure bit, `pillVolume_bbl` (`stringCapOverPillInterval_bbl + chase_bbl`), the breakdown, backfill, and POOH fill. Stand length still belongs to `poohFill` inside that result. A `STAND_LENGTH` error stays on `poohFill` and does not drop the steps.
 4. `pump = strokesSchedule(job, calculate(job))` once, on that same job. Stage bbl, strokes, and minutes are that function's rows. SPM blank leaves minutes null. This replaces the 1.0 `desiredResolution` ladder. The pipe steps do not walk these rows.

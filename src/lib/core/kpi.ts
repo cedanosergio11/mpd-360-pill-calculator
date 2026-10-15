@@ -1,5 +1,5 @@
 import { annularBblFt, capBblFt, ceilingMath } from "@/lib/utils";
-import { demandSupported, taperedCalcRefusal, type TaperedStringRefusal } from "./job-support";
+import { calcRefusal, demandSupported, type CalcRefusal } from "./job-support";
 import { pillPlacement, surfaceFluid } from "./column";
 import { pipePillBbl } from "./equalize";
 import { holeIdAt, intervalVolume, uniqueSorted } from "./geometry";
@@ -458,8 +458,8 @@ function surfaceLine(
 export function chaseVolume(
   job: Job,
   input: { surfaceLine_bbl?: number | null; pillBottomTargetMd_ft?: number | null } = {},
-): ChaseResult | TaperedStringRefusal {
-  const refused = taperedCalcRefusal(job);
+): ChaseResult | CalcRefusal {
+  const refused = calcRefusal(job);
   if (refused) return refused;
 
   const line = surfaceLine(input.surfaceLine_bbl);
@@ -518,8 +518,8 @@ export function chaseVolume(
   };
 }
 
-export function kmwInString(job: Job): KmwInStringResult | TaperedStringRefusal {
-  const refused = taperedCalcRefusal(job);
+export function kmwInString(job: Job): KmwInStringResult | CalcRefusal {
+  const refused = calcRefusal(job);
   if (refused) return refused;
 
   const pill = spottedPill(job);
@@ -556,8 +556,8 @@ export function kmwInString(job: Job): KmwInStringResult | TaperedStringRefusal 
   };
 }
 
-export function kmwBackfill(job: Job): KmwBackfillResult | TaperedStringRefusal {
-  const refused = taperedCalcRefusal(job);
+export function kmwBackfill(job: Job): KmwBackfillResult | CalcRefusal {
+  const refused = calcRefusal(job);
   if (refused) return refused;
 
   const pill = spottedPill(job);
@@ -613,8 +613,8 @@ function standRows(
 }
 
 /** Closed and open POOH tables from `job.trip.standLength_ft`. No stand length is assumed. */
-export function poohFill(job: Job): PoohFillResult | TaperedStringRefusal {
-  const refused = taperedCalcRefusal(job);
+export function poohFill(job: Job): PoohFillResult | CalcRefusal {
+  const refused = calcRefusal(job);
   if (refused) return refused;
 
   const entered = job.trip.standLength_ft;
@@ -689,8 +689,8 @@ function activeMud(
  * A missing FIT, shoe TVD, or anchor TVD stops the result. Anchor TVD is never taken from the survey.
  * A blank or non-positive stand length does not: the other fields are returned and `poohFill` carries STAND_LENGTH.
  */
-export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesResult | TaperedStringRefusal {
-  const refused = taperedCalcRefusal(job);
+export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesResult | CalcRefusal {
+  const refused = calcRefusal(job);
   if (refused) return refused;
 
   const mud = activeMud(job);

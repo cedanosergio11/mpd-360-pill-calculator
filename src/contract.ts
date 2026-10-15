@@ -82,6 +82,11 @@ export type {
   RestoreSavedResult,
   JobSupport,
   TaperedStringRefusal,
+  CalcRefusal,
+  DepthBeyondField,
+  DepthBeyondRefusal,
+  StageCount,
+  StageCountReason,
 } from "@/lib/core";
 export type { TripEmw, TripPointKey, SpeedEmw } from "@/lib/core";
 export {
@@ -119,6 +124,11 @@ export {
   restoreSaved,
   jobSupport,
   isTaperedRefusal,
+  isCalcRefusal,
+  DEPTH_BEYOND_TD,
+  depthBeyondFields,
+  calcRefusal,
+  rihStageCount,
 } from "@/lib/core";
 /** True once the core schema grows `pipeColumn` (fluid intervals inside the string). In core since e232618. */
 export const HAS_PIPE_COLUMN = true as const;

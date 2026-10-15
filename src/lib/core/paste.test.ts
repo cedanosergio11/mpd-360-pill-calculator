@@ -106,7 +106,7 @@ describe("parseWellPaste tapered string", () => {
     const refused = simulate(carried);
     expect(refused.ok).toBe(false);
     if (!refused.ok) {
-      expect(refused.error).toEqual({ code: "SIM_REQUIRES_TAPERED", presetId: "D" });
+      expect(refused.error).toEqual({ code: "SIM_REQUIRES_TAPERED", presetId: null });
       expect(refused).not.toHaveProperty("steps");
     }
   });
@@ -116,14 +116,14 @@ describe("applyPaste", () => {
   it("writes exactly the preview rows", () => {
     const job: Job = exampleB;
     const result = paste(
-      ["Well name\tPasted name", "SBP on connection\t400\tpsi", "Current Well Depth (MD)\t10000\tft"].join(
+      ["Well name\tPasted name", "SBP on connection\t400\tpsi", "Current Well Depth (MD)\t10500\tft"].join(
         "\n",
       ),
     );
     const preview = previewPaste(job, result);
     expect(preview.canApply).toBe(true);
     expect(preview.rows.map((row) => row.field).sort()).toEqual(
-      ["name", "trip.sbpConn_psi", "well.bitMd_ft", "well.mdTd_ft"].sort(),
+      ["name", "trip.sbpConn_psi", "well.bitMd_ft"].sort(),
     );
     for (const row of preview.rows) {
       if (row.field === "name") expect(row.unit).toBeNull();
@@ -146,7 +146,7 @@ describe("applyPaste", () => {
         [
           "Well name\tPasted name",
           "Current MW\t12.25\tppg",
-          "Current Well Depth (MD)\t10000\tft",
+          "Current Well Depth (MD)\t10500\tft",
           "SBP on connection\t400\tpsi",
         ].join("\n"),
       ),
@@ -166,8 +166,8 @@ describe("applyPaste", () => {
     expect(name?.oldDisplay).toBe(exampleB.name);
     const depth = preview.rows.find((row) => row.field === "well.bitMd_ft");
     expect(depth?.kind).toBe("number");
-    expect(depth?.newValue).toBe(10000);
-    expect(depth?.newDisplay).toBe("10000");
+    expect(depth?.newValue).toBe(10500);
+    expect(depth?.newDisplay).toBe("10500");
     expect(depth?.oldValue).toBe(10480);
     expect(depth?.oldDisplay).toBe("10480");
     const sbp = preview.rows.find((row) => row.field === "trip.sbpConn_psi");
@@ -249,6 +249,54 @@ describe("applyPaste", () => {
     expect(applied.meta).toEqual({ presetId: "B", isExample: false, modified: true });
     expect(applied.name).toBe("Pasted name");
     expect(job.meta).toEqual({ presetId: "B", isExample: true, modified: false });
+  });
+});
+
+describe("previewPaste depth consistency", () => {
+  it("blocks Current well depth 9000 on EXAMPLE B and lists pill bottom and anchor MD/TVD", () => {
+    const job = structuredClone(exampleB);
+    const before = structuredClone(job);
+    const preview = previewPaste(job, paste("Current Well Depth (MD)\t9000\tft"));
+    expect(preview.canApply).toBe(false);
+    const depth = preview.errors.filter((item) => item.code === "DEPTH_BEYOND_TD");
+    expect(depth).toHaveLength(1);
+    expect(depth[0]?.blocking).toBe(true);
+    expect(depth[0]?.fields).toEqual([
+      { field: "well.anchorMd_ft", value: 10480, limit: 9000, limitField: "well.bitMd_ft" },
+      { field: "well.anchorTvd_ft", value: 10466, limit: 9000, limitField: "well.bitMd_ft" },
+      { field: "column[1].bottomMd_ft", value: 10480, limit: 9000, limitField: "well.bitMd_ft" },
+    ]);
+    expect(depth[0]?.message).toContain("10480");
+    expect(depth[0]?.message).toContain("10466");
+    expect(depth[0]?.fields?.some((item) => item.field.startsWith("well.survey"))).toBe(false);
+    expect(() => applyPaste(job, preview)).toThrow(/blocked/);
+    expect(job).toEqual(before);
+  });
+
+  it("applies a current well depth that stays above the pill and anchor", () => {
+    const job = structuredClone(exampleB);
+    const preview = previewPaste(job, paste("Current Well Depth (MD)\t10500\tft"));
+    expect(preview.errors.filter((item) => item.code === "DEPTH_BEYOND_TD")).toEqual([]);
+    expect(preview.canApply).toBe(true);
+    const applied = applyPaste(job, preview);
+    expect(applied.well.bitMd_ft).toBe(10500);
+    expect(applied.well.mdTd_ft).toBe(exampleB.well.mdTd_ft);
+    expect(job).toEqual(exampleB);
+  });
+
+  it("lists the last survey when TD Depth is shallower than the station", () => {
+    const job = structuredClone(exampleB);
+    const preview = previewPaste(job, paste("TD Depth\t9000\tft"));
+    expect(preview.canApply).toBe(false);
+    const fields = preview.errors.find((item) => item.code === "DEPTH_BEYOND_TD")?.fields ?? [];
+    expect(fields).toEqual(
+      expect.arrayContaining([
+        { field: "well.survey[4].md_ft", value: 10530, limit: 9000, limitField: "well.mdTd_ft" },
+        { field: "column[1].bottomMd_ft", value: 10480, limit: 9000, limitField: "well.mdTd_ft" },
+        { field: "well.anchorMd_ft", value: 10480, limit: 9000, limitField: "well.mdTd_ft" },
+        { field: "well.anchorTvd_ft", value: 10466, limit: 9000, limitField: "well.mdTd_ft" },
+      ]),
+    );
   });
 });
 

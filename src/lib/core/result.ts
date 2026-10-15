@@ -65,8 +65,18 @@ export interface Displacement {
   pillTopTvd_ft: number | null;
   pillBottomTvd_ft: number | null;
   stages: DisplacementStage[];
-  minStagesRih: number | null;
+  /**
+   * How many RIH stages the table needs. `stages` is null only when that count
+   * cannot be computed; `reason` is why, so print is never a bare null.
+   */
+  minStagesRih: StageCount;
 }
+
+export type StageCountReason = "NO_PILL" | "NO_PIPE_BELOW_BIT" | "GEOMETRY";
+
+export type StageCount =
+  | { stages: number }
+  | { stages: null; reason: StageCountReason };
 
 export interface TripEmw {
   surge_ppg: number | null;

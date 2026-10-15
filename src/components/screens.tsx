@@ -1,7 +1,7 @@
 import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useMemo, useState, type ReactNode } from "react";
-import type { KpiError, KpiVolumesResult, PoohFillValue, DepthKey, PumpError, Result, StrokesScheduleResult, TripLimit, TripScheduleRow } from "@/contract";
-import { HAS_PIPE_COLUMN, isTaperedRefusal, jobLabel, kpiVolumes, strokesSchedule } from "@/contract";
+import type { KpiError, KpiVolumesResult, PoohFillValue, DepthKey, PumpError, Result, StageCount, StrokesScheduleResult, TripLimit, TripScheduleRow } from "@/contract";
+import { HAS_PIPE_COLUMN, isCalcRefusal, jobLabel, kpiVolumes, strokesSchedule } from "@/contract";
 import { getPath } from "@/lib/paths";
 import { Card, fmt, Grid, IssueList, NumField } from "@/components/fields";
 import { issuesFor, useCalcEdited, useStore } from "@/lib/store";
@@ -143,13 +143,17 @@ function Ladder({ r }: { r: Result }) {
   );
 }
 
+function rihStageTitle(count: StageCount): string {
+  return count.stages == null ? `RIH stages not available: ${count.reason}` : `RIH - minimum ${count.stages} stages needed`;
+}
+
 export function DisplacementScreen() {
   const r = useStore((s) => s.result);
   if (!r) return null;
   const d = r.displacement;
   return (
     <div className="space-y-3">
-      <h2 className="text-lg font-semibold">RIH - minimum {d.minStagesRih ?? "—"} stages needed</h2>
+      <h2 className="text-lg font-semibold">{rihStageTitle(d.minStagesRih)}</h2>
       <div className="grid gap-3 lg:grid-cols-[280px_1fr]">
         <Card title="Wellbore ladder"><Ladder r={r} /></Card>
         <div className="space-y-3">
@@ -336,7 +340,7 @@ function useStrokes(): StrokesScheduleResult | null {
   const r = useStore((s) => s.result);
   if (!r) return null;
   const schedule = strokesSchedule(job, r);
-  return isTaperedRefusal(schedule) ? null : schedule;
+  return isCalcRefusal(schedule) ? null : schedule;
 }
 const PumpErr = ({ e }: { e: PumpError }) => (
   <p data-pump-error={e.field} role="alert" className="mt-1 text-[11px] leading-snug text-danger">✖ {e.message} <span className="font-mono opacity-70">[{e.code}]</span></p>);
@@ -436,7 +440,7 @@ function useKpi(): KpiVolumesResult | null {
   return useMemo(() => {
     if (!job) return null;
     const volumes = kpiVolumes(job, { surfaceLine_bbl: 0 });
-    return isTaperedRefusal(volumes) ? null : volumes;
+    return isCalcRefusal(volumes) ? null : volumes;
   }, [job]);
 }
 const KpiErr = ({ e }: { e: KpiError }) => (
@@ -556,7 +560,7 @@ export function ExportScreen() {
           <div className="text-right font-mono text-[11px] text-muted-foreground">PillView 2.0 · {APP_VERSION}<br />SDS-FRM-087 · calc {result?.calcVersion ?? "—"}<br />inputs #{result?.inputHash ?? "—"}</div>
         </header>
         {result && <>
-          <h3 className="mb-1 font-semibold">RIH - minimum {result.displacement.minStagesRih ?? "—"} stages needed</h3>
+          <h3 className="mb-1 font-semibold">{rihStageTitle(result.displacement.minStagesRih)}</h3>
           <table className="procedure-table mb-3 w-full text-right font-mono text-xs"><thead><tr>{["#", "Bit MD (ft)", "Pumped (bbl)", "SBP (psi)", "Shoe ESD hydrostatic (ppg)", "Shoe EMW (ppg)", `vs FIT ${num(result.depths.shoe.fit_ppg)}`].map((h) => <th key={h} className="border-b px-1">{h}</th>)}</tr></thead>
             <tbody>{result.displacement.stages.map((s) => <tr key={s.n}><td>{s.n}</td><td>{s.bitMd_ft}</td><td><Pumped v={s.pumped_bbl} /></td><td>{num(s.sbp_psi, 0)}</td><td>{num(s.shoeEsd_ppg)}</td><td className="font-semibold">{num(s.shoeEmw_ppg, 3)}</td><td><FitCmp n={s.n} /></td></tr>)}</tbody></table>
           <StrokesPrint />

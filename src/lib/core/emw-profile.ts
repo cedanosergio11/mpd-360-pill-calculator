@@ -1,5 +1,5 @@
 import { columnDisplacedByPipe, esdAtMd, pillPlacement } from "./column";
-import { taperedCalcRefusal, type TaperedStringRefusal } from "./job-support";
+import { calcRefusal, type CalcRefusal } from "./job-support";
 import { balanceFloat, pipePillBbl } from "./equalize";
 import { uniqueSorted } from "./geometry";
 import { ecdPpg, frictionPsi } from "./hydraulics";
@@ -489,8 +489,8 @@ function profileFor(
  * the FIT and pore intervals at or below the shoe, interpolated on the line
  * and run to the bit. A failure returns no stations and no lines.
  */
-export function emwProfile(job: Job): EmwProfileResult | TaperedStringRefusal {
-  const refused = taperedCalcRefusal(job);
+export function emwProfile(job: Job): EmwProfileResult | CalcRefusal {
+  const refused = calcRefusal(job);
   if (refused) return refused;
 
   if (!finite(job.well.fit_ppg)) {

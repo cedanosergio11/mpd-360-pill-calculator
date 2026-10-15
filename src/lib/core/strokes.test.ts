@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { exampleB } from "@/lib/example-b";
 import { calculate as calculateAny } from "./calculate";
-import { isTaperedRefusal } from "./job-support";
+import { isCalcRefusal } from "./job-support";
 import { pillPlacement } from "./column";
 import { pumpedPillBbl } from "./displacement";
 import { exampleJob } from "./example-job";
@@ -12,7 +12,7 @@ import { pumpOutput_bblPerStk, strokesSchedule, type StrokesScheduleRow } from "
 
 function calculate(job: Job): Result {
   const result = calculateAny(job);
-  if (isTaperedRefusal(result)) throw new Error(result.code);
+  if (isCalcRefusal(result)) throw new Error(result.code);
   return result;
 }
 

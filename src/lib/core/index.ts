@@ -1,4 +1,5 @@
 export { calculate } from "./calculate";
+export { rihStageCount } from "./displacement";
 export { inputHash, stableStringify } from "./hash";
 export { issue, type Issue, type IssueLevel } from "./issues";
 export {
@@ -30,6 +31,8 @@ export {
   type TripLimit,
   type TripPointKey,
   type TripScheduleRow,
+  type StageCount,
+  type StageCountReason,
 } from "./result";
 export { validate } from "./validate";
 export {
@@ -82,8 +85,15 @@ export {
   type RestoreSavedResult,
 } from "./preset";
 export {
+  DEPTH_BEYOND_TD,
+  calcRefusal,
+  depthBeyondFields,
+  isCalcRefusal,
   isTaperedRefusal,
   jobSupport,
+  type CalcRefusal,
+  type DepthBeyondField,
+  type DepthBeyondRefusal,
   type JobSupport,
   type TaperedStringRefusal,
 } from "./job-support";

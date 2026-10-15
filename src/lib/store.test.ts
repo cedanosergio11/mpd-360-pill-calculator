@@ -79,7 +79,13 @@ function expectSavedRefused(input: Job) {
   expect(canSimulate(input).ok).toBe(false);
   const sim = simulate(input);
   expect(sim.ok).toBe(false);
-  if (!sim.ok) expect(sim.error).toEqual({ code: "SIM_REQUIRES_TAPERED", presetId: "D" });
+  const presetId = input.meta?.presetId;
+  if (!sim.ok) {
+    expect(sim.error).toEqual({
+      code: "SIM_REQUIRES_TAPERED",
+      presetId: presetId === "B" || presetId === "C" || presetId === "D" ? presetId : null,
+    });
+  }
   expect(sim).not.toHaveProperty("steps");
 }
 

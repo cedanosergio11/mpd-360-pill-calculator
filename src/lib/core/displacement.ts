@@ -1,11 +1,11 @@
 import { capBblFt } from "@/lib/utils";
-import { taperedCalcRefusal, type TaperedStringRefusal } from "./job-support";
+import { calcRefusal, type CalcRefusal } from "./job-support";
 import { columnDisplacedByPipe, esdAtMd, pillPlacement, type Span } from "./column";
 import { balanceFloat, pipePillBbl } from "./equalize";
 import { intervalVolume, uniqueSorted } from "./geometry";
 import { issue, type Issue } from "./issues";
 import type { Job } from "./job.schema";
-import type { Displacement, DisplacementStage } from "./result";
+import type { Displacement, DisplacementStage, StageCount } from "./result";
 import { PSI_PER_PPG_FT } from "./result";
 import { resolvedAnchorTvd, tvdAt } from "./tvd";
 
@@ -17,8 +17,27 @@ function blankDisplacement(): Displacement {
     pillTopTvd_ft: null,
     pillBottomTvd_ft: null,
     stages: [],
-    minStagesRih: null,
+    minStagesRih: { stages: null, reason: "NO_PILL" },
   };
+}
+
+/** RIH stage count. A pill past the bit is `NO_PIPE_BELOW_BIT`, not a number and not a bare null. */
+export function rihStageCount(job: Job): StageCount {
+  const place = pillPlacement(job);
+  if (!place?.pill) return { stages: null, reason: "NO_PILL" };
+  if (place.pill.topMd > job.well.bitMd_ft + 1e-4 || place.pill.bottomMd > job.well.bitMd_ft + 1e-4) {
+    return { stages: null, reason: "NO_PIPE_BELOW_BIT" };
+  }
+  return stageCountFor(job, place.pill, stagesFor(job, place.pill, []));
+}
+
+function stageCountFor(job: Job, pill: Span | null, stages: DisplacementStage[]): StageCount {
+  if (!pill) return { stages: null, reason: "NO_PILL" };
+  if (pill.topMd > job.well.bitMd_ft + 1e-4 || pill.bottomMd > job.well.bitMd_ft + 1e-4) {
+    return { stages: null, reason: "NO_PIPE_BELOW_BIT" };
+  }
+  if (stages.length === 0) return { stages: null, reason: "GEOMETRY" };
+  return { stages: stages.length };
 }
 
 /**
@@ -146,8 +165,8 @@ function stagesFor(job: Job, pill: Span, issues: Issue[]): DisplacementStage[] {
  * `pumped_bbl` is pill length covered times pipe capacity.
  * RIH steel displacement shifts every fluid interface, including a slug.
  */
-export function buildDisplacement(job: Job, issues: Issue[]): Displacement | TaperedStringRefusal {
-  const refused = taperedCalcRefusal(job);
+export function buildDisplacement(job: Job, issues: Issue[]): Displacement | CalcRefusal {
+  const refused = calcRefusal(job);
   if (refused) return refused;
 
   const place = pillPlacement(job);
@@ -172,7 +191,7 @@ export function buildDisplacement(job: Job, issues: Issue[]): Displacement | Tap
     pillTopTvd_ft: tvdAt(job.well, pill.topMd),
     pillBottomTvd_ft: tvdAt(job.well, pill.bottomMd),
     stages: [],
-    minStagesRih: null,
+    minStagesRih: { stages: null, reason: "GEOMETRY" },
   };
   if (place.slug) {
     const slugVolume = intervalVolume(job.well, place.slug.topMd, place.slug.bottomMd, "full");
@@ -192,7 +211,7 @@ export function buildDisplacement(job: Job, issues: Issue[]): Displacement | Tap
 
   const stages = stagesFor(job, pill, issues);
   displacement.stages = stages;
-  displacement.minStagesRih = stages.length > 0 ? stages.length : null;
+  displacement.minStagesRih = stageCountFor(job, pill, stages);
 
   if (job.mode === "withDP" && pipePillBbl(job, pill.fluidId) > 0.05) {
     const balance = balanceFloat(job);
