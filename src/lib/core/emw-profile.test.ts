@@ -8,6 +8,7 @@ import {
   type EmwStationLabel,
 } from "./emw-profile";
 import type { Job } from "./job.schema";
+import { kpiVolumes } from "./kpi";
 import { PSI_PER_PPG_FT } from "./result";
 import { tvdAt } from "./tvd";
 
@@ -205,6 +206,74 @@ describe("emwProfile EXAMPLE B and C", () => {
       { tvd_ft: 8686, line: "staticSbp", pillState: "inPlace", limit: "fit" },
     ]);
     expect(result.crossings[0].tvd_ft).toBeGreaterThanOrEqual(job.well.shoeTvd_ft);
+  });
+
+  it("checks the shoe and the FIT interval below it on EXAMPLE C", () => {
+    const result = emwProfile(exampleC);
+    const kpi = kpiVolumes(exampleC, { surfaceLine_bbl: 0 });
+    expect(result.ok && kpi.ok).toBe(true);
+    if (!result.ok || !kpi.ok) return;
+    expect(result.shoeCheck).toHaveLength(6);
+    const shoe = result.shoeCheck.find(
+      (row) => row.line === "staticSbp" && row.pillState === "inPlace",
+    );
+    expect(shoe).toBeDefined();
+    if (!shoe) return;
+    expect(shoe.emw_ppg).toBeCloseTo(12.716684, 4);
+    expect(shoe.over).toBe(true);
+    expect(shoe.margin_ppg).toBeCloseTo(shoe.fit_ppg - shoe.emw_ppg, 8);
+    expect(shoe.margin_psi).toBeCloseTo(
+      shoe.margin_ppg * PSI_PER_PPG_FT * exampleC.well.shoeTvd_ft,
+      8,
+    );
+    expect(shoe.margin_psi).toBeCloseTo(-48.74, 2);
+    expect(shoe.margin_psi).toBeCloseTo((12.6 - 12.716684) * PSI_PER_PPG_FT * 8033, 2);
+    expect(shoe.margin_psi).toBeCloseTo(kpi.masp.margin_psi, 6);
+
+    const over = result.exceedances.filter(
+      (row) => row.line === "staticSbp" && row.pillState === "inPlace" && row.limit === "fit",
+    );
+    expect(over).toEqual([
+      {
+        fromTvd_ft: 8033,
+        toTvd_ft: 10466,
+        fromMd_ft: 8045,
+        toMd_ft: 10480,
+        line: "staticSbp",
+        pillState: "inPlace",
+        limit: "fit",
+        maxEmw_ppg: over[0]?.maxEmw_ppg,
+      },
+    ]);
+    expect(over[0].maxEmw_ppg).toBeCloseTo(13.011783, 4);
+    expect(over[0].fromTvd_ft).toBe(exampleC.well.shoeTvd_ft);
+  });
+
+  it("starts the EXAMPLE B spotted static-plus-SBP exceedance between the grid points and runs it to the bit", () => {
+    const result = emwProfile(exampleB);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const over = result.exceedances.filter(
+      (row) => row.line === "staticSbp" && row.pillState === "spotted" && row.limit === "fit",
+    );
+    expect(over).toHaveLength(1);
+    expect(over[0].toTvd_ft).toBe(10466);
+    expect(over[0].toMd_ft).toBe(10480);
+    expect(over[0].fromTvd_ft).toBeCloseTo(9404.933887, 4);
+    expect(over[0].fromMd_ft).toBeCloseTo(9418.933887, 4);
+    expect(over[0].fromTvd_ft).toBeLessThanOrEqual(9486);
+    expect(over[0].toTvd_ft).toBeGreaterThan(9486);
+    for (const job of [exampleB, exampleC]) {
+      const profile = job === exampleB ? result : emwProfile(job);
+      expect(profile.ok).toBe(true);
+      if (!profile.ok) return;
+      expect(profile.shoeCheck).toHaveLength(6);
+      expect(
+        profile.exceedances.every(
+          (row) => row.fromTvd_ft >= job.well.shoeTvd_ft && row.toTvd_ft >= job.well.shoeTvd_ft,
+        ),
+      ).toBe(true);
+    }
   });
 
   it("does not invent a pore value when the entered pore is not finite", () => {

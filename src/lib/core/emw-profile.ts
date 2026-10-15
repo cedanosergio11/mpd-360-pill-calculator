@@ -88,6 +88,29 @@ export interface EmwNote {
   message: string;
 }
 
+export interface EmwExceedance {
+  fromTvd_ft: number;
+  toTvd_ft: number;
+  fromMd_ft: number;
+  toMd_ft: number;
+  line: EmwLineName;
+  pillState: EmwPillState;
+  limit: "fit" | "pore";
+  maxEmw_ppg: number;
+}
+
+export interface EmwShoeCheck {
+  line: EmwLineName;
+  pillState: EmwPillState;
+  emw_ppg: number;
+  fit_ppg: number;
+  /** FIT − EMW at the shoe, ppg. */
+  margin_ppg: number;
+  /** margin_ppg × 0.052 × shoe TVD. */
+  margin_psi: number;
+  over: boolean;
+}
+
 export interface EmwProfileValue {
   inPlace: { lines: EmwLines };
   spotted: { lines: EmwLines };
@@ -95,6 +118,10 @@ export interface EmwProfileValue {
   stations: EmwStation[];
   limits: EmwLimits;
   crossings: EmwCrossing[];
+  /** FIT and pore intervals at or below the shoe. Boundaries are interpolated on the line. */
+  exceedances: EmwExceedance[];
+  /** Three lines for the pill in place, then the same three spotted. */
+  shoeCheck: EmwShoeCheck[];
 }
 
 export type EmwProfileResult =
@@ -285,6 +312,131 @@ function lineCrossings(
   return flags;
 }
 
+const PROFILE_LINES: readonly EmwLineName[] = ["static", "staticSbp", "ecd"];
+
+function pointsFromShoe(points: EmwPoint[], shoeMd: number): EmwPoint[] {
+  const index = points.findIndex((point) => Math.abs(point.md_ft - shoeMd) <= 0.5);
+  if (index < 0) return [];
+  return points.slice(index);
+}
+
+function pointAtShoe(points: EmwPoint[], shoeMd: number): EmwPoint | undefined {
+  return points.find((point) => Math.abs(point.md_ft - shoeMd) <= 0.5);
+}
+
+/** EMW is linear between adjacent line points. `t` places the limit on that segment. */
+function boundaryAt(a: EmwPoint, b: EmwPoint, limitPpg: number): EmwPoint {
+  const span = b.emw_ppg - a.emw_ppg;
+  const t = span === 0 ? 0 : (limitPpg - a.emw_ppg) / span;
+  const clamped = Math.min(1, Math.max(0, t));
+  return {
+    tvd_ft: a.tvd_ft + clamped * (b.tvd_ft - a.tvd_ft),
+    md_ft: a.md_ft + clamped * (b.md_ft - a.md_ft),
+    emw_ppg: a.emw_ppg + clamped * span,
+  };
+}
+
+function intervalsWhere(
+  points: EmwPoint[],
+  unsafe: (emw: number) => boolean,
+  limitPpg: number,
+): Pick<EmwExceedance, "fromTvd_ft" | "toTvd_ft" | "fromMd_ft" | "toMd_ft" | "maxEmw_ppg">[] {
+  if (!points.length) return [];
+  const found: Pick<
+    EmwExceedance,
+    "fromTvd_ft" | "toTvd_ft" | "fromMd_ft" | "toMd_ft" | "maxEmw_ppg"
+  >[] = [];
+  let open: { from: EmwPoint; samples: number[] } | null = null;
+  const finish = (bound: EmwPoint) => {
+    if (!open) return;
+    open.samples.push(bound.emw_ppg);
+    found.push({
+      fromTvd_ft: open.from.tvd_ft,
+      toTvd_ft: bound.tvd_ft,
+      fromMd_ft: open.from.md_ft,
+      toMd_ft: bound.md_ft,
+      maxEmw_ppg: Math.max(...open.samples),
+    });
+    open = null;
+  };
+  if (unsafe(points[0].emw_ppg)) open = { from: points[0], samples: [points[0].emw_ppg] };
+  for (let i = 1; i < points.length; i++) {
+    const prev = points[i - 1];
+    const current = points[i];
+    const was = unsafe(prev.emw_ppg);
+    const now = unsafe(current.emw_ppg);
+    if (!was && now) {
+      const bound = boundaryAt(prev, current, limitPpg);
+      open = { from: bound, samples: [bound.emw_ppg, current.emw_ppg] };
+    } else if (was && !now) {
+      finish(boundaryAt(prev, current, limitPpg));
+    } else if (now && open) {
+      open.samples.push(current.emw_ppg);
+    }
+  }
+  if (open) finish(points[points.length - 1]);
+  return found;
+}
+
+function exceedancesFor(
+  inPlace: EmwLines,
+  spotted: EmwLines,
+  fit: number,
+  pore: number | null,
+  shoeMd: number,
+): EmwExceedance[] {
+  const exceedances: EmwExceedance[] = [];
+  const states = [
+    ["inPlace", inPlace],
+    ["spotted", spotted],
+  ] as const;
+  for (const [pillState, lines] of states) {
+    for (const line of PROFILE_LINES) {
+      const belowShoe = pointsFromShoe(lines[line], shoeMd);
+      for (const interval of intervalsWhere(belowShoe, (emw) => emw >= fit - 1e-9, fit)) {
+        exceedances.push({ ...interval, line, pillState, limit: "fit" });
+      }
+      if (pore != null) {
+        for (const interval of intervalsWhere(belowShoe, (emw) => emw <= pore + 1e-9, pore)) {
+          exceedances.push({ ...interval, line, pillState, limit: "pore" });
+        }
+      }
+    }
+  }
+  return exceedances;
+}
+
+function shoeCheckFor(
+  inPlace: EmwLines,
+  spotted: EmwLines,
+  fit: number,
+  shoeMd: number,
+  shoeTvd: number,
+): EmwShoeCheck[] | null {
+  const checks: EmwShoeCheck[] = [];
+  const states = [
+    ["inPlace", inPlace],
+    ["spotted", spotted],
+  ] as const;
+  for (const [pillState, lines] of states) {
+    for (const line of PROFILE_LINES) {
+      const point = pointAtShoe(lines[line], shoeMd);
+      if (!point) return null;
+      const margin_ppg = fit - point.emw_ppg;
+      checks.push({
+        line,
+        pillState,
+        emw_ppg: point.emw_ppg,
+        fit_ppg: fit,
+        margin_ppg,
+        margin_psi: margin_ppg * PSI_PER_PPG_FT * shoeTvd,
+        over: point.emw_ppg >= fit - 1e-9,
+      });
+    }
+  }
+  return checks;
+}
+
 function crossingsFor(
   pillState: EmwPillState,
   lines: EmwLines,
@@ -332,8 +484,9 @@ function profileFor(
 /**
  * Static, static-plus-connection-SBP, and ECD profiles for the pill in place
  * and the pill spotted. FIT is the shoe EMW. Pore is the entered ppg when
- * present. Crossings shallower than the shoe TVD are omitted. A failure
- * returns no stations and no lines.
+ * present. Crossings shallower than the shoe TVD are omitted. Exceedances are
+ * the FIT and pore intervals at or below the shoe, interpolated on the line
+ * and run to the bit. A failure returns no stations and no lines.
  */
 export function emwProfile(job: Job): EmwProfileResult {
   if (!finite(job.well.fit_ppg)) {
@@ -383,12 +536,30 @@ export function emwProfile(job: Job): EmwProfileResult {
       "Shoe, anchor, and bit are not on the profile.",
     );
   }
+  const shoeCheck = shoeCheckFor(
+    placed.lines,
+    spottedProfile.lines,
+    job.well.fit_ppg,
+    job.well.shoeMd_ft,
+    job.well.shoeTvd_ft,
+  );
+  if (!shoeCheck) {
+    return fail("INVALID_GEOMETRY", "well.shoeMd_ft", "Shoe EMW is not on the profile.");
+  }
   return {
     ok: true,
     inPlace: { lines: placed.lines },
     spotted: { lines: spottedProfile.lines },
     stations: labeled,
     limits: { pore_ppg: pore, fit_ppg: job.well.fit_ppg },
+    exceedances: exceedancesFor(
+      placed.lines,
+      spottedProfile.lines,
+      job.well.fit_ppg,
+      pore,
+      job.well.shoeMd_ft,
+    ),
+    shoeCheck,
     crossings: [
       ...crossingsFor("inPlace", placed.lines, job.well.fit_ppg, pore),
       ...crossingsFor("spotted", spottedProfile.lines, job.well.fit_ppg, pore),
