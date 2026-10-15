@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { exampleB } from "@/lib/example-b";
 import { calculate } from "./calculate";
-import { fmtBbl, fmtDepth, fmtDepthRange, fmtEmw, fmtKmw, fmtPsi } from "./format";
+import { fmtBbl, fmtBblPerStk, fmtDepth, fmtDepthRange, fmtEmw, fmtIn, fmtKmw, fmtMin, fmtPsi, fmtStrokes } from "./format";
 import { isCalcRefusal } from "./job-support";
 
 const EM_DASH = "\u2014";
@@ -28,6 +28,10 @@ describe("display format", () => {
     expect(fmtKmw(-0)).toBe("0.0");
     expect(fmtPsi(-0)).toBe("0");
     expect(fmtBbl(-0)).toBe("0.0");
+    expect(fmtStrokes(-0)).toBe("0 stk");
+    expect(fmtMin(-0)).toBe("0.0 min");
+    expect(fmtBblPerStk(-0)).toBe("0.0000 bbl/stk");
+    expect(fmtIn(-0)).toBe("0.000 in");
     expect(Object.is(fmtDepth(-0), "0 ft")).toBe(true);
   });
 
@@ -48,17 +52,36 @@ describe("display format", () => {
     expect(fmtBbl(10)).toBe("10.0");
   });
 
+  it("formats strokes, minutes, pump output, and inches", () => {
+    expect(fmtStrokes(12345)).toBe("12,345 stk");
+    expect(fmtStrokes(12345.6)).toBe("12,346 stk");
+    expect(fmtStrokes(10.4)).toBe("10 stk");
+    expect(fmtMin(1.04)).toBe("1.0 min");
+    expect(fmtMin(1.25)).toBe("1.3 min");
+    expect(fmtMin(12)).toBe("12.0 min");
+    expect(fmtBblPerStk(0.012345)).toBe("0.0123 bbl/stk");
+    expect(fmtBblPerStk(1.23456)).toBe("1.2346 bbl/stk");
+    expect(fmtBblPerStk(0.1176)).toBe("0.1176 bbl/stk");
+    expect(fmtIn(4.276)).toBe("4.276 in");
+    expect(fmtIn(5.5)).toBe("5.500 in");
+    expect(fmtIn(8.8354)).toBe("8.835 in");
+  });
+
   it("uses an em dash for null, undefined, and non-finite values", () => {
-    for (const value of [null, undefined, Number.NaN, Number.POSITIVE_INFINITY]) {
+    for (const value of [null, undefined, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
       expect(fmtDepth(value)).toBe(EM_DASH);
       expect(fmtEmw(value)).toBe(EM_DASH);
       expect(fmtKmw(value)).toBe(EM_DASH);
       expect(fmtPsi(value)).toBe(EM_DASH);
       expect(fmtBbl(value)).toBe(EM_DASH);
+      expect(fmtStrokes(value)).toBe(EM_DASH);
+      expect(fmtMin(value)).toBe(EM_DASH);
+      expect(fmtBblPerStk(value)).toBe(EM_DASH);
+      expect(fmtIn(value)).toBe(EM_DASH);
       expect(fmtDepthRange(value, 10)).toBe(EM_DASH);
       expect(fmtDepthRange(10, value)).toBe(EM_DASH);
     }
-    const shown = [fmtDepth(Number.NaN), fmtEmw(undefined), fmtKmw(null), fmtPsi(Number.NaN), fmtBbl(undefined)];
+    const shown = [fmtDepth(Number.NaN), fmtEmw(undefined), fmtKmw(null), fmtPsi(Number.NaN), fmtBbl(undefined), fmtStrokes(Number.NaN), fmtMin(null), fmtBblPerStk(undefined), fmtIn(Number.POSITIVE_INFINITY)];
     expect(shown.join(" ")).not.toContain("NaN");
   });
 
@@ -75,6 +98,10 @@ describe("display format", () => {
     fmtKmw(12.01);
     fmtPsi(before.displacement.stages[0]?.sbp_psi);
     fmtBbl(before.displacement.pillVolume_bbl);
+    fmtStrokes(before.displacement.stages.length);
+    fmtMin(1.25);
+    fmtBblPerStk(0.1176);
+    fmtIn(before.depths.shoe.md_ft);
     expect(before).toEqual(snapshot);
     expect(calculate(exampleB)).toEqual(snapshot);
   });

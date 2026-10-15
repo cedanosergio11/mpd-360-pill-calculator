@@ -67,3 +67,27 @@ export function fmtBbl(bbl: number | null | undefined): string {
   if (!finite(bbl)) return EM_DASH;
   return fixed(roundTo(bbl, 0.1), 1);
 }
+
+/** Whole strokes, thousands separator, with the unit. */
+export function fmtStrokes(strokes: number | null | undefined): string {
+  if (!finite(strokes)) return EM_DASH;
+  return `${grouped(Math.round(strokes))} stk`;
+}
+
+/** Minutes to the nearest 0.1. */
+export function fmtMin(min: number | null | undefined): string {
+  if (!finite(min)) return EM_DASH;
+  return `${fixed(roundTo(min, 0.1), 1)} min`;
+}
+
+/** Pump output to 4 decimals. */
+export function fmtBblPerStk(bblPerStk: number | null | undefined): string {
+  if (!finite(bblPerStk)) return EM_DASH;
+  return `${fixed(roundTo(bblPerStk, 0.0001), 4)} bbl/stk`;
+}
+
+/** Diameter to 3 decimals. */
+export function fmtIn(inches: number | null | undefined): string {
+  if (!finite(inches)) return EM_DASH;
+  return `${fixed(roundTo(inches, 0.001), 3)} in`;
+}
