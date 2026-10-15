@@ -66,3 +66,14 @@ export {
   type PoohFillStand,
   type PoohFillValue,
 } from "./kpi";
+export {
+  emwProfile,
+  type EmwCrossing,
+  type EmwError,
+  type EmwLineName,
+  type EmwPillProfile,
+  type EmwPoint,
+  type EmwProfileResult,
+  type EmwProfileValue,
+  type EmwStation,
+} from "./emw-profile";
