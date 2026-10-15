@@ -37,8 +37,13 @@ function assertFiniteRow(row: StrokesScheduleRow, minutesNull: boolean) {
   expect(Number.isFinite(row.strokes)).toBe(true);
   expect(Number.isFinite(row.cumStrokes)).toBe(true);
   expect(Number.isFinite(row.n)).toBe(true);
-  if (minutesNull) expect(row.minutes).toBeNull();
-  else expect(Number.isFinite(row.minutes)).toBe(true);
+  if (minutesNull) {
+    expect(row.minutes).toBeNull();
+    expect(row.cumMinutes).toBeNull();
+  } else {
+    expect(Number.isFinite(row.minutes)).toBe(true);
+    expect(Number.isFinite(row.cumMinutes)).toBe(true);
+  }
 }
 
 describe("pumpOutput_bblPerStk", () => {
@@ -54,6 +59,22 @@ describe("pumpOutput_bblPerStk", () => {
   it("accepts an efficiency of exactly 1", () => {
     const output = pumpOutput_bblPerStk({ linerIn: 6, strokeIn: 12, efficiency: 1 });
     expect(output).toEqual({ ok: true, bblPerStk: 0.000243 * 36 * 12 });
+  });
+
+  it("rejects efficiency entered as 97 and does not divide by 100", () => {
+    const error = {
+      code: "INVALID_PUMP" as const,
+      field: "pump.efficiency",
+      message: "Efficiency must be a fraction (enter as fraction, e.g. 0.97).",
+    };
+    expect(pumpOutput_bblPerStk({ linerIn: 6, strokeIn: 12, efficiency: 97 })).toEqual({
+      ok: false,
+      error,
+    });
+    const schedule = strokesSchedule(withPump(exampleJob(), { ...PUMP, efficiency: 97 }), {
+      displacement: calculate(exampleJob()).displacement,
+    });
+    expect(schedule).toEqual({ ok: false, error });
   });
 
   it.each([
@@ -109,13 +130,14 @@ describe("strokesSchedule", () => {
         expect(row.strokes).toBe(0);
         expect(row.cumStrokes).toBe(0);
         expect(row.minutes).toBe(0);
+        expect(row.cumMinutes).toBe(0);
       } else {
         expect(row.stage_bbl).toBeCloseTo(expected.stage_bbl, 2);
         expect(row.cum_bbl).toBeCloseTo(expected.cum_bbl, 2);
         expect(Math.abs(row.strokes - expected.strokes)).toBeLessThanOrEqual(0.1);
         expect(Math.abs(row.cumStrokes - expected.cumStrokes)).toBeLessThanOrEqual(0.1);
-        expect(row.minutes).not.toBeNull();
-        expect(Math.abs(row.minutes! - expected.min)).toBeLessThanOrEqual(0.01);
+        expect(row.minutes).toBeCloseTo(13.1766, 4);
+        expect(row.cumMinutes).toBeCloseTo(13.1766, 4);
       }
       assertFiniteRow(row, false);
     }
@@ -160,7 +182,10 @@ describe("strokesSchedule", () => {
     expect(schedule.rows[0].strokes).toBeCloseTo(stageStrokes, 9);
     expect(schedule.rows[0].cumStrokes).toBeCloseTo(stageStrokes, 9);
     expect(schedule.rows[0].cum_bbl).toBeCloseTo(stageBbl, 9);
+    expect(schedule.rows[0].minutes).toBeCloseTo(4.3608, 4);
+    expect(schedule.rows[0].cumMinutes).toBeCloseTo(4.3608, 4);
     expect(schedule.rows[0].minutes).toBeCloseTo(stageStrokes / 40, 9);
+    expect(schedule.rows[0].cumMinutes).toBeCloseTo(stageStrokes / 40, 9);
     expect(schedule.rows[1].stage_bbl).toBeCloseTo(stageBbl, 9);
     expect(schedule.rows[1].cum_bbl).toBeCloseTo(2 * stageBbl, 9);
     expect(schedule.rows[1].strokes).toBeCloseTo(stageStrokes, 9);
@@ -168,7 +193,10 @@ describe("strokesSchedule", () => {
       schedule.rows[0].strokes + schedule.rows[1].strokes,
       9,
     );
-    expect(schedule.rows[1].minutes).toBeCloseTo((2 * stageStrokes) / 40, 9);
+    expect(schedule.rows[1].minutes).toBeCloseTo(4.3608, 4);
+    expect(schedule.rows[1].cumMinutes).toBeCloseTo(8.7217, 4);
+    expect(schedule.rows[1].minutes).toBeCloseTo(stageStrokes / 40, 9);
+    expect(schedule.rows[1].cumMinutes).toBeCloseTo((2 * stageStrokes) / 40, 9);
     expect(schedule.rows[0].stage_bbl).toBeGreaterThan(0);
     expect(schedule.rows[1].stage_bbl).toBeGreaterThan(0);
     for (const row of schedule.rows) assertFiniteRow(row, false);
@@ -220,7 +248,9 @@ describe("strokesSchedule", () => {
     const schedule = strokesSchedule(job, calculate(job));
     expect(schedule.ok).toBe(true);
     if (!schedule.ok) return;
-    expect(schedule.rows.every((row) => row.minutes === null)).toBe(true);
+    expect(schedule.rows.every((row) => row.minutes === null && row.cumMinutes === null)).toBe(
+      true,
+    );
     for (const row of schedule.rows) assertFiniteRow(row, true);
   });
 

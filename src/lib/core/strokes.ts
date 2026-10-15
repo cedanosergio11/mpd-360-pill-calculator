@@ -18,10 +18,15 @@ export interface StrokesScheduleRow {
   /** Strokes from job start through this stage. */
   cumStrokes: number;
   /**
-   * `cumStrokes / spm` from job start.
-   * Null when SPM is omitted, null, or 0. 0 when strokes are 0 and SPM is positive.
+   * This stage only: `strokes / spm`.
+   * Null when SPM is omitted, null, or 0. 0 when this stage's strokes are 0 and SPM is positive.
    */
   minutes: number | null;
+  /**
+   * `cumStrokes / spm` from job start.
+   * Null when SPM is omitted, null, or 0. 0 when cumulative strokes are 0 and SPM is positive.
+   */
+  cumMinutes: number | null;
 }
 
 export interface PumpError {
@@ -60,11 +65,18 @@ function requireEfficiency(
   value: number | null | undefined,
 ): { ok: true; value: number } | { ok: false; error: PumpError } {
   if (value == null) return fail("INVALID_PUMP", "pump.efficiency", "Efficiency is blank.");
-  if (!Number.isFinite(value) || value <= 0 || value > 1) {
+  if (!Number.isFinite(value) || value <= 0) {
     return fail(
       "INVALID_PUMP",
       "pump.efficiency",
       "Efficiency must be a fraction greater than 0 and at most 1.",
+    );
+  }
+  if (value > 1) {
+    return fail(
+      "INVALID_PUMP",
+      "pump.efficiency",
+      "Efficiency must be a fraction (enter as fraction, e.g. 0.97).",
     );
   }
   return { ok: true, value };
@@ -85,7 +97,7 @@ function rejectIfPresent(
 
 /**
  * Triplex output, bbl/stk.
- * Efficiency is a fraction in (0, 1]. 0, blank, NaN, and Infinity are errors.
+ * Efficiency is a fraction in (0, 1]. A value above 1 is rejected and is not divided by 100.
  */
 export function pumpOutput_bblPerStk(input: {
   linerIn?: number | null;
@@ -130,7 +142,7 @@ function resolveOutput(pump: PumpInput): PumpOutputResult {
   return pumpOutput_bblPerStk(pump);
 }
 
-/** Omitted, null, or 0 SPM → minutes null. Negative or non-finite SPM is an error. */
+/** Omitted, null, or 0 SPM → minutes and cumMinutes null. Negative or non-finite SPM is an error. */
 function resolveSpm(
   spm: number | null | undefined,
 ): { ok: true; spm: number | null } | { ok: false; error: PumpError } {
@@ -148,7 +160,8 @@ function resolveSpm(
 /**
  * One row per displacement stage.
  * Stage bbl is the increment of core `pumped_bbl` (already string capacity × pill length covered).
- * Cumulative strokes start at 0. Minutes are cumulative strokes / SPM, or null when SPM is 0 or blank.
+ * Cumulative strokes start at 0. `minutes` is this stage's strokes / SPM.
+ * `cumMinutes` is cumulative strokes / SPM. Both are null when SPM is 0 or blank.
  */
 export function strokesSchedule(
   job: Job,
@@ -184,7 +197,8 @@ export function strokesSchedule(
       cum_bbl: pumped,
       strokes,
       cumStrokes,
-      minutes: spm.spm == null ? null : cumStrokes / spm.spm,
+      minutes: spm.spm == null ? null : strokes / spm.spm,
+      cumMinutes: spm.spm == null ? null : cumStrokes / spm.spm,
     });
     previous = pumped;
   }

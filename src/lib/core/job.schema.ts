@@ -111,7 +111,7 @@ export interface PumpInput {
   /** Direct output, bbl/stk. Explicit 0 is an error and does not fall through. */
   bblPerStk?: number | null;
   /**
-   * Strokes per minute. Omitted, null, or 0 leaves schedule `minutes` null.
+   * Strokes per minute. Omitted, null, or 0 leaves schedule `minutes` and `cumMinutes` null.
    * A negative or non-finite value is an error.
    */
   spm?: number | null;
