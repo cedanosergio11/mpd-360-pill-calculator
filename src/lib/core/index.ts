@@ -97,6 +97,7 @@ export {
   type JobSupport,
   type TaperedStringRefusal,
 } from "./job-support";
+export { fmtBbl, fmtDepth, fmtDepthRange, fmtEmw, fmtKmw, fmtPsi } from "./format";
 export { lastSurveyMd, surveyTvdAt } from "./tvd";
 export {
   MD_BEYOND_SURVEY,
