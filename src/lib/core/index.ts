@@ -77,6 +77,8 @@ export {
   TAPERED_STRING_UNSUPPORTED,
   appDefaultJob,
   jobLabel,
+  type JobLabel,
+  type JobLabelKind,
   loadPreset,
   markEdited,
   metaFromSaved,
@@ -97,7 +99,8 @@ export {
   type JobSupport,
   type TaperedStringRefusal,
 } from "./job-support";
-export { fmtBbl, fmtBblPerStk, fmtDepth, fmtDepthRange, fmtEmw, fmtIn, fmtKmw, fmtMin, fmtPsi, fmtStrokes } from "./format";
+export { fmtBbl, fmtBblPerStk, fmtBblPerStand, fmtDepth, fmtDepthRange, fmtEmw, fmtIn, fmtKmw, fmtMin, fmtPsi, fmtStrokes, fmtTimeCT } from "./format";
+export { fieldLabel, type FieldLabel } from "./field-label";
 export { lastSurveyMd, surveyTvdAt } from "./tvd";
 export {
   MD_BEYOND_SURVEY,

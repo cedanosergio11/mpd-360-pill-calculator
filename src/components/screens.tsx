@@ -556,7 +556,7 @@ export function ExportScreen() {
       <article className="procedure-sheet rounded-lg border bg-card p-4 text-sm">
         <FitBanner />
         <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2 border-b pb-2">
-          <div><div data-testid="sheet-title" className="text-base font-semibold">{jobLabel(calcJob ?? job)}{calcEdited && <span data-testid="print-edited-marker"> (edited)</span>}</div><div className="text-xs text-danger">EXAMPLE inputs, math checked against API RP 13D examples, pending Sergio's field review</div></div>
+          <div><div data-testid="sheet-title" className="text-base font-semibold">{jobLabel(calcJob ?? job).text}{calcEdited && <span data-testid="print-edited-marker"> (edited)</span>}</div><div className="text-xs text-danger">EXAMPLE inputs, math checked against API RP 13D examples, pending Sergio's field review</div></div>
           <div className="text-right font-mono text-[11px] text-muted-foreground">PillView 2.0 · {APP_VERSION}<br />SDS-FRM-087 · calc {result?.calcVersion ?? "—"}<br />inputs #{result?.inputHash ?? "—"}</div>
         </header>
         {result && <>

@@ -95,14 +95,34 @@ export function resetToPreset(job: Job): Job {
 }
 
 /**
- * Screen header and print title. An unmodified B, C, or D preset is `EXAMPLE B`,
- * `EXAMPLE C`, or `EXAMPLE D` from `meta.presetId`.
- * Anything else, including a legacy save and the app default, is `Modified, not an EXAMPLE`.
+ * Screen header and print title.
+ * `kind` matches the lock: an unmodified example whose string is tapered is
+ * `example-locked`, the same state as `jobSupport`'s `TAPERED_STRING_UNSUPPORTED`.
+ * That text is `EXAMPLE, tapered strings not available yet` and is never `Modified`.
+ * An unmodified single-string B or C example is `example`. The text is the preset
+ * name and does not include the preset letter. `PresetId` itself stays B, C, or D.
+ * Anything else, including a legacy save and the app default, is `modified`.
  */
-export function jobLabel(job: Job): string {
-  const id = job.meta?.isExample === true ? job.meta.presetId : null;
-  if (id === "B" || id === "C" || id === "D") return `EXAMPLE ${id}`;
-  return "Modified, not an EXAMPLE";
+export type JobLabelKind = "example" | "example-locked" | "modified";
+
+export interface JobLabel {
+  kind: JobLabelKind;
+  text: string;
+}
+
+const LOCKED_EXAMPLE = "EXAMPLE, tapered strings not available yet";
+
+export function jobLabel(job: Job): JobLabel {
+  const meta = job.meta;
+  const unmodifiedExample = meta?.isExample === true && meta.modified !== true;
+  if (unmodifiedExample && drillStringNeedsTaper(job.well)) {
+    return { kind: "example-locked", text: LOCKED_EXAMPLE };
+  }
+  const id = unmodifiedExample ? meta.presetId : null;
+  if (id === "B") return { kind: "example", text: "EXAMPLE, pill trip-in" };
+  if (id === "C") return { kind: "example", text: "EXAMPLE, SBP 550" };
+  if (id === "D") return { kind: "example", text: "EXAMPLE D" };
+  return { kind: "modified", text: "Modified, not an EXAMPLE" };
 }
 
 /**

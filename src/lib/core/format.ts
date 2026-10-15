@@ -91,3 +91,33 @@ export function fmtIn(inches: number | null | undefined): string {
   if (!finite(inches)) return EM_DASH;
   return `${fixed(roundTo(inches, 0.001), 3)} in`;
 }
+
+/** Volume per stand to 2 decimals. */
+export function fmtBblPerStand(bblPerStand: number | null | undefined): string {
+  if (!finite(bblPerStand)) return EM_DASH;
+  return fixed(roundTo(bblPerStand, 0.01), 2);
+}
+
+const CHICAGO = "America/Chicago";
+
+/**
+ * Clock time in America/Chicago, fixed `en-US` parts, suffixed `CT`.
+ * `Oct 15, 2026 5:45 PM CT`.
+ */
+export function fmtTimeCT(iso: string | null | undefined): string {
+  if (iso == null || iso.trim() === "") return EM_DASH;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return EM_DASH;
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: CHICAGO,
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  }).formatToParts(date);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
+  const dayPeriod = part("dayPeriod").toUpperCase();
+  return `${part("month")} ${part("day")}, ${part("year")} ${part("hour")}:${part("minute")} ${dayPeriod} CT`;
+}

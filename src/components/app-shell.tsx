@@ -63,7 +63,7 @@ export function AppShell() {
         <div className="flex items-center gap-2 px-3 py-2 text-xs">
           <span className="font-semibold text-primary">PillView 2.0</span>
           <span className="font-mono text-muted-foreground">{APP_VERSION}</span>
-          <span className="truncate font-semibold" data-testid="job-label">{jobLabel(job)}{edited && <span data-testid="edited-marker"> (edited)</span>}</span>
+          <span className="truncate font-semibold" data-testid="job-label">{jobLabel(job).text}{edited && <span data-testid="edited-marker"> (edited)</span>}</span>
           <span className={`rounded px-1.5 py-0.5 ${saved ? "bg-backfill/20 text-backfill" : "bg-warn/20 text-warn"}`}>{saved ? "Saved" : "Unsaved"}</span>
           {outOfDate && <button onClick={run} className="rounded bg-warn px-1.5 py-0.5 font-semibold text-black">Out of date · recalc</button>}
           <span data-testid="worst-issue" className={`ml-auto truncate ${w?.level === "error" ? "text-danger" : w ? "text-warn" : "text-backfill"}`}>

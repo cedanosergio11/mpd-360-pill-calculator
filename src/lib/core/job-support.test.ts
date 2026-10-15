@@ -52,14 +52,21 @@ describe("jobSupport on a restored D save", () => {
     useStore.getState().replace(structuredClone(exampleJob));
   });
 
-  it("uses the same geometry check as canSimulate and still labels EXAMPLE D", () => {
+  it("uses the same geometry check as canSimulate and labels the locked example", () => {
     const job = restoredD();
     const support = jobSupport(job);
     const gate = canSimulate(job);
     expect(gate.ok).toBe(false);
     if (support.ok || gate.ok) return;
     expect(support).toEqual({ ok: false, code: TAPERED_STRING_UNSUPPORTED, reason: gate.reason });
-    expect(jobLabel(job)).toBe("EXAMPLE D");
+    expect(jobLabel(job)).toEqual({
+      kind: "example-locked",
+      text: "EXAMPLE, tapered strings not available yet",
+    });
+    expect(jobLabel(job).text).not.toContain("Modified");
+    const edited = { ...job, meta: { presetId: "D" as const, isExample: false, modified: true } };
+    expect(jobSupport(edited).ok).toBe(false);
+    expect(jobLabel(edited)).toEqual({ kind: "modified", text: "Modified, not an EXAMPLE" });
   });
 
   it.each([

@@ -46,7 +46,7 @@ describe("saved job presetBaseline", () => {
   it("loads a legacy save with no meta as not an EXAMPLE", () => {
     const parsed = restoredJob(JSON.stringify(exampleC));
     expect(parsed.job.meta).toEqual({ presetId: null, isExample: false, modified: true });
-    expect(jobLabel(parsed.job)).toBe("Modified, not an EXAMPLE");
+    expect(jobLabel(parsed.job)).toEqual({ kind: "modified", text: "Modified, not an EXAMPLE" });
     expect(parsed.job.name).toBe(exampleC.name);
   });
 });

@@ -27,26 +27,31 @@ describe("AVAILABLE_PRESETS", () => {
 });
 
 describe("jobLabel", () => {
-  it("returns EXAMPLE B", () => {
-    expect(jobLabel(loadPreset("B"))).toBe("EXAMPLE B");
+  it("returns the neutral name for B", () => {
+    expect(loadPreset("B").name).toBe("EXAMPLE, pill trip-in");
+    expect(jobLabel(loadPreset("B"))).toEqual({ kind: "example", text: "EXAMPLE, pill trip-in" });
   });
 
-  it("returns EXAMPLE C", () => {
-    expect(jobLabel(loadPreset("C"))).toBe("EXAMPLE C");
+  it("returns the neutral name for C", () => {
+    expect(loadPreset("C").name).toBe("EXAMPLE, SBP 550");
+    expect(jobLabel(loadPreset("C"))).toEqual({ kind: "example", text: "EXAMPLE, SBP 550" });
   });
 
   // re-enable when #6 (tapered strings) lands
   it.skipIf(!exampleDReady)("returns EXAMPLE D", () => {
-    expect(jobLabel(loadPreset("D"))).toBe("EXAMPLE D");
+    expect(jobLabel(loadPreset("D")).text).toBe("EXAMPLE D");
   });
 
   it("returns Modified, not an EXAMPLE for a modified job", () => {
-    expect(jobLabel(markEdited(loadPreset("B")))).toBe("Modified, not an EXAMPLE");
-    expect(jobLabel(exampleC)).toBe("Modified, not an EXAMPLE");
-    expect(jobLabel(appDefaultJob())).toBe("Modified, not an EXAMPLE");
+    expect(jobLabel(markEdited(loadPreset("B")))).toEqual({
+      kind: "modified",
+      text: "Modified, not an EXAMPLE",
+    });
+    expect(jobLabel(exampleC)).toEqual({ kind: "modified", text: "Modified, not an EXAMPLE" });
+    expect(jobLabel(appDefaultJob())).toEqual({ kind: "modified", text: "Modified, not an EXAMPLE" });
   });
 
-  it("no label contains B/C/D", () => {
+  it("no user-facing preset string contains the B or C letter", () => {
     const labels = [
       jobLabel(loadPreset("B")),
       jobLabel(loadPreset("C")),
@@ -59,7 +64,12 @@ describe("jobLabel", () => {
       jobLabel({ ...loadPreset("B"), meta: { presetId: "D", isExample: true, modified: false } }),
     ];
     if (exampleDReady) labels.push(jobLabel(loadPreset("D")));
-    for (const label of labels) expect(label).not.toContain("B/C/D");
+    for (const label of labels) {
+      expect(label.text).not.toContain("B/C/D");
+      expect(label.text).not.toMatch(/\bEXAMPLE [BC]\b/);
+    }
+    expect(loadPreset("B").name).not.toMatch(/\bEXAMPLE [BC]\b/);
+    expect(loadPreset("C").name).not.toMatch(/\bEXAMPLE [BC]\b/);
   });
 });
 

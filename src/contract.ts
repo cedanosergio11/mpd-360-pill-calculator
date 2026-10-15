@@ -1,5 +1,15 @@
 // UI-facing re-export of Code Ninja's calc core (cedanosergio11/mpd-360-pill-calculator @ rebuild e232618).
 // The core in src/lib/core is the source of truth; do not redefine types here.
+//
+// `jobLabel` returns `{ kind, text }`. An unmodified example with a tapered string is
+// `{ kind: "example-locked", text: "EXAMPLE, tapered strings not available yet" }`,
+// the same state as `jobSupport`'s `TAPERED_STRING_UNSUPPORTED`, and the text is never
+// "Modified". An unmodified single-string B or C example is `kind: "example"` with the
+// preset name (`EXAMPLE, pill trip-in` or `EXAMPLE, SBP 550`). The preset letter stays
+// on `PresetId` only. Every other job is `{ kind: "modified", text: "Modified, not an EXAMPLE" }`.
+//
+// `fieldLabel(path)` is `{ label, unit }` for a job input path. Unknown paths are a
+// humanized string, never the raw path.
 export type {
   Job,
   JobMeta,
@@ -80,6 +90,9 @@ export type {
   SimulateResult,
   SimulateStep,
   RestoreSavedResult,
+  JobLabel,
+  JobLabelKind,
+  FieldLabel,
   JobSupport,
   TaperedStringRefusal,
   CalcRefusal,
@@ -120,6 +133,9 @@ export {
   fmtMin,
   fmtBblPerStk,
   fmtIn,
+  fmtBblPerStand,
+  fmtTimeCT,
+  fieldLabel,
   canSimulate,
   simulate,
   DEFAULT_STEP_FT,

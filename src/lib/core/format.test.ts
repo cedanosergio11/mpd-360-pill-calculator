@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { exampleB } from "@/lib/example-b";
 import { calculate } from "./calculate";
-import { fmtBbl, fmtBblPerStk, fmtDepth, fmtDepthRange, fmtEmw, fmtIn, fmtKmw, fmtMin, fmtPsi, fmtStrokes } from "./format";
+import { fmtBbl, fmtBblPerStk, fmtBblPerStand, fmtDepth, fmtDepthRange, fmtEmw, fmtIn, fmtKmw, fmtMin, fmtPsi, fmtStrokes, fmtTimeCT } from "./format";
 import { isCalcRefusal } from "./job-support";
 
 const EM_DASH = "\u2014";
@@ -32,6 +32,7 @@ describe("display format", () => {
     expect(fmtMin(-0)).toBe("0.0 min");
     expect(fmtBblPerStk(-0)).toBe("0.0000 bbl/stk");
     expect(fmtIn(-0)).toBe("0.000 in");
+    expect(fmtBblPerStand(-0)).toBe("0.00");
     expect(Object.is(fmtDepth(-0), "0 ft")).toBe(true);
   });
 
@@ -67,6 +68,22 @@ describe("display format", () => {
     expect(fmtIn(8.8354)).toBe("8.835 in");
   });
 
+  it("formats volume per stand to 2 decimals and a Chicago clock", () => {
+    expect(fmtBblPerStand(1.234)).toBe("1.23");
+    expect(fmtBblPerStand(1.235)).toBe("1.24");
+    expect(fmtBblPerStand(10)).toBe("10.00");
+    expect(fmtTimeCT("2026-10-15T22:45:00.000Z")).toBe("Oct 15, 2026 5:45 PM CT");
+    expect(fmtTimeCT("2026-10-15T17:45:00-05:00")).toBe("Oct 15, 2026 5:45 PM CT");
+    expect(fmtTimeCT("2026-01-15T23:45:00.000Z")).toBe("Jan 15, 2026 5:45 PM CT");
+    expect(fmtTimeCT("2026-10-16T05:00:00.000Z")).toBe("Oct 16, 2026 12:00 AM CT");
+    expect(fmtTimeCT("2026-10-15T17:00:00.000Z")).toBe("Oct 15, 2026 12:00 PM CT");
+    expect(fmtTimeCT(null)).toBe(EM_DASH);
+    expect(fmtTimeCT(undefined)).toBe(EM_DASH);
+    expect(fmtTimeCT("")).toBe(EM_DASH);
+    expect(fmtTimeCT("   ")).toBe(EM_DASH);
+    expect(fmtTimeCT("not-a-date")).toBe(EM_DASH);
+  });
+
   it("uses an em dash for null, undefined, and non-finite values", () => {
     for (const value of [null, undefined, Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
       expect(fmtDepth(value)).toBe(EM_DASH);
@@ -78,10 +95,11 @@ describe("display format", () => {
       expect(fmtMin(value)).toBe(EM_DASH);
       expect(fmtBblPerStk(value)).toBe(EM_DASH);
       expect(fmtIn(value)).toBe(EM_DASH);
+      expect(fmtBblPerStand(value)).toBe(EM_DASH);
       expect(fmtDepthRange(value, 10)).toBe(EM_DASH);
       expect(fmtDepthRange(10, value)).toBe(EM_DASH);
     }
-    const shown = [fmtDepth(Number.NaN), fmtEmw(undefined), fmtKmw(null), fmtPsi(Number.NaN), fmtBbl(undefined), fmtStrokes(Number.NaN), fmtMin(null), fmtBblPerStk(undefined), fmtIn(Number.POSITIVE_INFINITY)];
+    const shown = [fmtDepth(Number.NaN), fmtEmw(undefined), fmtKmw(null), fmtPsi(Number.NaN), fmtBbl(undefined), fmtStrokes(Number.NaN), fmtMin(null), fmtBblPerStk(undefined), fmtIn(Number.POSITIVE_INFINITY), fmtBblPerStand(Number.NaN), fmtTimeCT(null), fmtTimeCT(""), fmtTimeCT("not-a-date")];
     expect(shown.join(" ")).not.toContain("NaN");
   });
 
@@ -102,6 +120,8 @@ describe("display format", () => {
     fmtMin(1.25);
     fmtBblPerStk(0.1176);
     fmtIn(before.depths.shoe.md_ft);
+    fmtBblPerStand(1.25);
+    fmtTimeCT("2026-10-15T22:45:00.000Z");
     expect(before).toEqual(snapshot);
     expect(calculate(exampleB)).toEqual(snapshot);
   });
