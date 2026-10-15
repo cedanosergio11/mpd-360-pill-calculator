@@ -189,6 +189,14 @@ export interface KpiVolumesInput {
   plannedSbp_psi?: number | null;
 }
 
+/** String capacity over the pill interval, plus chase. Both are existing KPI values. */
+export interface PillVolumeBreakdown {
+  /** `stringCapOverPillInterval_bbl`. Not the surface-to-bit string capacity. */
+  stringCapacity_bbl: number;
+  /** `chase.chase_bbl`. */
+  chase_bbl: number;
+}
+
 export type KpiVolumesResult =
   | {
       ok: true;
@@ -206,6 +214,9 @@ export type KpiVolumesResult =
       pillAnnularVolume_bbl: number;
       /** String capacity over the same pill MD interval. Not added to the annular volume. */
       stringCapOverPillInterval_bbl: number;
+      /** `pillVolumeBreakdown.stringCapacity_bbl + pillVolumeBreakdown.chase_bbl`. */
+      pillVolume_bbl: number;
+      pillVolumeBreakdown: PillVolumeBreakdown;
     }
   | { ok: false; error: KpiError };
 
@@ -657,6 +668,7 @@ function activeMud(
  * MASP, KMW, chase, KMW left in the string, annular backfill, and POOH fill.
  * The annular pill volume and the string capacity over that same interval are returned
  * separately and are never added together.
+ * Pill volume is that string capacity plus chase. It is their sum, not a third formula.
  * A missing FIT, shoe TVD, or anchor TVD stops the result. Anchor TVD is never taken from the survey.
  * A blank or non-positive stand length does not: the other fields are returned and `poohFill` carries STAND_LENGTH.
  */
@@ -688,16 +700,23 @@ export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesRes
   if (!fill.ok && fill.error.code !== "STAND_LENGTH") return fill;
   const checks = separatePillChecks(job);
   if (!checks.ok) return checks;
+  const chaseValue = stripOk(chase);
+  const pillVolumeBreakdown: PillVolumeBreakdown = {
+    stringCapacity_bbl: checks.stringCapOverPillInterval_bbl,
+    chase_bbl: chaseValue.chase_bbl,
+  };
   return {
     ok: true,
     masp: stripOk(maspResult),
     kmw: stripOk(kmwResult),
-    chase: stripOk(chase),
+    chase: chaseValue,
     kmwInString: stripOk(inString),
     kmwBackfill: stripOk(backfill),
     poohFill: fill,
     pillAnnularVolume_bbl: checks.pillAnnularVolume_bbl,
     stringCapOverPillInterval_bbl: checks.stringCapOverPillInterval_bbl,
+    pillVolumeBreakdown,
+    pillVolume_bbl: pillVolumeBreakdown.stringCapacity_bbl + pillVolumeBreakdown.chase_bbl,
   };
 }
 

@@ -486,6 +486,26 @@ describe("EXAMPLE B against the MPGenie expected file", () => {
   });
 });
 
+describe("KPI pill volume", () => {
+  it("is string capacity over the pill interval plus chase on EXAMPLE B and C", () => {
+    for (const job of [exampleB, exampleC]) {
+      const result = kpiVolumes(job, { surfaceLine_bbl: 0 });
+      expect(result.ok).toBe(true);
+      if (!result.ok) return;
+      expect(result.pillVolumeBreakdown).toEqual({
+        stringCapacity_bbl: result.stringCapOverPillInterval_bbl,
+        chase_bbl: result.chase.chase_bbl,
+      });
+      expect(result.pillVolume_bbl).toBe(
+        result.pillVolumeBreakdown.stringCapacity_bbl + result.pillVolumeBreakdown.chase_bbl,
+      );
+      expect(result.pillVolumeBreakdown.stringCapacity_bbl).toBeCloseTo(53.669, 3);
+      expect(result.pillVolumeBreakdown.chase_bbl).toBeCloseTo(232.418, 3);
+      expect(result.pillVolume_bbl).toBeCloseTo(286.087, 3);
+    }
+  });
+});
+
 describe("EXAMPLE C against MPGenie", () => {
   it("keeps MASP, the over-MASP flag, KMW, and the EXAMPLE B volumes", () => {
     expect(exampleC.trip.standLength_ft).toBe(93);
@@ -516,7 +536,7 @@ describe("EXAMPLE C against MPGenie", () => {
     expect(result.masp.masp_psi).toBeCloseTo(501.26, 2);
     expect(result.masp.margin_psi).toBeCloseTo(-58.74, 2);
     expect(result.masp.sbpExceedsMasp).toBe(true);
-    expect(result.kmw.raw_ppg).toBeCloseTo(12.4290, 4);
+    expect(result.kmw.raw_ppg).toBeCloseTo(12.429, 4);
     expect(result.kmw.rounded_ppg).toBe(12.5);
   });
 

@@ -445,8 +445,6 @@ function StandLengthErr() {
   const error = !k || !k.ok ? null : !k.poohFill.ok && k.poohFill.error.code === "STAND_LENGTH" ? k.poohFill.error : null;
   return error ? <div className="mt-2"><KpiErr e={error} /></div> : null;
 }
-const PILL_PENDING = "Pill volume basis pending Sergio's choice";
-
 function KpiBody({ k, print }: { k: Extract<KpiVolumesResult, { ok: true }>; print?: boolean }) {
   const { masp: m, kmw: w, chase: c, kmwInString: s, kmwBackfill: b, poohFill: fill } = k;
   const Box = ({ title, children }: { title: string; children: ReactNode }) => print
@@ -488,7 +486,9 @@ function KpiBody({ k, print }: { k: Extract<KpiVolumesResult, { ok: true }>; pri
         <Kv k="Rows" v={`${fill.closed.stands.length} (${fill.fullStandCount} stands${fill.partialStand_ft ? ` + ${fx(fill.partialStand_ft, 0)} ft single` : ""})`} id="pooh-rows" /></> : <KpiErr e={fill.error} />}
     </Box>
     <Box title="Pill volume">
-      <p data-kpi="pill-volume" className="text-xs italic text-muted-foreground">{PILL_PENDING}</p>
+      <Kv k="String capacity over pill" v={fx(k.pillVolumeBreakdown.stringCapacity_bbl, 3)} u="bbl" id="pill-string" />
+      <Kv k="Chase" v={fx(k.pillVolumeBreakdown.chase_bbl, 3)} u="bbl" id="pill-chase" />
+      <Kv k="Pill volume" v={fx(k.pillVolume_bbl, 3)} u="bbl" strong id="pill-volume" />
     </Box>
   </div>);
 }
@@ -511,8 +511,7 @@ export function KpiScreen() {
   if (!k) return null;
   return (<div className="space-y-3">
     <p className="text-[11px] text-muted-foreground print:hidden">Stand length is set in 6 Trip schedule → Trip inputs.</p>
-    {k.ok ? <><KpiBody k={k} />{k.poohFill.ok ? <PoohRows fill={k.poohFill} /> : <div data-testid="pooh-table-error" className="rounded-md border p-2"><p className="mb-1 text-xs font-semibold">POOH fill table</p><KpiErr e={k.poohFill.error} /></div>}</> : <><Card title="KPI & volumes"><KpiErr e={k.error} /><p className="mt-2 text-xs text-muted-foreground">No KPI numbers until this input is fixed.</p></Card>
-      <Card title="Pill volume"><p data-kpi="pill-volume" className="text-xs italic text-muted-foreground">{PILL_PENDING}</p></Card></>}
+    {k.ok ? <><KpiBody k={k} />{k.poohFill.ok ? <PoohRows fill={k.poohFill} /> : <div data-testid="pooh-table-error" className="rounded-md border p-2"><p className="mb-1 text-xs font-semibold">POOH fill table</p><KpiErr e={k.poohFill.error} /></div>}</> : <Card title="KPI & volumes"><KpiErr e={k.error} /><p className="mt-2 text-xs text-muted-foreground">No KPI numbers until this input is fixed.</p></Card>}
   </div>);
 }
 

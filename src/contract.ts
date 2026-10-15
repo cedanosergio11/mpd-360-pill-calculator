@@ -43,6 +43,7 @@ export type {
   PoohFillResult,
   PoohFillValue,
   PoohFillStand,
+  PillVolumeBreakdown,
   AnnularSection,
 } from "@/lib/core";
 export type { TripEmw, TripPointKey, SpeedEmw } from "@/lib/core";
