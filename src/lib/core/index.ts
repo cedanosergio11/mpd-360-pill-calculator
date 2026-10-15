@@ -70,6 +70,7 @@ export {
 export {
   emwProfile,
   type EmwCrossing,
+  type EmwCrossover,
   type EmwError,
   type EmwExceedance,
   type EmwLimits,
@@ -84,4 +85,5 @@ export {
   type EmwStation,
   type EmwStationEmw,
   type EmwStationLabel,
+  type EmwStringSection,
 } from "./emw-profile";

@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { exampleB, exampleC, exampleD } from "@/lib/example-b";
 import { capBblFt } from "@/lib/utils";
 import { calculate } from "./calculate";
-import { columnDisplacedByPipe } from "./column";
+import { columnDisplacedByPipe, esdAtMd } from "./column";
 import { emwProfile } from "./emw-profile";
 import { intervalVolume } from "./geometry";
-import { annularFrictionSegments, frictionPsi } from "./hydraulics";
+import { annularFrictionSegments, ecdPpg, frictionPsi } from "./hydraulics";
 import { poohFill } from "./kpi";
 import { strokesSchedule } from "./strokes";
 import { placedStringSections, stringVolumeBbl, usesTaperedString } from "./string";
@@ -34,6 +34,20 @@ describe("single pipe stays one section", () => {
     if (!b.ok || !c.ok) return;
     expect(b.inPlace.lines.static).toHaveLength(106);
     expect(c.inPlace.lines.static).toHaveLength(106);
+    expect(b.crossovers).toEqual([]);
+    expect(c.crossovers).toEqual([]);
+    expect(b.sections).toEqual([
+      {
+        label: "5.5 in OD / 4.778 in ID",
+        topMd_ft: 0,
+        bottomMd_ft: BIT_MD,
+        topTvd_ft: 0,
+        bottomTvd_ft: 10466,
+        id_in: 4.778,
+        od_in: 5.5,
+      },
+    ]);
+    expect(c.sections).toEqual(b.sections);
   });
 });
 
@@ -248,6 +262,111 @@ describe("EXAMPLE D (tapered)", () => {
         over: false,
       },
     ]);
+  });
+
+  it("returns sections and crossovers with TVD already resolved", () => {
+    const profile = emwProfile(exampleD);
+    expect(profile.ok).toBe(true);
+    if (!profile.ok) return;
+    expect(profile.sections).toEqual([
+      {
+        label: "5.5 in OD / 4.778 in ID",
+        topMd_ft: 0,
+        bottomMd_ft: CROSS_MD,
+        topTvd_ft: 0,
+        bottomTvd_ft: 8466,
+        id_in: 4.778,
+        od_in: 5.5,
+      },
+      {
+        label: "4 in OD / 3.34 in ID",
+        topMd_ft: CROSS_MD,
+        bottomMd_ft: BIT_MD,
+        topTvd_ft: 8466,
+        bottomTvd_ft: 10466,
+        id_in: 3.34,
+        od_in: 4,
+      },
+    ]);
+    expect(profile.crossovers).toEqual([{ md_ft: CROSS_MD, tvd_ft: 8466 }]);
+  });
+
+  it("keeps static continuous and ECD without a jump at the crossover", () => {
+    const eps = 0.01;
+    const profile = emwProfile(exampleD);
+    const spotted = columnDisplacedByPipe(exampleD, BIT_MD);
+    expect(profile.ok).toBe(true);
+    expect(spotted).not.toBeNull();
+    if (!profile.ok || !spotted) return;
+    const crossover = profile.crossovers[0];
+    expect(crossover).toEqual({ md_ft: 8480, tvd_ft: 8466 });
+
+    const sample = (column: typeof exampleD, md: number) => {
+      const esd = esdAtMd(column, md);
+      const friction = frictionPsi(column, md, BIT_MD, { kind: "flow" });
+      const tvd = tvdAt(well, md);
+      const ecd = ecdPpg(esd, friction, tvd, exampleD.trip.sbpCirc_psi);
+      expect(esd).not.toBeNull();
+      expect(friction).not.toBeNull();
+      expect(tvd).not.toBeNull();
+      expect(ecd).not.toBeNull();
+      return {
+        static: esd as number,
+        staticSbp: (esd as number) + exampleD.trip.sbpConn_psi / (0.052 * (tvd as number)),
+        ecd: ecd as number,
+        friction: friction as number,
+      };
+    };
+
+    const expectContinuous = (
+      above: { static: number; staticSbp: number; ecd: number },
+      at: { static: number; staticSbp: number; ecd: number },
+      below: { static: number; staticSbp: number; ecd: number },
+    ) => {
+      for (const line of ["static", "staticSbp", "ecd"] as const) {
+        expect(Math.abs(above[line] - at[line])).toBeLessThan(1e-4);
+        expect(Math.abs(below[line] - at[line])).toBeLessThan(1e-4);
+      }
+    };
+
+    const inAbove = sample(exampleD, crossover.md_ft - eps);
+    const inAt = sample(exampleD, crossover.md_ft);
+    const inBelow = sample(exampleD, crossover.md_ft + eps);
+    expectContinuous(inAbove, inAt, inBelow);
+    expect(inAbove.static).toBeCloseTo(11.528983615619675, 9);
+    expect(inAt.static).toBeCloseTo(11.528986534372788, 9);
+    expect(inBelow.static).toBeCloseTo(11.528989453119003, 9);
+    expect(inAbove.staticSbp).toBeCloseTo(12.778326347765955, 9);
+    expect(inAt.staticSbp).toBeCloseTo(12.778327790801216, 9);
+    expect(inBelow.staticSbp).toBeCloseTo(12.778329233833068, 9);
+    expect(inAbove.ecd).toBeCloseTo(11.65596952461962, 9);
+    expect(inAt.ecd).toBeCloseTo(11.655972451278082, 9);
+    expect(inBelow.ecd).toBeCloseTo(11.65597534225457, 9);
+
+    const spotAbove = sample(spotted, crossover.md_ft - eps);
+    const spotAt = sample(spotted, crossover.md_ft);
+    const spotBelow = sample(spotted, crossover.md_ft + eps);
+    expectContinuous(spotAbove, spotAt, spotBelow);
+    expect(spotAbove.static).toBeCloseTo(11.63724861902918, 9);
+    expect(spotAt.static).toBeCloseTo(11.637251409900173, 9);
+    expect(spotBelow.static).toBeCloseTo(11.63725420076457, 9);
+    expect(spotAbove.staticSbp).toBeCloseTo(12.886591351175458, 9);
+    expect(spotAt.staticSbp).toBeCloseTo(12.886592666328601, 9);
+    expect(spotBelow.staticSbp).toBeCloseTo(12.886593981478635, 9);
+    expect(spotAbove.ecd).toBeCloseTo(11.764234528029125, 9);
+    expect(spotAt.ecd).toBeCloseTo(11.764237326805468, 9);
+    expect(spotBelow.ecd).toBeCloseTo(11.764240089900136, 9);
+
+    const gradAbove = (inAt.friction - inAbove.friction) / eps;
+    const gradBelow = (inBelow.friction - inAt.friction) / eps;
+    expect(gradAbove).toBeCloseTo(2.9195401146523885 / 420, 6);
+    expect(gradBelow).toBeCloseTo(10.761507934622033 / 2000, 6);
+    expect(Math.abs(gradAbove - gradBelow)).toBeGreaterThan(0.001);
+
+    const onStatic = profile.inPlace.lines.static.find((point) => point.md_ft === CROSS_MD);
+    const onEcd = profile.inPlace.lines.ecd.find((point) => point.md_ft === CROSS_MD);
+    expect(onStatic?.emw_ppg).toBeCloseTo(inAt.static, 12);
+    expect(onEcd?.emw_ppg).toBeCloseTo(inAt.ecd, 12);
   });
 
   it("fills POOH stands across the section boundary", () => {

@@ -47,6 +47,7 @@ export type {
   PillVolumeBreakdown,
   AnnularSection,
   EmwCrossing,
+  EmwCrossover,
   EmwError,
   EmwExceedance,
   EmwLimits,
@@ -61,6 +62,7 @@ export type {
   EmwStation,
   EmwStationEmw,
   EmwStationLabel,
+  EmwStringSection,
 } from "@/lib/core";
 export type { TripEmw, TripPointKey, SpeedEmw } from "@/lib/core";
 export {

@@ -112,6 +112,24 @@ export interface EmwShoeCheck {
   over: boolean;
 }
 
+/** One placed string section. Depths are already in MD and TVD. */
+export interface EmwStringSection {
+  /** Display text. Diameters are also on `od_in` and `id_in`. */
+  label: string;
+  topMd_ft: number;
+  bottomMd_ft: number;
+  topTvd_ft: number;
+  bottomTvd_ft: number;
+  id_in: number;
+  od_in: number;
+}
+
+/** Measured depth where two string sections meet, with TVD already resolved. */
+export interface EmwCrossover {
+  md_ft: number;
+  tvd_ft: number;
+}
+
 export interface EmwProfileValue {
   inPlace: { label: string; lines: EmwLines };
   spotted: { label: string; lines: EmwLines };
@@ -123,6 +141,10 @@ export interface EmwProfileValue {
   exceedances: EmwExceedance[];
   /** Three lines for the pill in place, then the same three spotted. */
   shoeCheck: EmwShoeCheck[];
+  /** String sections, surface downward. A single pipe is one section. */
+  sections: EmwStringSection[];
+  /** Internal section boundaries. Empty when the string is one section. */
+  crossovers: EmwCrossover[];
 }
 
 export type EmwProfileResult =
@@ -150,6 +172,48 @@ function fail(code: EmwError["code"], field: string, message: string): EmwFailur
 
 function finite(value: number | null | undefined): value is number {
   return value != null && Number.isFinite(value);
+}
+
+function stringLayout(
+  job: Job,
+): { ok: true; sections: EmwStringSection[]; crossovers: EmwCrossover[] } | EmwFailure {
+  const placed = placedStringSections(job.well);
+  if (!placed) {
+    return fail(
+      "INVALID_GEOMETRY",
+      usesTaperedString(job.well) ? "well.stringSections" : "well.stringOd_in",
+      usesTaperedString(job.well)
+        ? "String sections are not a valid taper."
+        : "String OD and ID are not a valid section.",
+    );
+  }
+  const sections: EmwStringSection[] = [];
+  for (const section of placed) {
+    const topTvd_ft = section.topMd_ft <= 0 ? 0 : tvdAt(job.well, section.topMd_ft);
+    const bottomTvd_ft = section.bottomMd_ft <= 0 ? 0 : tvdAt(job.well, section.bottomMd_ft);
+    if (
+      topTvd_ft == null ||
+      bottomTvd_ft == null ||
+      !Number.isFinite(topTvd_ft) ||
+      !Number.isFinite(bottomTvd_ft)
+    ) {
+      return fail("MISSING_TVD", "well.survey", "TVD cannot be resolved on a string section.");
+    }
+    sections.push({
+      label: `${section.od_in} in OD / ${section.id_in} in ID`,
+      topMd_ft: section.topMd_ft,
+      bottomMd_ft: section.bottomMd_ft,
+      topTvd_ft,
+      bottomTvd_ft,
+      id_in: section.id_in,
+      od_in: section.od_in,
+    });
+  }
+  const crossovers = sections.slice(0, -1).map((section) => ({
+    md_ft: section.bottomMd_ft,
+    tvd_ft: section.bottomTvd_ft,
+  }));
+  return { ok: true, sections, crossovers };
 }
 
 function mdFor(job: Job, label: EmwStationLabel): number {
@@ -520,6 +584,8 @@ export function emwProfile(job: Job): EmwProfileResult {
   if (columnFluidsLackFann(job)) {
     return fail("MISSING_FANN", "fluids", "Annular friction needs all six Fann readings.");
   }
+  const layout = stringLayout(job);
+  if (!layout.ok) return layout;
   const stations = depthStations(job);
   if (!stations.ok) return stations;
   const inPlace = inPlaceColumn(job);
@@ -568,6 +634,8 @@ export function emwProfile(job: Job): EmwProfileResult {
       job.well.shoeMd_ft,
     ),
     shoeCheck,
+    sections: layout.sections,
+    crossovers: layout.crossovers,
     crossings: [
       ...crossingsFor("inPlace", placed.lines, job.well.fit_ppg, pore),
       ...crossingsFor("spotted", spottedProfile.lines, job.well.fit_ppg, pore),
