@@ -2,6 +2,8 @@
 // The core in src/lib/core is the source of truth; do not redefine types here.
 export type {
   Job,
+  JobMeta,
+  PresetId,
   Fluid,
   FannReading,
   ColumnSegment,
@@ -63,6 +65,23 @@ export type {
   EmwStationEmw,
   EmwStationLabel,
   EmwStringSection,
+  PasteError,
+  PasteIgnored,
+  PasteMatch,
+  PastePreview,
+  PastePreviewError,
+  PastePreviewKind,
+  PastePreviewRow,
+  PasteResult,
+  SimulateDepth,
+  SimulateEmwStation,
+  SimulateError,
+  SimulateFluidProfile,
+  SimulateFluidResult,
+  SimulateMeta,
+  SimulateOptions,
+  SimulateResult,
+  SimulateStep,
 } from "@/lib/core";
 export type { TripEmw, TripPointKey, SpeedEmw } from "@/lib/core";
 export {
@@ -80,6 +99,17 @@ export {
   poohFill,
   kpiVolumes,
   emwProfile,
+  parseWellPaste,
+  previewPaste,
+  applyPaste,
+  simulate,
+  LEGACY_JOB_META,
+  appDefaultJob,
+  jobLabel,
+  loadPreset,
+  markEdited,
+  metaFromSaved,
+  resetToPreset,
 } from "@/lib/core";
 /** True once the core schema grows `pipeColumn` (fluid intervals inside the string). In core since e232618. */
 export const HAS_PIPE_COLUMN = true as const;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Drawer } from "vaul";
-import type { Job } from "@/contract";
+import { jobLabel, loadPreset, metaFromSaved, type Job, type PresetId } from "@/contract";
 import { DisplacementScreen, ExportScreen, FitBanner, FluidsScreen, KpiScreen, StrokesScreen, TripScreen, WellScreen } from "@/components/screens";
 import { EmwScreen } from "@/components/emw";
 import { seeds } from "@/lib/seeds";
@@ -47,7 +47,7 @@ export function AppShell() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${job.name.replace(/\W+/g, "_")}.pillview.json`; a.click();
   };
   const importJson = async (f: File) => {
-    try { const j = JSON.parse(await f.text()) as Job; if (j.schemaVersion !== 1) throw new Error("schemaVersion must be 1"); replace(j); }
+    try { const j = JSON.parse(await f.text()) as Job; if (j.schemaVersion !== 1) throw new Error("schemaVersion must be 1"); replace({ ...j, meta: metaFromSaved(j.meta) }); }
     catch (e) { alert(`Import failed: ${(e as Error).message}`); }
   };
   if (!loaded) return <main className="p-4 text-sm text-muted-foreground">Loading…</main>;
@@ -59,7 +59,7 @@ export function AppShell() {
         <div className="flex items-center gap-2 px-3 py-2 text-xs">
           <span className="font-semibold text-primary">PillView 2.0</span>
           <span className="font-mono text-muted-foreground">{APP_VERSION}</span>
-          <span className="truncate font-semibold">{job.name}{edited && <span data-testid="edited-marker"> (edited)</span>}</span>
+          <span className="truncate font-semibold" data-testid="job-label">{jobLabel(job)}{edited && <span data-testid="edited-marker"> (edited)</span>}</span>
           <span className={`rounded px-1.5 py-0.5 ${saved ? "bg-backfill/20 text-backfill" : "bg-warn/20 text-warn"}`}>{saved ? "Saved" : "Unsaved"}</span>
           {outOfDate && <button onClick={run} className="rounded bg-warn px-1.5 py-0.5 font-semibold text-black">Out of date · recalc</button>}
           <span data-testid="worst-issue" className={`ml-auto truncate ${w?.level === "error" ? "text-danger" : w ? "text-warn" : "text-backfill"}`}>
@@ -77,7 +77,7 @@ export function AppShell() {
         <button onClick={exportJson} className="rounded-md border px-3 py-1.5">Export JSON</button>
         <button onClick={() => fileRef.current?.click()} className="rounded-md border px-3 py-1.5">Import JSON</button>
         <input ref={fileRef} type="file" accept="application/json,.json" hidden onChange={(e) => e.target.files?.[0] && importJson(e.target.files[0])} />
-        <select data-testid="seed" aria-label="Load EXAMPLE seed" value="" onChange={(e) => { const s = seeds.find((x) => x.id === e.target.value); if (s) replace(structuredClone(s.job)); }} className="rounded-md border bg-card px-2 py-1.5 text-muted-foreground">
+        <select data-testid="seed" aria-label="Load EXAMPLE seed" value="" onChange={(e) => { const id = e.target.value; if (id === "b" || id === "c" || id === "d") { replace(loadPreset(id.toUpperCase() as PresetId)); return; } const s = seeds.find((x) => x.id === id); if (s) replace(structuredClone(s.job)); }} className="rounded-md border bg-card px-2 py-1.5 text-muted-foreground">
           <option value="">Load EXAMPLE…</option>{seeds.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}</select>
         <Drawer.Root>
           <Drawer.Trigger className="ml-auto rounded-md border border-primary px-3 py-1.5 sm:hidden">Inputs</Drawer.Trigger>

@@ -9,6 +9,8 @@ export {
   type FannReading,
   type Fluid,
   type Job,
+  type JobMeta,
+  type PresetId,
   type PillMode,
   type PipeEnd,
   type SurveyStation,
@@ -67,6 +69,40 @@ export {
   type PoohFillStand,
   type PoohFillValue,
 } from "./kpi";
+export {
+  LEGACY_JOB_META,
+  appDefaultJob,
+  jobLabel,
+  loadPreset,
+  markEdited,
+  metaFromSaved,
+  resetToPreset,
+} from "./preset";
+export {
+  applyPaste,
+  parseWellPaste,
+  previewPaste,
+  type PasteError,
+  type PasteIgnored,
+  type PasteMatch,
+  type PastePreview,
+  type PastePreviewError,
+  type PastePreviewKind,
+  type PastePreviewRow,
+  type PasteResult,
+} from "./paste";
+export {
+  simulate,
+  type SimulateDepth,
+  type SimulateEmwStation,
+  type SimulateError,
+  type SimulateFluidProfile,
+  type SimulateFluidResult,
+  type SimulateMeta,
+  type SimulateOptions,
+  type SimulateResult,
+  type SimulateStep,
+} from "./simulate";
 export {
   emwProfile,
   type EmwCrossing,
