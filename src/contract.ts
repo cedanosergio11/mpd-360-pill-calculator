@@ -45,6 +45,21 @@ export type {
   PoohFillStand,
   PillVolumeBreakdown,
   AnnularSection,
+  EmwCrossing,
+  EmwError,
+  EmwExceedance,
+  EmwLimits,
+  EmwLineName,
+  EmwLines,
+  EmwNote,
+  EmwPillState,
+  EmwPoint,
+  EmwProfileResult,
+  EmwProfileValue,
+  EmwShoeCheck,
+  EmwStation,
+  EmwStationEmw,
+  EmwStationLabel,
 } from "@/lib/core";
 export type { TripEmw, TripPointKey, SpeedEmw } from "@/lib/core";
 export {
@@ -61,6 +76,7 @@ export {
   kmwBackfill,
   poohFill,
   kpiVolumes,
+  emwProfile,
 } from "@/lib/core";
 /** True once the core schema grows `pipeColumn` (fluid intervals inside the string). In core since e232618. */
 export const HAS_PIPE_COLUMN = true as const;
