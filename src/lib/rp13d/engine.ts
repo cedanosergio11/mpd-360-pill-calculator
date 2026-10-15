@@ -69,7 +69,53 @@ function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-/** All six dial readings. Eqs 23-25 still use 600/300/6/3; 200 and 100 are required inputs and are not a BHA. */
+/** Fann 35 shear rate, s⁻¹. 300 rpm is 511 s⁻¹, the same base Eq 24 uses. */
+const SHEAR_RATE: Record<keyof Rheology, number> = {
+  r600: 1022,
+  r300: 511,
+  r200: (511 * 200) / 300,
+  r100: (511 * 100) / 300,
+  r6: (511 * 6) / 300,
+  r3: (511 * 3) / 300,
+};
+
+/** Yield stress from the 6 and 3 rpm readings (low-shear yield point). */
+export function yieldStress(rh: Pick<Rheology, "r6" | "r3">): number {
+  return Math.max(0, 2 * rh.r3 - rh.r6);
+}
+
+/**
+ * Herschel-Bulkley fit of all six dial readings.
+ * τy comes from 6 and 3 rpm. n and K are the least-squares line of
+ * log(τ − τy) against log(shear rate) through every reading.
+ */
+export function hbParams(rh: Rheology): HbParams {
+  const ty = yieldStress(rh);
+  let count = 0;
+  let xSum = 0;
+  let ySum = 0;
+  let xx = 0;
+  let xy = 0;
+  for (const key of Object.keys(SHEAR_RATE) as (keyof Rheology)[]) {
+    const excess = rh[key] - ty;
+    const gamma = SHEAR_RATE[key];
+    if (!(excess > 0) || !(gamma > 0)) continue;
+    const x = Math.log(gamma);
+    const y = Math.log(excess);
+    count += 1;
+    xSum += x;
+    ySum += y;
+    xx += x * x;
+    xy += x * y;
+  }
+  const denom = count * xx - xSum * xSum;
+  const n = count >= 2 && denom !== 0 ? (count * xy - xSum * ySum) / denom : Number.NaN;
+  const k = count >= 2 && Number.isFinite(n) ? Math.exp((ySum - n * xSum) / count) : Number.NaN;
+  const np = 3.32 * Math.log10(rh.r600 / rh.r300);
+  return { ty, n, k, np };
+}
+
+/** All six dial readings. Each one has to sit above τy so the curve fit uses it. */
 export function rheologyFrom(inputs: Pick<Rp13dInputs, "fann600" | "fann300" | "fann200" | "fann100" | "fann6" | "fann3">): Rheology | null {
   const r: Rheology = {
     r600: inputs.fann600,
@@ -80,18 +126,12 @@ export function rheologyFrom(inputs: Pick<Rp13dInputs, "fann600" | "fann300" | "
     r3: inputs.fann3,
   };
   if (![r.r600, r.r300, r.r200, r.r100, r.r6, r.r3].every(finite)) return null;
-  if (!(r.r600 > r.r300 && r.r300 > 0 && r.r6 >= r.r3 && r.r3 >= 0)) return null;
-  const ty = Math.max(0, 2 * r.r3 - r.r6);
-  if (ty >= r.r300) return null;
+  if (!(r.r600 > r.r300 && r.r300 > 0 && r.r3 >= 0)) return null;
+  const ty = yieldStress(r);
+  if (![r.r600, r.r300, r.r200, r.r100, r.r6, r.r3].every((tau) => tau > ty)) return null;
+  const fit = hbParams(r);
+  if (![fit.n, fit.k].every(finite)) return null;
   return r;
-}
-
-export function hbParams(rh: Pick<Rheology, "r600" | "r300" | "r6" | "r3">): HbParams {
-  const ty = Math.max(0, 2 * rh.r3 - rh.r6); // Eq 25
-  const n = 3.32 * Math.log10((rh.r600 - ty) / (rh.r300 - ty)); // Eq 23
-  const k = (rh.r300 - ty) / Math.pow(511, n); // Eq 24
-  const np = 3.32 * Math.log10(rh.r600 / rh.r300);
-  return { ty, n, k, np };
 }
 
 /** Eccentricity ratio, Eqs 87 (laminar) / 88 (turbulent). */
@@ -119,11 +159,11 @@ export function segmentDp(
   dh: number,
   dp: number,
   length: number,
-  rh: Pick<Rheology, "r600" | "r300" | "r6" | "r3">,
+  hb: HbParams,
   annulus: boolean,
   e = 0,
 ): SegmentResult {
-  const { ty, n, k, np } = hbParams(rh);
+  const { ty, n, k, np } = hb;
   const zero = { p: 0, f: 0, nRe: 0, ncRe: 3470 - 1370 * n, laminar: true, tw: 0 };
   if (!(v > 0) || !(length > 0)) return zero;
   const a = annulus ? 1 : 0;
@@ -191,13 +231,14 @@ export function annularFrictionTo(
   velocity: (s: AnnulusSection) => number,
   e = 0,
 ): { p: number; sections: (AnnulusSection & SegmentResult & { v: number })[] } {
+  const hb = hbParams(rh);
   let p = 0;
   const out: (AnnulusSection & SegmentResult & { v: number })[] = [];
   for (const s of sections) {
     const bot = Math.min(s.botMd, poiMd);
     if (bot <= s.topMd) continue;
     const v = velocity(s);
-    const r = segmentDp(rho, Math.abs(v), s.dh, s.dp, bot - s.topMd, rh, true, e);
+    const r = segmentDp(rho, Math.abs(v), s.dh, s.dp, bot - s.topMd, hb, true, e);
     p += r.p;
     out.push({ ...s, botMd: bot, ...r, v });
   }
@@ -303,7 +344,7 @@ export function calcRp13d(inputs: Rp13dInputs): Rp13dResult {
   if (!rh) {
     return {
       ...base,
-      reason: "Enter all six Fann readings (600, 300, 200, 100, 6, 3), with 600 > 300 and 6 ≥ 3.",
+      reason: "Enter all six Fann readings (600, 300, 200, 100, 6, 3). Each dial reading has to sit above the 6-and-3-rpm yield stress.",
     };
   }
   if (!finite(rho)) return { ...base, reason: "Enter mud weight." };
@@ -326,7 +367,8 @@ export function calcRp13d(inputs: Rp13dInputs): Rp13dResult {
         })
       : [];
   const di = inputs.pipeId;
-  const pipeFriction = finite(q) && q > 0 && di > 0 ? segmentDp(rho, vel(q, di), di, 0, bit, rh, false).p : Number.NaN;
+  const pipeFriction =
+    finite(q) && q > 0 && di > 0 && base.hb ? segmentDp(rho, vel(q, di), di, 0, bit, base.hb, false).p : Number.NaN;
 
   const trips: TripRow[] = tripSpeeds(inputs).map((speed) => ({
     speed,

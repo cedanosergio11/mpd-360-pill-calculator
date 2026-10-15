@@ -31,4 +31,4 @@ export type {
   TripRow,
 } from "./engine";
 export { compareEcd } from "./compare";
-export type { EcdComparison, SheetEcd } from "./compare";
+export type { EcdComparison, SheetBasis, SheetEcd } from "./compare";

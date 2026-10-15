@@ -9,10 +9,21 @@ import {
   veffClosed,
   veffOpen,
   vel,
+  type HbParams,
+  type Rheology,
   type Rp13dInputs,
 } from "./engine";
 
-const rh = (r600: number, r300: number, r6: number, r3: number) => ({ r600, r300, r6, r3 });
+/** Eqs 23–25. Reference for the RP worked example only. Production uses `hbParams`. */
+function hbParamsFourPoint(r600: number, r300: number, r6: number, r3: number): HbParams {
+  const ty = Math.max(0, 2 * r3 - r6);
+  const n = 3.32 * Math.log10((r600 - ty) / (r300 - ty));
+  const k = (r300 - ty) / Math.pow(511, n);
+  const np = 3.32 * Math.log10(r600 / r300);
+  return { ty, n, k, np };
+}
+
+const rh = (r600: number, r300: number, r6: number, r3: number) => hbParamsFourPoint(r600, r300, r6, r3);
 
 // API RP 13D Annex C (Q = 420 gpm), density + Fann per cell. [top, bot, dh, dp, di, rho, rheo, rpPipe, rpAnn]
 const ANNEX_C: [number, number, number, number, number, number, ReturnType<typeof rh>, number, number][] = [
@@ -44,7 +55,7 @@ describe("API RP 13D Annex C — 420 gpm", () => {
     expect(ecd(8477 / (0.052 * 13000), ann, 13000).toFixed(2)).toBe("13.60");
   });
   it("HB fit from surface Fann (Eqs 23-25)", () => {
-    const p = hbParams(rh(80, 48, 9.2, 8.2));
+    const p = hbParamsFourPoint(80, 48, 9.2, 8.2);
     expect(p.ty).toBeCloseTo(7.2, 6);
     expect(p.n).toBeCloseTo(0.8349, 3);
   });
@@ -64,7 +75,7 @@ describe("API RP 13D Annex D — closed string, 93 ft/min, rho 12.5", () => {
     for (const [dh, dp, di, , , rpOpen] of secs) expect(Math.abs(veffOpen(93, dh, dp, di) - rpOpen)).toBeLessThan(6);
   });
   it("surge with surface rheology within 10% of RP 333 psi, EMW within 0.05 of 13.03", () => {
-    const r = rh(80, 48, 9.2, 8.2);
+    const r = hbParamsFourPoint(80, 48, 9.2, 8.2);
     let tot = 0;
     for (const [dh, dp, , L] of secs) tot += segmentDp(12.5, veffClosed(93, dh, dp), dh, dp, L, r, true).p;
     expect(Math.abs(tot - 333) / 333).toBeLessThan(0.1);
@@ -124,6 +135,27 @@ describe("well ECD", () => {
     expect(result.available).toBe(false);
     expect(result.ecd).toEqual([]);
     expect(result.reason).toMatch(/six Fann/);
+  });
+
+  it("fits n and K through all six readings, with the same yield as the 6-and-3-rpm point", () => {
+    const readings: Rheology = {
+      r600: WELL.fann600,
+      r300: WELL.fann300,
+      r200: WELL.fann200,
+      r100: WELL.fann100,
+      r6: WELL.fann6,
+      r3: WELL.fann3,
+    };
+    const six = hbParams(readings);
+    const four = hbParamsFourPoint(readings.r600, readings.r300, readings.r6, readings.r3);
+    expect(six.ty).toBeCloseTo(four.ty, 6);
+    expect(six.ty).toBeCloseTo(7.2, 6);
+    expect(six.n).not.toBeCloseTo(four.n, 4);
+    expect(six.k).not.toBeCloseTo(four.k, 4);
+    const moved = hbParams({ ...readings, r200: readings.r200 + 4, r100: readings.r100 + 2 });
+    expect(moved.n).not.toBeCloseTo(six.n, 6);
+    expect(moved.k).not.toBeCloseTo(six.k, 6);
+    expect(moved.ty).toBeCloseTo(six.ty, 6);
   });
 
   it("open pipe swabs no higher than the closed pipe", () => {

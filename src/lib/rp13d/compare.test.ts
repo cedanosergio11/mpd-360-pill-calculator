@@ -34,15 +34,16 @@ describe("compareEcd", () => {
       expect(row.rp13dEcd).toBe(point.ecd);
       expect(row.sheetEcd).toBe(sheet[row.depth]);
       expect(row.difference).toBeCloseTo(point.ecd - sheet[row.depth], 9);
+      expect(row.sheetBasis).toBe("esd");
     }
   });
 
   it("leaves the difference empty when the sheet has no ECD at that depth", () => {
     const rows = compareEcd([], { shoe: 12.4 });
     expect(rows).toEqual([
-      { depth: "anchor", label: "Anchor", rp13dEcd: null, sheetEcd: null, difference: null },
-      { depth: "shoe", label: "Shoe", rp13dEcd: null, sheetEcd: 12.4, difference: null },
-      { depth: "bit", label: "Bit", rp13dEcd: null, sheetEcd: null, difference: null },
+      { depth: "anchor", label: "Anchor", rp13dEcd: null, sheetEcd: null, difference: null, sheetBasis: "esd" },
+      { depth: "shoe", label: "Shoe", rp13dEcd: null, sheetEcd: 12.4, difference: null, sheetBasis: "esd" },
+      { depth: "bit", label: "Bit", rp13dEcd: null, sheetEcd: null, difference: null, sheetBasis: "esd" },
     ]);
   });
 });
