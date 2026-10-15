@@ -4,7 +4,7 @@ import type { KpiError, KpiVolumesResult, PoohFillValue, DepthKey, PumpError, Re
 import { HAS_PIPE_COLUMN, kpiVolumes, strokesSchedule } from "@/contract";
 import { getPath } from "@/lib/paths";
 import { Card, fmt, Grid, IssueList, NumField } from "@/components/fields";
-import { issuesFor, useStore } from "@/lib/store";
+import { issuesFor, useCalcEdited, useStore } from "@/lib/store";
 import { APP_VERSION } from "@/lib/version";
 
 export function WellScreen() {
@@ -526,7 +526,8 @@ function KpiPrint() {
 }
 
 export function ExportScreen() {
-  const { job, result } = useStore();
+  const { job, result, calcJob } = useStore();
+  const calcEdited = useCalcEdited();
   const errors = (result?.issues ?? []).filter((i) => i.level === "error");
   const fitBreach = errors.some((i) => i.code === "SHOE_ESD_AT_FIT");
   const locked = errors.length > 0;
@@ -540,7 +541,7 @@ export function ExportScreen() {
       <article className="procedure-sheet rounded-lg border bg-card p-4 text-sm">
         <FitBanner />
         <header className="mb-3 flex flex-wrap items-baseline justify-between gap-2 border-b pb-2">
-          <div><div className="text-base font-semibold">{job.name}</div><div className="text-xs text-danger">EXAMPLE inputs, math checked against API RP 13D examples, pending Sergio's field review</div></div>
+          <div><div data-testid="sheet-title" className="text-base font-semibold">{(calcJob ?? job).name}{calcEdited && <span data-testid="print-edited-marker"> (edited)</span>}</div><div className="text-xs text-danger">EXAMPLE inputs, math checked against API RP 13D examples, pending Sergio's field review</div></div>
           <div className="text-right font-mono text-[11px] text-muted-foreground">PillView 2.0 · {APP_VERSION}<br />SDS-FRM-087 · calc {result?.calcVersion ?? "—"}<br />inputs #{result?.inputHash ?? "—"}</div>
         </header>
         {result && <>
