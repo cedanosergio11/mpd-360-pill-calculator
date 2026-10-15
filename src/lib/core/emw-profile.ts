@@ -112,8 +112,8 @@ export interface EmwShoeCheck {
 }
 
 export interface EmwProfileValue {
-  inPlace: { lines: EmwLines };
-  spotted: { lines: EmwLines };
+  inPlace: { label: string; lines: EmwLines };
+  spotted: { label: string; lines: EmwLines };
   /** Shoe, then anchor, then bit. Anchor and bit stay separate when they share a depth. */
   stations: EmwStation[];
   limits: EmwLimits;
@@ -548,8 +548,8 @@ export function emwProfile(job: Job): EmwProfileResult {
   }
   return {
     ok: true,
-    inPlace: { lines: placed.lines },
-    spotted: { lines: spottedProfile.lines },
+    inPlace: { label: "Pill in place (pipe out)", lines: placed.lines },
+    spotted: { label: "After RIH to bit (closed pipe)", lines: spottedProfile.lines },
     stations: labeled,
     limits: { pore_ppg: pore, fit_ppg: job.well.fit_ppg },
     exceedances: exceedancesFor(

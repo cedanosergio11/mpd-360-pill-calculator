@@ -208,6 +208,14 @@ describe("emwProfile EXAMPLE B and C", () => {
     expect(result.crossings[0].tvd_ft).toBeGreaterThanOrEqual(job.well.shoeTvd_ft);
   });
 
+  it("labels the pill in place and the closed-pipe column after RIH", () => {
+    const result = emwProfile(exampleB);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.inPlace.label).toBe("Pill in place (pipe out)");
+    expect(result.spotted.label).toBe("After RIH to bit (closed pipe)");
+  });
+
   it("checks the shoe and the FIT interval below it on EXAMPLE C", () => {
     const result = emwProfile(exampleC);
     const kpi = kpiVolumes(exampleC, { surfaceLine_bbl: 0 });
