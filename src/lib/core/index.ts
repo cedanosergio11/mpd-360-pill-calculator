@@ -82,6 +82,12 @@ export {
   type RestoreSavedResult,
 } from "./preset";
 export {
+  isTaperedRefusal,
+  jobSupport,
+  type JobSupport,
+  type TaperedStringRefusal,
+} from "./job-support";
+export {
   applyPaste,
   parseWellPaste,
   previewPaste,

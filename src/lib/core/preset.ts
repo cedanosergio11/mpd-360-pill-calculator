@@ -1,7 +1,9 @@
 import { exampleB, exampleC } from "@/lib/example-b";
 import { exampleJob } from "@/lib/example-job";
 import type { Job, JobMeta, PresetId } from "./job.schema";
-import { drillStringNeedsTaper } from "./simulate";
+import { drillStringNeedsTaper, refuseTaperedJob, TAPERED_STRING_UNSUPPORTED } from "./job-support";
+
+export { TAPERED_STRING_UNSUPPORTED };
 
 /** Older saves with no `meta` load as this. They are not an EXAMPLE. */
 export const LEGACY_JOB_META: JobMeta = {
@@ -21,9 +23,6 @@ const PRESETS: Record<(typeof AVAILABLE_PRESETS)[number], Job> = {
 function isOffered(id: PresetId): id is (typeof AVAILABLE_PRESETS)[number] {
   return (AVAILABLE_PRESETS as readonly PresetId[]).includes(id);
 }
-
-/** Saved string this branch cannot restore. D returns with #6 (tapered strings). */
-export const TAPERED_STRING_UNSUPPORTED = "TAPERED_STRING_UNSUPPORTED" as const;
 
 /**
  * A saved job either becomes the single-string job, or comes back untouched.
@@ -87,8 +86,9 @@ export function appDefaultJob(): Job {
   return job;
 }
 
-/** The preset named by `job.meta.presetId`, or the app default when that id is null. */
+/** The preset named by `job.meta.presetId`, or the app default when that id is null. A tapered job is unchanged. */
 export function resetToPreset(job: Job): Job {
+  refuseTaperedJob(job);
   const id = job.meta?.presetId;
   if (id === "B" || id === "C" || id === "D") return loadPreset(id);
   return appDefaultJob();
@@ -110,6 +110,7 @@ export function jobLabel(job: Job): string {
  * Does not mutate `job`.
  */
 export function markEdited(job: Job): Job {
+  refuseTaperedJob(job);
   const next = structuredClone(job);
   next.meta = {
     presetId: next.meta?.presetId ?? null,

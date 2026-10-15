@@ -448,11 +448,13 @@ An older save with no `meta` loads as `{ presetId: null, isExample: false, modif
 
 `restoreSaved(input)` is the saved-job and legacy-job path, including the call to `metaFromSaved`. It never throws. Invalid input returns null. A single string returns `{ ok: true, job, baselineHash }`. `metaFromSaved` runs only on that returned copy. A saved string with more than one section, a crossover depth, or an OD/ID change returns `{ ok: false, code: "TAPERED_STRING_UNSUPPORTED", saved }`. `saved` is the original object, deep-equal to the input, and is not rewritten as one section. The code is the exported `TAPERED_STRING_UNSUPPORTED`. Restore does not write storage. EXAMPLE B and EXAMPLE C restore normally. `canSimulate` and `simulate` on that saved object still return `SIM_REQUIRES_TAPERED`.
 
-`resetToPreset(job)` returns that preset when `meta.presetId` is B, C, or D. When `presetId` is null, or `meta` is absent, it returns the app default (EXAMPLE Well A) with `{ presetId: null, isExample: true, modified: false }`.
+`jobSupport(job)` is that same geometry check for the UI lock. It returns `{ ok: true }` or `{ ok: false, code: "TAPERED_STRING_UNSUPPORTED", reason }`. `calculate`, `kpiVolumes`, `chaseVolume`, `kmwInString`, `kmwBackfill`, `poohFill`, `emwProfile`, `strokesSchedule`, `buildDisplacement`, and `buildTripSchedule` return `{ ok: false, code: "TAPERED_STRING_UNSUPPORTED" }` and no numbers. `jobLabel` is not gated.
 
-`markEdited(job)` is pure. It sets `isExample` to false and `modified` to true and keeps `presetId`. Every input edit uses it, including `applyPaste` and the store's field setter.
+`resetToPreset(job)` returns that preset when `meta.presetId` is B, C, or D. When `presetId` is null, or `meta` is absent, it returns the app default (EXAMPLE Well A) with `{ presetId: null, isExample: true, modified: false }`. A tapered job throws `TAPERED_STRING_UNSUPPORTED` and is not replaced.
 
-`jobLabel(job)` is pure. The screen header and the print title both use it. When `meta.isExample` is true and `meta.presetId` is B, C, or D, it returns `EXAMPLE B`, `EXAMPLE C`, or `EXAMPLE D`. Otherwise, including a legacy save and the app default (`presetId` null), it returns `Modified, not an EXAMPLE`. No label contains `B/C/D`. The EXAMPLE D assertion runs when `loadPreset("D")` succeeds and stays skipped until then.
+`markEdited(job)` is pure. It sets `isExample` to false and `modified` to true and keeps `presetId`. Every input edit uses it, including `applyPaste` and the store's field setter. On a tapered job, `applyPaste`, `markEdited`, and `resetToPreset` throw `TAPERED_STRING_UNSUPPORTED` before cloning, and a setPath input edit returns without writing. The job is unchanged.
+
+`jobLabel(job)` is pure. The screen header and the print title both use it. When `meta.isExample` is true and `meta.presetId` is B, C, or D, it returns `EXAMPLE B`, `EXAMPLE C`, or `EXAMPLE D`. Otherwise, including a legacy save and the app default (`presetId` null), it returns `Modified, not an EXAMPLE`. No label contains `B/C/D`. The EXAMPLE D assertion runs when `loadPreset("D")` succeeds and stays skipped until then. A tapered save whose meta is still an unmodified EXAMPLE D still labels `EXAMPLE D`.
 
 ### Planned paste apply test
 
@@ -639,6 +641,10 @@ export type SimulateError =
   | { code: "SIM_REQUIRES_TAPERED"; presetId: "D" };
 
 export function canSimulate(job: Job): { ok: boolean; reason?: string };
+
+export function jobSupport(
+  job: Job,
+): { ok: true } | { ok: false; code: "TAPERED_STRING_UNSUPPORTED"; reason: string };
 
 export type SimulateResult =
   | {

@@ -11,7 +11,6 @@ import {
   kpiVolumes,
   masp,
   poohFill,
-  type KpiVolumesResult,
 } from "./kpi";
 
 /**
@@ -311,9 +310,9 @@ describe("kpiVolumes", () => {
     const job = exampleJob();
     job.column = [{ fluidId: "mud", topMd_ft: 0, bottomMd_ft: 10000 }];
     job.trip.standLength_ft = 93;
-    const result: KpiVolumesResult = kpiVolumes(job);
+    const result = kpiVolumes(job);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok || !("error" in result)) return;
     expect(result.error.code).toBe("MISSING_PILL");
   });
 });
@@ -441,7 +440,7 @@ describe("EXAMPLE B against the MPGenie expected file", () => {
       well: { ...exampleB.well, fit_ppg: null as unknown as number },
     });
     expect(missingFit.ok).toBe(false);
-    if (!missingFit.ok) {
+    if (!missingFit.ok && "error" in missingFit) {
       expect(missingFit.error.code).toBe("MISSING_FIT");
       expect(missingFit.error.field).toBe("well.fit_ppg");
     }
@@ -450,7 +449,7 @@ describe("EXAMPLE B against the MPGenie expected file", () => {
       well: { ...exampleB.well, shoeTvd_ft: null as unknown as number },
     });
     expect(missingShoe.ok).toBe(false);
-    if (!missingShoe.ok) {
+    if (!missingShoe.ok && "error" in missingShoe) {
       expect(missingShoe.error.code).toBe("MISSING_SHOE_TVD");
       expect(missingShoe.error.field).toBe("well.shoeTvd_ft");
     }

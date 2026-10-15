@@ -1,4 +1,5 @@
 import { esdAtMd } from "./column";
+import { taperedCalcRefusal, type TaperedStringRefusal } from "./job-support";
 import { pumpsOffSbpPsi } from "./displacement";
 import { uniqueSorted } from "./geometry";
 import { tripFrictionPsi } from "./hydraulics";
@@ -176,7 +177,10 @@ export function buildTripSchedule(
   spotMd: number | null,
   stages: DisplacementStage[],
   issues: Issue[],
-): TripScheduleRow[] {
+): TripScheduleRow[] | TaperedStringRefusal {
+  const refused = taperedCalcRefusal(job);
+  if (refused) return refused;
+
   const speeds = [...new Set(job.trip.speeds_ftmin.filter((speed) => speed > 0))].sort(
     (a, b) => b - a,
   );

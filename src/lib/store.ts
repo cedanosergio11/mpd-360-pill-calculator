@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Issue, Job, Result } from "@/contract";
-import { calculate, inputHash, markEdited, resetToPreset, restoreSaved, type RestoreSavedResult } from "@/contract";
+import { calculate, inputHash, isTaperedRefusal, jobSupport, markEdited, resetToPreset, restoreSaved, type RestoreSavedResult } from "@/contract";
 import { exampleJob } from "@/lib/example-job";
 import { setPath } from "@/lib/paths";
 
@@ -26,6 +26,11 @@ type State = {
   save: () => void; run: () => void; reset: () => void;
 };
 
+function calcOrNull(job: Job): Result | null {
+  const result = calculate(job);
+  return isTaperedRefusal(result) ? null : result;
+}
+
 export const useStore = create<State>((set, get) => ({
   job: exampleJob, result: null, calcJob: null, baselineHash: null, saved: false, loaded: false,
   load: () => {
@@ -36,13 +41,17 @@ export const useStore = create<State>((set, get) => ({
       const restored = restoreSaved(raw);
       if (restored?.ok) { job = restored.job; baselineHash = restored.baselineHash; }
     } catch { /* ignore */ }
-    set({ job, baselineHash, saved: hasRaw, loaded: true, result: calculate(job), calcJob: job });
+    set({ job, baselineHash, saved: hasRaw, loaded: true, result: calcOrNull(job), calcJob: job });
   },
-  set: (path, v) => set({ job: markEdited(setPath(get().job, path, v)), saved: false }),
-  replace: (j) => { const { presetBaseline: _pb, ...rest } = j as SavedJob; const job = { ...rest, pipeColumn: rest.pipeColumn ?? [] } as Job; set({ job, saved: false, result: calculate(job), calcJob: job, baselineHash: inputHash(job) }); },
+  set: (path, v) => {
+    const current = get().job;
+    if (!jobSupport(current).ok) return;
+    set({ job: markEdited(setPath(current, path, v)), saved: false });
+  },
+  replace: (j) => { const { presetBaseline: _pb, ...rest } = j as SavedJob; const job = { ...rest, pipeColumn: rest.pipeColumn ?? [] } as Job; set({ job, saved: false, result: calcOrNull(job), calcJob: job, baselineHash: inputHash(job) }); },
   save: () => { const job = { ...get().job, savedAt: new Date().toISOString() }; localStorage.setItem(KEY, JSON.stringify(toSaved(job, get().baselineHash))); set({ job, saved: true }); },
-  run: () => { const job = get().job; set({ result: calculate(job), calcJob: job }); },
-  reset: () => { const job = resetToPreset(get().job); set({ job, saved: false, result: calculate(job), calcJob: job, baselineHash: inputHash(job) }); },
+  run: () => { const job = get().job; set({ result: calcOrNull(job), calcJob: job }); },
+  reset: () => { const job = resetToPreset(get().job); set({ job, saved: false, result: calcOrNull(job), calcJob: job, baselineHash: inputHash(job) }); },
 }));
 
 export const useOutOfDate = () => useStore((s) => !!s.result && inputHash(s.job) !== s.result.inputHash);

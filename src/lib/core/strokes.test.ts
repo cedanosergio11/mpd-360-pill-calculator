@@ -1,13 +1,20 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { exampleB } from "@/lib/example-b";
-import { calculate } from "./calculate";
+import { calculate as calculateAny } from "./calculate";
+import { isTaperedRefusal } from "./job-support";
 import { pillPlacement } from "./column";
 import { pumpedPillBbl } from "./displacement";
 import { exampleJob } from "./example-job";
 import type { Job } from "./job.schema";
-import type { DisplacementStage } from "./result";
+import type { DisplacementStage, Result } from "./result";
 import { pumpOutput_bblPerStk, strokesSchedule, type StrokesScheduleRow } from "./strokes";
+
+function calculate(job: Job): Result {
+  const result = calculateAny(job);
+  if (isTaperedRefusal(result)) throw new Error(result.code);
+  return result;
+}
 
 interface ExpectedFile {
   pump: { bblPerStk: number; spm: number };
@@ -235,7 +242,7 @@ describe("strokesSchedule", () => {
     const job = withPump(exampleJob(), { linerIn: 0, bblPerStk: 0.2, spm: 40 });
     const schedule = strokesSchedule(job, calculate(job));
     expect(schedule.ok).toBe(false);
-    if (schedule.ok) return;
+    if (schedule.ok || !("error" in schedule)) return;
     expect(schedule.error).toEqual({
       code: "INVALID_PUMP",
       field: "pump.linerIn",
@@ -260,7 +267,7 @@ describe("strokesSchedule", () => {
       const job = withPump(exampleJob(), { ...PUMP, spm });
       const schedule = strokesSchedule(job, calculate(job));
       expect(schedule.ok).toBe(false);
-      if (schedule.ok) return;
+      if (schedule.ok || !("error" in schedule)) return;
       expect(schedule.error.code).toBe("INVALID_PUMP");
       expect(schedule.error.field).toBe("pump.spm");
     },

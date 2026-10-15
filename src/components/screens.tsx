@@ -1,7 +1,7 @@
 import { CartesianGrid, Legend, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { useMemo, useState, type ReactNode } from "react";
 import type { KpiError, KpiVolumesResult, PoohFillValue, DepthKey, PumpError, Result, StrokesScheduleResult, TripLimit, TripScheduleRow } from "@/contract";
-import { HAS_PIPE_COLUMN, jobLabel, kpiVolumes, strokesSchedule } from "@/contract";
+import { HAS_PIPE_COLUMN, isTaperedRefusal, jobLabel, kpiVolumes, strokesSchedule } from "@/contract";
 import { getPath } from "@/lib/paths";
 import { Card, fmt, Grid, IssueList, NumField } from "@/components/fields";
 import { issuesFor, useCalcEdited, useStore } from "@/lib/store";
@@ -334,7 +334,9 @@ export function TripScreen() {
 function useStrokes(): StrokesScheduleResult | null {
   const job = useStore((s) => s.job);
   const r = useStore((s) => s.result);
-  return r ? strokesSchedule(job, r) : null;
+  if (!r) return null;
+  const schedule = strokesSchedule(job, r);
+  return isTaperedRefusal(schedule) ? null : schedule;
 }
 const PumpErr = ({ e }: { e: PumpError }) => (
   <p data-pump-error={e.field} role="alert" className="mt-1 text-[11px] leading-snug text-danger">✖ {e.message} <span className="font-mono opacity-70">[{e.code}]</span></p>);
@@ -431,7 +433,11 @@ function StrokesPrint() {
 /** KPI uses the inputs snapshot from the last Calculate, like the other result screens — never live edits. */
 function useKpi(): KpiVolumesResult | null {
   const job = useStore((s) => s.calcJob);
-  return useMemo(() => (job ? kpiVolumes(job, { surfaceLine_bbl: 0 }) : null), [job]);
+  return useMemo(() => {
+    if (!job) return null;
+    const volumes = kpiVolumes(job, { surfaceLine_bbl: 0 });
+    return isTaperedRefusal(volumes) ? null : volumes;
+  }, [job]);
 }
 const KpiErr = ({ e }: { e: KpiError }) => (
   <p data-kpi-error={e.code} role="alert" className="text-xs text-danger">✖ {e.message} <span className="font-mono opacity-70">[{e.code} · {e.field}]</span></p>);

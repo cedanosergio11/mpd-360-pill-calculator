@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import type { EmwError, EmwLineName, EmwPillState, EmwPoint, EmwProfileResult, EmwStation } from "@/contract";
-import { emwProfile } from "@/contract";
+import type { EmwError, EmwLineName, EmwPillState, EmwPoint, EmwProfileResult, EmwStation, TaperedStringRefusal } from "@/contract";
+import { emwProfile, isTaperedRefusal } from "@/contract";
 import { Card } from "@/components/fields";
 import { useStore } from "@/lib/store";
 
@@ -16,7 +16,11 @@ const lineLabel = (k: EmwLineName) => LINES.find((l) => l.k === k)?.label ?? k;
 
 function useEmw(): EmwProfileResult | null {
   const job = useStore((s) => s.calcJob);
-  return useMemo(() => (job ? emwProfile(job) : null), [job]);
+  return useMemo(() => {
+    if (!job) return null;
+    const profile = emwProfile(job);
+    return isTaperedRefusal(profile) ? null : profile;
+  }, [job]);
 }
 
 const LINES: { k: EmwLineName; label: string; color: string }[] = [
@@ -210,7 +214,7 @@ export function EmwPrint() {
 }
 
 /** KPI cross-reference: the RIH shoe-check row (static + SBP, spotted) when it is over FIT and tighter than the KPI MASP margin. Compares only; no math. */
-export function rihShoeNote(kpiMargin_psi: number, p: EmwProfileResult | null): string | null {
+export function rihShoeNote(kpiMargin_psi: number, p: EmwProfileResult | TaperedStringRefusal | null): string | null {
   if (!p || !p.ok) return null;
   const row = p.shoeCheck.find((c) => c.line === "staticSbp" && c.pillState === "spotted");
   if (!row || !row.over || !(row.margin_psi < kpiMargin_psi)) return null;

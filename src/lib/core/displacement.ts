@@ -1,4 +1,5 @@
 import { capBblFt } from "@/lib/utils";
+import { taperedCalcRefusal, type TaperedStringRefusal } from "./job-support";
 import { columnDisplacedByPipe, esdAtMd, pillPlacement, type Span } from "./column";
 import { balanceFloat, pipePillBbl } from "./equalize";
 import { intervalVolume, uniqueSorted } from "./geometry";
@@ -145,7 +146,10 @@ function stagesFor(job: Job, pill: Span, issues: Issue[]): DisplacementStage[] {
  * `pumped_bbl` is pill length covered times pipe capacity.
  * RIH steel displacement shifts every fluid interface, including a slug.
  */
-export function buildDisplacement(job: Job, issues: Issue[]): Displacement {
+export function buildDisplacement(job: Job, issues: Issue[]): Displacement | TaperedStringRefusal {
+  const refused = taperedCalcRefusal(job);
+  if (refused) return refused;
+
   const place = pillPlacement(job);
   if (!place?.pill) {
     issues.push(

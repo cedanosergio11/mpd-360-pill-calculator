@@ -1,4 +1,5 @@
 import type { Job } from "./job.schema";
+import { refuseTaperedJob } from "./job-support";
 import { markEdited } from "./preset";
 
 /**
@@ -997,6 +998,7 @@ export function previewPaste(job: Job, result: PasteResult): PastePreview {
 }
 
 export function applyPaste(job: Job, preview: PastePreview): Job {
+  refuseTaperedJob(job);
   if (!preview.canApply) throw new Error("Paste is blocked and was not applied.");
   const next = structuredClone(job) as Job & { presetBaseline?: string };
   delete next.presetBaseline;

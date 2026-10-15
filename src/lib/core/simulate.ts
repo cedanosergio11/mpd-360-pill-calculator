@@ -1,5 +1,6 @@
 import { calculate } from "./calculate";
 import { columnDisplacedByPipe, pillPlacement } from "./column";
+import { demandSupported, jobSupport } from "./job-support";
 import {
   emwProfile,
   type EmwError,
@@ -146,73 +147,13 @@ export type SimulateResult =
     }
   | { ok: false; error: SimulateError };
 
-function finite(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-interface StringGeometry {
-  stringSections?: unknown;
-  crossovers?: unknown;
-  crossoverMd_ft?: unknown;
-}
-
 /**
  * Whether this single-string branch can run `simulate` on `job`.
- * The decision is the drill string, not `meta.presetId`. More than one section,
- * a crossover depth, or an OD/ID change along the string is #6.
+ * The decision is `jobSupport`: the drill string, not `meta.presetId`.
  */
-/** True when `well` has more than one section, a crossover depth, or an OD/ID change. Never throws. */
-export function drillStringNeedsTaper(well: unknown): boolean {
-  if (well == null || typeof well !== "object") return false;
-  return taperReason(well as Job["well"] & StringGeometry) != null;
-}
-
 export function canSimulate(job: Job): { ok: boolean; reason?: string } {
-  const reason = drillStringNeedsTaper(job.well) ? taperReason(job.well as Job["well"] & StringGeometry) : null;
-  return reason == null ? { ok: true } : { ok: false, reason };
-}
-
-function taperReason(well: Job["well"] & StringGeometry): string | null {
-  const sections = Array.isArray(well.stringSections) ? well.stringSections : [];
-  if (sections.length > 1) {
-    for (let i = 1; i < sections.length; i++) {
-      if (sectionChanges(sections[i - 1], sections[i])) {
-        return "The drill string changes OD or ID along its length.";
-      }
-    }
-    return "The drill string has more than one section.";
-  }
-  if (sections.length === 1 && odIdChanges(well, sections[0])) {
-    return "The drill string changes OD or ID along its length.";
-  }
-  if (hasCrossoverDepth(well)) return "The drill string has a crossover depth.";
-  return null;
-}
-
-function odIdChanges(well: Job["well"], section: unknown): boolean {
-  if (section == null || typeof section !== "object") return false;
-  const row = section as { od_in?: unknown; id_in?: unknown };
-  const od = finite(row.od_in) ? row.od_in : well.stringOd_in;
-  const id = finite(row.id_in) ? row.id_in : well.stringId_in;
-  return od !== well.stringOd_in || id !== well.stringId_in;
-}
-
-function sectionChanges(left: unknown, right: unknown): boolean {
-  if (left == null || typeof left !== "object" || right == null || typeof right !== "object") return false;
-  const a = left as { od_in?: unknown; id_in?: unknown };
-  const b = right as { od_in?: unknown; id_in?: unknown };
-  return (finite(a.od_in) && finite(b.od_in) && a.od_in !== b.od_in) || (finite(a.id_in) && finite(b.id_in) && a.id_in !== b.id_in);
-}
-
-function hasCrossoverDepth(well: StringGeometry): boolean {
-  if (finite(well.crossoverMd_ft)) return true;
-  if (!Array.isArray(well.crossovers) || well.crossovers.length === 0) return false;
-  return well.crossovers.some((item) => {
-    if (finite(item)) return true;
-    if (item == null || typeof item !== "object") return false;
-    const row = item as { md_ft?: unknown; tvd_ft?: unknown; depth_ft?: unknown };
-    return finite(row.md_ft) || finite(row.tvd_ft) || finite(row.depth_ft);
-  });
+  const support = jobSupport(job);
+  return support.ok ? { ok: true } : { ok: false, reason: support.reason };
 }
 
 function taperedRefusal(): SimulateResult {
@@ -330,9 +271,8 @@ function fluidSide(profile: EmwProfileResult, pillState: "inPlace" | "spotted"):
 }
 
 function spottedAt(job: Job, pipeMd: number): EmwProfileResult {
-  if (pipeMd > 0) return emwProfile(withBit(job, pipeMd));
-  const profile = emwProfile(job);
-  if (!profile.ok) return profile;
+  const profile = demandSupported(pipeMd > 0 ? emwProfile(withBit(job, pipeMd)) : emwProfile(job));
+  if (pipeMd > 0 || !profile.ok) return profile;
   return pipeOutProfile(profile);
 }
 
@@ -420,9 +360,9 @@ export function simulate(job: Job, opts: SimulateOptions = {}): SimulateResult {
     fromMd_ft: fromMd,
     toMd_ft: toMd,
     meta: { stepCount: mds.length, stepsLength: mds.length, stepFt: stepMd },
-    inPlace: fluidSide(emwProfile(job), "inPlace"),
-    kpi: kpiVolumes(job),
-    pump: strokesSchedule(job, calculate(job)),
+    inPlace: fluidSide(demandSupported(emwProfile(job)), "inPlace"),
+    kpi: demandSupported(kpiVolumes(job)),
+    pump: demandSupported(strokesSchedule(job, demandSupported(calculate(job)))),
     steps: mds.map((md, index) => stepAt(job, index, md, fromMd)),
   };
 }

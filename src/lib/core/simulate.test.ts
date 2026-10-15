@@ -4,7 +4,7 @@ import { columnDisplacedByPipe, pillPlacement } from "./column";
 import { emwProfile, type EmwLines, type EmwProfileResult } from "./emw-profile";
 import type { Job } from "./job.schema";
 import { kpiVolumes } from "./kpi";
-import { markEdited } from "./preset";
+import { markEdited, TAPERED_STRING_UNSUPPORTED } from "./preset";
 import {
   canSimulate,
   DEFAULT_STEP_FT,
@@ -188,8 +188,17 @@ describe("canSimulate", () => {
   it("refuses EXAMPLE D after markEdited", () => {
     const job = exampleDJob();
     job.meta = { presetId: "D", isExample: true, modified: false };
-    const edited = markEdited(job);
-    expect(edited.meta).toEqual({ presetId: "D", isExample: false, modified: true });
+    const snapshot = structuredClone(job);
+    let thrown: unknown;
+    try {
+      markEdited(job);
+    } catch (error) {
+      thrown = error;
+    }
+    expect(thrown).toMatchObject({ code: TAPERED_STRING_UNSUPPORTED });
+    expect(job).toEqual(snapshot);
+    const edited = structuredClone(job);
+    edited.meta = { presetId: "D", isExample: false, modified: true };
     expect((edited.well as { stringSections?: unknown[] }).stringSections).toHaveLength(2);
     expectTaperRefusal(edited);
   });

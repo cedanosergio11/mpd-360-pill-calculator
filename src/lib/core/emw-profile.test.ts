@@ -289,7 +289,7 @@ describe("emwProfile EXAMPLE B and C", () => {
     job.well.porePressure_ppg = Number.NaN;
     const result = emwProfile(job);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
+    if (result.ok || !("error" in result)) return;
     expect(result.error.field).toBe("well.porePressure_ppg");
     expect(JSON.stringify(result)).not.toMatch(/11\.4/);
   });
