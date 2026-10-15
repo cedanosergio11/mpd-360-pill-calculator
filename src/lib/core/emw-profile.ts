@@ -16,6 +16,7 @@ import { tvdAt } from "./tvd";
  * column at the bit: float balance when the pipe holds pill, otherwise closed
  * pipe displacement. A missing required input fails the whole profile.
  * Omitted pore is not defaulted: `limits.pore_ppg` is null and there is no pore line.
+ * That omission is a note, not an error. The lines, stations, and limits still return.
  */
 
 const GRID_FT = 100;
@@ -81,6 +82,12 @@ export interface EmwCrossing {
   limit: "pore" | "fit";
 }
 
+export interface EmwNote {
+  code: string;
+  field: string;
+  message: string;
+}
+
 export interface EmwProfileValue {
   inPlace: { lines: EmwLines };
   spotted: { lines: EmwLines };
@@ -90,7 +97,15 @@ export interface EmwProfileValue {
   crossings: EmwCrossing[];
 }
 
-export type EmwProfileResult = ({ ok: true } & EmwProfileValue) | { ok: false; error: EmwError };
+export type EmwProfileResult =
+  | ({ ok: true; notes: EmwNote[] } & EmwProfileValue)
+  | { ok: false; notes: EmwNote[]; error: EmwError };
+
+const PORE_NOT_ENTERED: EmwNote = {
+  code: "PORE_NOT_ENTERED",
+  field: "limits.pore_ppg",
+  message: "Pore line not shown: no pore value entered.",
+};
 
 interface GridPoint {
   md_ft: number;
@@ -99,12 +114,10 @@ interface GridPoint {
 
 const STATION_LABELS: readonly EmwStationLabel[] = ["shoe", "anchor", "bit"];
 
-function fail(
-  code: EmwError["code"],
-  field: string,
-  message: string,
-): { ok: false; error: EmwError } {
-  return { ok: false, error: { code, field, message } };
+type EmwFailure = { ok: false; notes: EmwNote[]; error: EmwError };
+
+function fail(code: EmwError["code"], field: string, message: string): EmwFailure {
+  return { ok: false, notes: [], error: { code, field, message } };
 }
 
 function finite(value: number | null | undefined): value is number {
@@ -117,7 +130,7 @@ function mdFor(job: Job, label: EmwStationLabel): number {
   return job.well.bitMd_ft;
 }
 
-function depthStations(job: Job): { ok: true; grid: GridPoint[] } | { ok: false; error: EmwError } {
+function depthStations(job: Job): { ok: true; grid: GridPoint[] } | EmwFailure {
   const shoeTvd = job.well.shoeTvd_ft;
   if (!finite(shoeTvd) || !(shoeTvd > 0)) {
     return fail("MISSING_SHOE_TVD", "well.shoeTvd_ft", "Shoe TVD is missing.");
@@ -179,7 +192,7 @@ function columnFluidsLackFann(job: Job): boolean {
 }
 
 /** Annulus as entered. Pipe-out pill, or the withDP annulus before the float balance. */
-function inPlaceColumn(job: Job): { ok: true; job: Job } | { ok: false; error: EmwError } {
+function inPlaceColumn(job: Job): { ok: true; job: Job } | EmwFailure {
   if (!pillPlacement(job)?.pill) {
     return fail("MISSING_PILL", "column", "Pill interval is missing.");
   }
@@ -190,7 +203,7 @@ function inPlaceColumn(job: Job): { ok: true; job: Job } | { ok: false; error: E
  * Shoe-ESD column at the bit. withDP pipe pill uses the float balance.
  * Otherwise the closed pipe displaces the pipe-out pill.
  */
-function spottedColumn(job: Job): { ok: true; job: Job } | { ok: false; error: EmwError } {
+function spottedColumn(job: Job): { ok: true; job: Job } | EmwFailure {
   const place = pillPlacement(job);
   if (!place?.pill) return fail("MISSING_PILL", "column", "Pill interval is missing.");
   if (job.mode === "withDP" && pipePillBbl(job, place.pill.fluidId) > 0.05) {
@@ -290,7 +303,7 @@ function profileFor(
   grid: GridPoint[],
   sbpConn: number,
   sbpCirc: number,
-): { ok: true; lines: EmwLines } | { ok: false; error: EmwError } {
+): { ok: true; lines: EmwLines } | EmwFailure {
   const bit = column.well.bitMd_ft;
   const staticLine: EmwPoint[] = [];
   const staticSbp: EmwPoint[] = [];
@@ -379,5 +392,6 @@ export function emwProfile(job: Job): EmwProfileResult {
       ...crossingsFor("inPlace", placed.lines, job.well.fit_ppg, pore),
       ...crossingsFor("spotted", spottedProfile.lines, job.well.fit_ppg, pore),
     ],
+    notes: pore == null ? [PORE_NOT_ENTERED] : [],
   };
 }

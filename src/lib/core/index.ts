@@ -73,6 +73,7 @@ export {
   type EmwLimits,
   type EmwLineName,
   type EmwLines,
+  type EmwNote,
   type EmwPillState,
   type EmwPoint,
   type EmwProfileResult,

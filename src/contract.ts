@@ -50,6 +50,7 @@ export type {
   EmwLimits,
   EmwLineName,
   EmwLines,
+  EmwNote,
   EmwPillState,
   EmwPoint,
   EmwProfileResult,

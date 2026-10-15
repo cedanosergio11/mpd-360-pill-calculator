@@ -35,6 +35,13 @@ describe("emwProfile EXAMPLE B and C", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.limits.pore_ppg).toBeNull();
+    expect(result.notes).toEqual([
+      {
+        code: "PORE_NOT_ENTERED",
+        field: "limits.pore_ppg",
+        message: "Pore line not shown: no pore value entered.",
+      },
+    ]);
     expect(result.limits.fit_ppg).toBe(12.6);
     expect(
       result.crossings.some((flag) => flag.pillState === "inPlace" && flag.limit === "pore"),
@@ -148,6 +155,7 @@ describe("emwProfile EXAMPLE B and C", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.limits.pore_ppg).toBe(12);
+    expect(result.notes).toEqual([]);
     expect(
       result.crossings.some((flag) => flag.pillState === "inPlace" && flag.limit === "pore"),
     ).toBe(true);
@@ -163,6 +171,7 @@ describe("emwProfile EXAMPLE B and C", () => {
     };
     expect(emwProfile(job)).toEqual({
       ok: false,
+      notes: [],
       error: { code: "MISSING_FIT", field: "well.fit_ppg", message: "FIT is missing." },
     });
   });
