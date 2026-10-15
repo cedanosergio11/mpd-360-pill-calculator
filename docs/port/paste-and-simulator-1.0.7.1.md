@@ -489,12 +489,17 @@ Each step is recomputed from the original job at that bit depth. 1.0 carried `pi
 
 ```ts
 export interface SimulateOptions {
-  /** Start pipe MD, ft. Default `job.well.bitMd_ft`. */
+  /** Start pipe MD, ft. Default `job.well.bitMd_ft`. Still the trip-tank origin when `mds` is set. */
   fromMd_ft?: number;
-  /** End pipe MD, ft. Default 0. */
+  /** End pipe MD, ft. Default 0. Ignored for the step list when `mds` is set. */
   toMd_ft?: number;
-  /** Pipe-MD step, ft. Default 100. Must be finite and greater than 0. */
+  /** Pipe-MD step, ft. Default 100. Must be finite and greater than 0 when `mds` is omitted. */
   stepMd_ft?: number;
+  /**
+   * Explicit pipe MDs, ft, in this order. When set, `steps` are these depths and nothing else.
+   * A single-point evaluation is a one-element list. `fromMd_ft` still anchors `tripTank_bbl` and `pipeDelta_ft`.
+   */
+  mds?: number[];
 }
 
 export interface SimulateStep {
@@ -554,7 +559,7 @@ export function simulate(job: Job, opts?: SimulateOptions): SimulateResult;
 
 Work per call:
 
-1. Reject a non-finite or non-positive `stepMd_ft`, or a from/to MD outside `0…well.mdTd_ft`, with `SimulateError`. Do not clip the way 1.0 `clamp` did and then continue silently.
+1. Reject a non-finite or non-positive `stepMd_ft` when `mds` is omitted, a from/to MD outside `0…well.mdTd_ft`, or any explicit MD that is non-finite or outside that span, with `SimulateError`. Do not clip the way 1.0 `clamp` did and then continue silently. When `mds` is set, `steps.length` equals `mds.length` and `steps[i].pipeMd_ft` equals `mds[i]`.
 2. `kpi = kpiVolumes(job)` once, on the job passed in. That supplies MASP, KMW, chase at the procedure bit, `pillVolume_bbl` (`stringCapOverPillInterval_bbl + chase_bbl`), the breakdown, backfill, and POOH fill. Stand length still belongs to `poohFill` inside that result. A `STAND_LENGTH` error stays on `poohFill` and does not drop the steps.
 3. `pump = strokesSchedule(job, calculate(job))` once, on that same job. Stage bbl, strokes, and minutes are that function's rows. SPM blank leaves minutes null. This replaces the 1.0 `desiredResolution` ladder. The pipe steps do not walk these rows.
 4. For each pipe MD, call the existing functions with `bitMd_ft` set to that MD and discard the argument afterward.
@@ -611,12 +616,18 @@ Pipe MD 0 removes no closed-pipe volume, so `columnDisplacedByPipe` leaves the p
 
 ### Direction test
 
-Planned, not implemented in this spec. On EXAMPLE B, C, and D, run both
+Planned, not implemented in this spec. On EXAMPLE B, C, and D both directions are compared on one shared grid. A RIH walk at 100 ft and a POOH walk at 100 ft meet only at 0 and the bit, so this test does not intersect those two walks.
 
-- RIH: `simulate(job, { fromMd_ft: 0, toMd_ft: job.well.bitMd_ft })`
-- POOH: `simulate(job, { fromMd_ft: job.well.bitMd_ft, toMd_ft: 0 })`
+`step` is 80 ft. That divides 8480 and the 10480 ft bit. The RIH grid is `0, step, 2 * step, …` for every term at or above 0 and at or below `bitMd_ft`. `mdGrid` is the union of that grid and `bitMd_ft`. On these wells that is 0, 80, …, 10480 (132 depths).
 
-with the same `stepMd_ft`. At every `pipeMd_ft` that appears in both results, these fields match to the tolerances in the table above: `chase_bbl`, `stringCapacity_bbl`, `kmwInString_bbl`, `pillTopMd_ft`, `pillBottomMd_ft`, and the `emw` lines, stations, shoe check, sections, and crossovers. `tripTank_bbl` and `pipeDelta_ft` are cumulative from `fromMd_ft`, so they differ between the two runs and are not part of this equality. The magnitude of `tripTank_bbl` at the far end of each run equals the closed-pipe displacement of the whole interval from 0 to the bit, to 1e-6 bbl.
+Guard, before the comparisons: `mdGrid.length` is at least 10, and on D the grid includes the crossover at 8480 ft MD.
+
+Every grid MD is evaluated on its own, once in each direction, with an explicit one-point `mds` list:
+
+- RIH: `simulate(job, { mds: [md], fromMd_ft: 0 })`
+- POOH: `simulate(job, { mds: [md], fromMd_ft: job.well.bitMd_ft })`
+
+Each result has one step, and that step's `pipeMd_ft` is `md`. These fields match at every grid MD, to the tolerances in the table above: `chase_bbl`, `stringCapacity_bbl`, `kmwInString_bbl`, `pillTopMd_ft`, `pillBottomMd_ft`, and the `emw` lines, stations, shoe check, sections, and crossovers. `tripTank_bbl` and `pipeDelta_ft` are cumulative from `fromMd_ft`, so they differ between the two calls and are not part of this equality. The single-point call at the bit with `fromMd_ft: 0`, and the single-point call at 0 with `fromMd_ft` at the bit, each have `|tripTank_bbl|` equal to the closed-pipe displacement from 0 to the bit, to 1e-6 bbl.
 
 On D, also run 8400 ft to 8600 ft and the reverse, `stepMd_ft: 200`. Both land on 8400 and 8600. The per-MD fields match at those two depths. The trip-tank increment between them equals `(5.5² / 1029.4) × 80 + (4² / 1029.4) × 120` bbl to 1e-6 bbl, positive on the way in and negative on the way out.
 
