@@ -4,6 +4,10 @@ Source commit: `99009230b0d3132c0f542b3b87fc2d05c6bc0660` (`9900923`), message "
 
 This note records those two features as they run at that commit, then proposes a 2.0 contract on the current core (`strokesSchedule`, `kpiVolumes`, `emwProfile`, tapered `stringSections`). The 2.0 contract does not call `src/lib/calc/engine-nodp.ts` and does not read `TRIP_TABLES` or `SURGE_*` from `src/lib/calc/tables.ts`.
 
+Paste and `simulate` share one `Job`. The parser returns a patch that is applied to that job. `simulate` is called with that same job. Neither feature keeps a second input record.
+
+Feature order: TBD, Sergio to decide.
+
 Line numbers below are from that commit.
 
 ---
@@ -335,7 +339,9 @@ export interface PasteResult {
 export function parseWellPaste(text: string): PasteResult;
 ```
 
-`ok` is true when `matched` is non-empty and `errors` is empty. `EMPTY` is the single error when the text has no usable row (`row: 0`, `column: 0`). A calculated label (the 1.0 `SKIP_LABELS` set) is `ignored` with `CALCULATED`, which is how MASP stays out of the job. A second label for a field already patched is `ignored` with `DUPLICATE`. A number, date, section, or bool that fails to parse is an `errors` entry and that field is not patched. The rest of the sheet still applies. The caller merges `patch` onto the current `Job`. `pillMode` on 1.0 is `Job.mode` on 2.0 and is not in the patch.
+`ok` is true when `matched` is non-empty and `errors` is empty. `EMPTY` is the single error when the text has no usable row (`row: 0`, `column: 0`). A calculated label (the 1.0 `SKIP_LABELS` set) is `ignored` with `CALCULATED`, which is how MASP stays out of the job. A second label for a field already patched is `ignored` with `DUPLICATE`. A number, date, section, or bool that fails to parse is an `errors` entry and that field is not patched. The rest of the sheet still applies. `pillMode` on 1.0 is `Job.mode` on 2.0 and is not in the patch.
+
+`patch` is the only value the parser returns that may be written. The caller merges it onto the canonical `Job` (`useStore` `job` on this branch). The parser does not write localStorage, does not build a simulator job, and does not fill `calcJob`. After the merge, `simulate` is called with that same `Job`.
 
 Same delimiters as 1.0: tab and newline, HTML table when `<table` or `<tr` is present, comma is a thousands separator inside `parseNumber` and never a column break. Decimal point is `.`. Dates stay month-day-year and Excel serial, written to a well-date string on the side, not to `job.savedAt`. Units are checked, not converted. A unit outside the set expected for that field is `UNIT_MISMATCH` and the value is not stored.
 
@@ -368,9 +374,44 @@ Mapping onto the 2.0 `Job` at `feat/tapered-strings`:
 
 ---
 
-## 4. Proposed 2.0 simulator contract
+## 4. Single input state
 
-Pure function. The UI holds an index into `steps` for scrub, play, and pause. Speed is how fast the index advances. It is not an input to the physics. There is no `engine-nodp` call and no SafeVision table.
+### 2.0 rule
+
+There is one input record: the app `Job`. Paste and the simulator both read it and, when the user edits, both write it.
+
+- `parseWellPaste` returns `PasteResult`. The app applies `patch` onto that `Job` and discards the patch. It does not keep a pasted copy beside the job.
+- `simulate(job, opts)` takes that same `Job`. `opts` is the pipe-MD range for this call (start, end, step). It is not a second well.
+- A step may call `emwProfile`, `chaseVolume`, `kmwInString`, and `columnDisplacedByPipe` with `bitMd_ft` set to that step's pipe MD. That argument is dropped when the call returns. It is not saved, and it is not a simulator-owned job.
+- The `kpi` and `pump` fields on `SimulateResult` are outputs of this job. They are not inputs and they are not stored on the simulator.
+- This feature does not add a `SimControls` store, a draft pill, a `dirty` flag, or a `calcJob`-style snapshot of its own. Screens that already snapshot `calcJob` for Calculate are outside this contract. Paste and `simulate` do not read or write that snapshot.
+
+### How 1.0.x duplicated Simulator and Procedure
+
+Procedure and the rest of the calculator share `useAppStore.inputs` (`src/lib/store.ts` lines 18–22), a `WellInputs` persisted as `pillview.v1`. `calculate(inputs)` is called at render and passed down as `results`. The procedure document, the schedule, and print all use that pair.
+
+The simulator does not. `useSimulator` (`src/lib/pill/store.ts` lines 25–46 and 215–235) keeps its own pipe depth, reference pipe depth, pill top, pill bottom, pill volume, pill weight, string KMW, string chase, backfill required, equalized bit, and a draft top / bottom / volume / weight used by the place-pill form. `placeFromProcedure` and `syncFromCalc` (lines 317–365) copy `pillFromProcedure(inputs, results)` into that store. `wellFromStores` (lines 372–385) then builds a third object, `WellState`: geometry is read from `inputs`, and the pill and pipe numbers come from the simulator store.
+
+Those copies diverge on purpose. `applyPipeMove` sets `dirty: true` (line 211). While `dirty` is set and the well name is unchanged, `syncFromCalc` updates `lastSyncKey` and leaves the simulator copy in place (lines 344–353). `wellFromStores` then takes pill weight from `sim.pillMw` instead of `inputs.kmw` (line 380). The procedure and the print path never see that copy. The chip in `src/components/app-shell.tsx` lines 273–278 says the schematic is off the field sheet and that print still uses the procedure. **From procedure** calls `placeFromProcedure` and clears `dirty` (lines 317–327).
+
+Saved scenarios are a further copy: `scenarios[].inputs` (`src/lib/store.ts` lines 13–17 and 55–71), up to 24 wells, separate from the live inputs.
+
+### Flags on that split
+
+There is no field named `changed` anywhere in the 1.0.7.1 tree.
+
+The flag that means "the simulator has moved off the procedure" is `dirty` (`src/lib/pill/store.ts` line 42). The chip, `syncFromCalc`, and `wellFromStores` all read it.
+
+Two flags next to that split are unused:
+
+- `geometryErr` (`store.ts` line 41) is set when `placePill` fails geometry (`lines 292–294`) and cleared on success (line 311). No screen reads it.
+- `StatsStrip` declares `equalized` (`src/components/stats-strip.tsx` lines 8 and 32). `SimulatorView` passes `sim.equalized` (line 97). The component never reads the prop. The as-pumped / equalized switch itself is used; only this argument is dead.
+
+`hydrated` on the app store (`src/lib/store.ts` lines 24, 45, and 107) is set after rehydrate and never read. It is not the simulator/procedure split.
+
+## 5. Proposed 2.0 simulator contract
+
+Pure function of the canonical `Job`. The UI holds an index into `steps` for scrub, play, and pause. Speed is how fast the index advances. It is not an input to the physics. There is no `engine-nodp` call and no SafeVision table.
 
 1.0 stepped the pipe by 50 ft on the slider, 100 ft on the arrow keys, and 500 ft on the coarse buttons, each click as one shot (`floatDrainOnMove` uses the whole delta). 2.0 keeps pipe MD as the axis. Default `stepMd_ft` is 100. Pass 50 or 500 to match the other 1.0 controls. The sequence includes `fromMd_ft` and `toMd_ft`. When the span is not a multiple of the step, the last interval is the remainder, so the end depth is exact. Example: 10480 ft down to 0 ft at 100 ft yields 10480, 10380, …, 80, then 0.
 
@@ -424,7 +465,7 @@ export type SimulateResult =
       stepMd_ft: number;
       fromMd_ft: number;
       toMd_ft: number;
-      /** Placement snapshot. Not recomputed per step. */
+      /** `kpiVolumes(job)` for the job passed in. Output only. */
       kpi: KpiVolumesResult;
       /** One row per displacement stage. Not the pipe-step axis. */
       pump: StrokesScheduleResult;
@@ -438,14 +479,44 @@ export function simulate(job: Job, opts?: SimulateOptions): SimulateResult;
 Work per call:
 
 1. Reject a non-finite or non-positive `stepMd_ft`, or a from/to MD outside `0…well.mdTd_ft`, with `SimulateError`. Do not clip the way 1.0 `clamp` did and then continue silently.
-2. `kpi = kpiVolumes(job)` once, on the job as entered. That supplies MASP, KMW, chase at the procedure bit, `pillVolume_bbl` (`stringCapOverPillInterval_bbl + chase_bbl`), the breakdown, backfill, and POOH fill. Stand length still belongs to `poohFill` inside that result. A `STAND_LENGTH` error stays on `poohFill` and does not drop the steps.
-3. `pump = strokesSchedule(job, calculate(job))` once. Stage bbl, strokes, and minutes are that function's rows. SPM blank leaves minutes null. This replaces the 1.0 `desiredResolution` ladder. The pipe steps do not walk these rows.
-4. For each pipe MD, `stepJob = { ...job, well: { ...job.well, bitMd_ft: pipeMd } }`.
-   - `placed = columnDisplacedByPipe(stepJob, pipeMd)`.
-   - Pill top and bottom from `pillPlacement(placed)` on that column, TVD from `tvdAt`.
-   - `chaseVolume(stepJob)` and `kmwInString(stepJob)` for the bbl fields. Both already take the job bit. Tapered capacity stays inside those functions.
-   - `emw = emwProfile(stepJob)` for pressures and EMW. The UI plots `emw.spotted.lines` and reads `sections` and `crossovers` from the same object. It does not sample a second hydrostatic.
+2. `kpi = kpiVolumes(job)` once, on the job passed in. That supplies MASP, KMW, chase at the procedure bit, `pillVolume_bbl` (`stringCapOverPillInterval_bbl + chase_bbl`), the breakdown, backfill, and POOH fill. Stand length still belongs to `poohFill` inside that result. A `STAND_LENGTH` error stays on `poohFill` and does not drop the steps.
+3. `pump = strokesSchedule(job, calculate(job))` once, on that same job. Stage bbl, strokes, and minutes are that function's rows. SPM blank leaves minutes null. This replaces the 1.0 `desiredResolution` ladder. The pipe steps do not walk these rows.
+4. For each pipe MD, call the existing functions with `bitMd_ft` set to that MD and discard the argument afterward.
+   - `placed = columnDisplacedByPipe` at that MD.
+   - Pill top and bottom from `pillPlacement(placed)`, TVD from `tvdAt`.
+   - `chaseVolume` and `kmwInString` for the bbl fields. Tapered capacity stays inside those functions.
+   - `emw = emwProfile` at that MD. The UI plots `emw.spotted.lines` and reads `sections` and `crossovers` from the same object. It does not sample a second hydrostatic.
 
 Play, pause, and scrub are the index into `steps`. They are not arguments of `simulate`. A playback speed of one step per tick moves `stepMd_ft` per tick. Choosing 50, 100, or 500 is the 1.0 slider, arrow key, and coarse button.
 
 `simulate` does not import `src/lib/calc/engine-nodp.ts`, `src/lib/calc/tables.ts`, or `src/lib/pill/physics.ts`.
+
+### Invariant test
+
+Planned, not implemented in this spec. On EXAMPLE B, EXAMPLE C, and EXAMPLE D, with default options, `steps[0]` is the pipe at `well.bitMd_ft` and must match `kpiVolumes(job)` and `emwProfile(job)` for that same job. D is checked against D. B is not compared to C or D.
+
+```ts
+const sim = simulate(job);
+const kpi = kpiVolumes(job);
+const emw = emwProfile(job);
+const step = sim.steps[0];
+```
+
+All three results are `ok: true`. `step.pipeMd_ft` equals `job.well.bitMd_ft` exactly. `step.index` is 0.
+
+| `steps[0]` | Same-job output | Tolerance |
+|---|---|---|
+| `chase_bbl` | `kpi.chase.chase_bbl` | 1e-6 bbl |
+| `stringCapacity_bbl` | `kpi.chase.stringCapacity_bbl` | 1e-6 bbl |
+| `kmwInString_bbl` | `kpi.kmwInString.bbl` | 1e-6 bbl |
+| `emw.stations[].emw.{inPlace,spotted}.{static,staticSbp,ecd}` | `emw.stations` | 1e-6 ppg |
+| `emw.shoeCheck[].emw_ppg` and `margin_ppg` | `emw.shoeCheck` | 1e-6 ppg |
+| `emw.shoeCheck[].margin_psi` | `emw.shoeCheck` | 1e-4 psi |
+| `emw.{inPlace,spotted}.lines.{static,staticSbp,ecd}` at shoe MD and bit MD, `emw_ppg` | the same points on `emw` | 1e-6 ppg |
+| `emw.sections` and `emw.crossovers` | `emw.sections` and `emw.crossovers` | exact (`md_ft`, `tvd_ft`, `id_in`, `od_in`, labels) |
+| `emw.inPlace.label` and `emw.spotted.label` | the same labels on `emw` | exact string |
+| `pillTopMd_ft`, `pillBottomMd_ft` | `pillPlacement` of the spotted column `emwProfile` builds with `columnDisplacedByPipe(job, job.well.bitMd_ft)` | 1e-4 ft |
+
+`pillTopMd_ft` is that spotted column. It is not required to equal `kpi.kmwInString.pillTopMd_ft`, which is the pill on the stored column.
+
+`simulate(job).kpi` matches `kpiVolumes(job)` on `pillVolume_bbl`, `pillVolumeBreakdown.stringCapOverPillInterval_bbl`, and `pillVolumeBreakdown.chase_bbl` to 1e-6 bbl. That `kpi` value is an output of the same job. `pillVolumeBreakdown.chase_bbl` also matches `steps[0].chase_bbl` to 1e-6 bbl.
