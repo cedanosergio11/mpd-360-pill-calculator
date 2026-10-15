@@ -509,7 +509,7 @@ export function KpiScreen() {
   const k = useKpi();
   return (<div className="space-y-3">
     <p className="text-[11px] text-muted-foreground print:hidden">Stand length is set in 6 Trip schedule → Trip inputs.</p>
-    {k.ok ? <><KpiBody k={k} />{k.poohFill.ok && <PoohRows fill={k.poohFill} />}</> : <><Card title="KPI & volumes"><KpiErr e={k.error} /><p className="mt-2 text-xs text-muted-foreground">No KPI numbers until this input is fixed.</p></Card>
+    {k.ok ? <><KpiBody k={k} />{k.poohFill.ok ? <PoohRows fill={k.poohFill} /> : <div data-testid="pooh-table-error" className="rounded-md border p-2"><p className="mb-1 text-xs font-semibold">POOH fill table</p><KpiErr e={k.poohFill.error} /></div>}</> : <><Card title="KPI & volumes"><KpiErr e={k.error} /><p className="mt-2 text-xs text-muted-foreground">No KPI numbers until this input is fixed.</p></Card>
       <Card title="Pill volume"><p data-kpi="pill-volume" className="text-xs italic text-muted-foreground">{PILL_PENDING}</p></Card></>}
   </div>);
 }
@@ -518,7 +518,7 @@ function KpiPrint() {
   const k = useKpi();
   return (<section className="kpi-print mb-3">
     <h3 className="mb-1 font-semibold">KPI &amp; volumes{k.ok ? "" : " · not available"}</h3>
-    {k.ok ? <><KpiBody k={k} print />{k.poohFill.ok && <><h4 className="kpi-print-h mt-2 text-xs font-semibold">POOH fill · {fx(k.poohFill.standLength_ft, 0)} ft stands</h4><PoohRows fill={k.poohFill} print /></>}</> : <KpiErr e={k.error} />}
+    {k.ok ? <><KpiBody k={k} print />{k.poohFill.ok ? <><h4 className="kpi-print-h mt-2 text-xs font-semibold">POOH fill · {fx(k.poohFill.standLength_ft, 0)} ft stands</h4><PoohRows fill={k.poohFill} print /></> : <><h4 className="kpi-print-h mt-2 text-xs font-semibold">POOH fill table</h4><div data-testid="pooh-table-error"><KpiErr e={k.poohFill.error} /></div></>}</> : <KpiErr e={k.error} />}
   </section>);
 }
 
