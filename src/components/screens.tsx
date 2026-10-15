@@ -6,7 +6,7 @@ import { getPath } from "@/lib/paths";
 import { Card, fmt, Grid, IssueList, NumField } from "@/components/fields";
 import { issuesFor, useCalcEdited, useStore } from "@/lib/store";
 import { APP_VERSION } from "@/lib/version";
-import { EmwPrint } from "@/components/emw";
+import { EmwPrint, rihShoeNote, useEmwProfile } from "@/components/emw";
 
 export function WellScreen() {
   const job = useStore((s) => s.job);
@@ -446,6 +446,11 @@ function StandLengthErr() {
   const error = !k || !k.ok ? null : !k.poohFill.ok && k.poohFill.error.code === "STAND_LENGTH" ? k.poohFill.error : null;
   return error ? <div className="mt-2"><KpiErr e={error} /></div> : null;
 }
+function RihShoeNote({ margin }: { margin: number }) {
+  const note = rihShoeNote(margin, useEmwProfile());
+  return note ? <p data-kpi="rih-shoe-note" className="mt-1 text-[11px] font-semibold text-danger">{note}</p> : null;
+}
+
 function KpiBody({ k, print }: { k: Extract<KpiVolumesResult, { ok: true }>; print?: boolean }) {
   const { masp: m, kmw: w, chase: c, kmwInString: s, kmwBackfill: b, poohFill: fill } = k;
   const Box = ({ title, children }: { title: string; children: ReactNode }) => print
@@ -455,7 +460,8 @@ function KpiBody({ k, print }: { k: Extract<KpiVolumesResult, { ok: true }>; pri
     <Box title="MASP vs planned SBP">
       <Kv k="MASP = (FIT − MW) × 0.052 × shoe TVD" v={fx(m.masp_psi, 2)} u="psi" strong id="masp" />
       <Kv k="Planned SBP" v={fx(m.plannedSbp_psi, 0)} u="psi" id="sbp" />
-      <Kv k="Margin (MASP − SBP)" v={fx(m.margin_psi, 2)} u="psi" id="margin" />
+      <Kv k="MASP margin (mud at shoe, pipe out)" v={fx(m.margin_psi, 2)} u="psi" id="margin" />
+      <RihShoeNote margin={m.margin_psi} />
       <div className="mt-1 text-xs"><span data-kpi="sbp-flag" className={`rounded px-2 py-0.5 font-semibold ${m.sbpExceedsMasp ? "kpi-flag-over" : "kpi-flag-ok"}`}>{m.sbpExceedsMasp ? "SBP OVER MASP" : "OK"} · {m.sbpFlag}</span></div>
       <p className="mt-1 text-[10px] text-muted-foreground">FIT {fx(m.fitEmw_ppg, 2)} · MW {fx(m.activeMw_ppg, 2)} ppg ({m.activeMwFluidId}) · shoe TVD {fx(m.shoeTvd_ft, 0)} ft</p>
     </Box>
