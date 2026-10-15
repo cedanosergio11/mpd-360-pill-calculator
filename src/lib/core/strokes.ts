@@ -1,3 +1,4 @@
+import { calcRefusal, type CalcRefusal } from "./job-support";
 import type { Job, PumpInput } from "./job.schema";
 import type { Result } from "./result";
 
@@ -166,7 +167,10 @@ function resolveSpm(
 export function strokesSchedule(
   job: Job,
   result: Pick<Result, "displacement">,
-): StrokesScheduleResult {
+): StrokesScheduleResult | CalcRefusal {
+  const refused = calcRefusal(job);
+  if (refused) return refused;
+
   if (job.pump == null) return fail("MISSING_PUMP", "pump", "Pump inputs are missing.");
   const output = resolveOutput(job.pump);
   if (!output.ok) return output;

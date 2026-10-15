@@ -35,6 +35,46 @@ export function surveyTies(well: Well): Tie[] {
   return ties;
 }
 
+/**
+ * Piecewise-linear TVD from survey stations only.
+ * Shoe, anchor, and TD ties are not used, so a stale TVD cannot pull the result.
+ * `null` when `md` is past the last survey station. This does not extrapolate.
+ * With no survey, `null` — there is no station to interpolate.
+ */
+export function surveyTvdAt(well: Well, md: number): number | null {
+  if (!Number.isFinite(md)) return null;
+  if (md <= 0) return 0;
+  const stations = (well.survey ?? [])
+    .filter((station) => Number.isFinite(station.md_ft) && Number.isFinite(station.tvd_ft) && station.md_ft >= 0)
+    .map((station) => ({ md_ft: station.md_ft, tvd_ft: station.tvd_ft }))
+    .sort((a, b) => a.md_ft - b.md_ft);
+  if (stations.length === 0) return null;
+  const last = stations[stations.length - 1];
+  if (md > last.md_ft + 1e-4) return null;
+  return tvdAt(
+    {
+      ...well,
+      survey: stations,
+      shoeMd_ft: Number.NaN,
+      shoeTvd_ft: Number.NaN,
+      anchorTvd_ft: undefined,
+      mdTd_ft: Number.NaN,
+      tvdTd_ft: Number.NaN,
+    },
+    md,
+  );
+}
+
+/** Deepest survey station, or null when the well has none. */
+export function lastSurveyMd(well: Well): number | null {
+  let last: number | null = null;
+  for (const station of well.survey ?? []) {
+    if (!Number.isFinite(station.md_ft)) continue;
+    if (last == null || station.md_ft > last) last = station.md_ft;
+  }
+  return last;
+}
+
 export function tvdAt(well: Well, md: number): number | null {
   if (!Number.isFinite(md)) return null;
   if (md <= 0) return 0;

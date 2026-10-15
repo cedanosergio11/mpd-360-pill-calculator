@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { calculate } from "./calculate";
+import { calculate as calculateAny } from "./calculate";
+import { isCalcRefusal } from "./job-support";
+import type { Result } from "./result";
 import { exampleJob } from "./example-job";
 import { inputHash, stableStringify } from "./hash";
 import type { Job } from "./job.schema";
 import { validate } from "./validate";
+
+function calculate(job: Job): Result {
+  const result = calculateAny(job);
+  if (isCalcRefusal(result)) throw new Error(result.code);
+  return result;
+}
 
 function issues(job: Job, code: string) {
   return validate(job).filter((item) => item.code === code);

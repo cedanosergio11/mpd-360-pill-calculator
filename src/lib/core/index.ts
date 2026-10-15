@@ -1,4 +1,5 @@
 export { calculate } from "./calculate";
+export { rihStageCount } from "./displacement";
 export { inputHash, stableStringify } from "./hash";
 export { issue, type Issue, type IssueLevel } from "./issues";
 export {
@@ -8,6 +9,8 @@ export {
   type FannReading,
   type Fluid,
   type Job,
+  type JobMeta,
+  type PresetId,
   type PillMode,
   type PipeEnd,
   type SurveyStation,
@@ -28,6 +31,8 @@ export {
   type TripLimit,
   type TripPointKey,
   type TripScheduleRow,
+  type StageCount,
+  type StageCountReason,
 } from "./result";
 export { validate } from "./validate";
 export {
@@ -66,6 +71,67 @@ export {
   type PoohFillStand,
   type PoohFillValue,
 } from "./kpi";
+export {
+  AVAILABLE_PRESETS,
+  LEGACY_JOB_META,
+  TAPERED_STRING_UNSUPPORTED,
+  appDefaultJob,
+  jobLabel,
+  type JobLabel,
+  type JobLabelKind,
+  loadPreset,
+  markEdited,
+  metaFromSaved,
+  resetToPreset,
+  restoreSaved,
+  type RestoreSavedResult,
+} from "./preset";
+export {
+  DEPTH_BEYOND_TD,
+  calcRefusal,
+  depthBeyondFields,
+  isCalcRefusal,
+  isTaperedRefusal,
+  jobSupport,
+  type CalcRefusal,
+  type DepthBeyondField,
+  type DepthBeyondRefusal,
+  type JobSupport,
+  type TaperedStringRefusal,
+} from "./job-support";
+export { fmtBbl, fmtBblPerStk, fmtBblPerStand, fmtDepth, fmtDepthRange, fmtEmw, fmtIn, fmtKmw, fmtMin, fmtPsi, fmtStrokes, fmtTimeCT } from "./format";
+export { fieldLabel, type FieldLabel } from "./field-label";
+export { lastSurveyMd, surveyTvdAt } from "./tvd";
+export {
+  MD_BEYOND_SURVEY,
+  applyPaste,
+  parseWellPaste,
+  previewPaste,
+  type PasteError,
+  type PasteIgnored,
+  type PasteMatch,
+  type PastePreview,
+  type PastePreviewError,
+  type PastePreviewKind,
+  type PastePreviewRow,
+  type PasteResult,
+} from "./paste";
+export {
+  DEFAULT_STEP_FT,
+  MAX_STEPS,
+  MIN_STEP_FT,
+  canSimulate,
+  simulate,
+  type SimulateDepth,
+  type SimulateEmwStation,
+  type SimulateError,
+  type SimulateFluidProfile,
+  type SimulateFluidResult,
+  type SimulateMeta,
+  type SimulateOptions,
+  type SimulateResult,
+  type SimulateStep,
+} from "./simulate";
 export {
   emwProfile,
   type EmwCrossing,

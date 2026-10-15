@@ -9,7 +9,8 @@ import {
   vel,
   type Rheology,
 } from "@/lib/calc/rp13d";
-import { calculate } from "./calculate";
+import { calculate as calculateAny } from "./calculate";
+import { isCalcRefusal } from "./job-support";
 import { columnDisplacedByPipe } from "./column";
 import { EXAMPLE_FANN, exampleJob } from "./example-job";
 import { balanceFloat } from "./equalize";
@@ -17,7 +18,13 @@ import { auburniaJob } from "./fixtures/auburnia";
 import { lockSubDryJob, lockSubSpotJob } from "./fixtures/lock-sub";
 import type { SpeedEmw, TripEmw, TripPointKey } from "./index";
 import type { FannReading, Job, PillMode } from "./job.schema";
-import type { TripScheduleRow } from "./result";
+import type { Result, TripScheduleRow } from "./result";
+
+function calculate(job: Job): Result {
+  const result = calculateAny(job);
+  if (isCalcRefusal(result)) throw new Error(result.code);
+  return result;
+}
 
 const _exported: [TripPointKey, TripEmw, SpeedEmw] = [
   "bit",
@@ -198,7 +205,7 @@ describe("Lock Sub 1H shoe ESD — real shoe, pill never reaches it", () => {
     expect(withDp.issues.some((item) => item.code === "EQUALIZE_PENDING")).toBe(false);
     expect(noDp.issues.some((item) => item.code === "EQUALIZE_PENDING")).toBe(false);
     expect(withDp.displacement.stages.length).toBeGreaterThan(0);
-    expect(withDp.displacement.minStagesRih).toBe(withDp.displacement.stages.length);
+    expect(withDp.displacement.minStagesRih).toEqual({ stages: withDp.displacement.stages.length });
     const linked = withDp.tripSchedule.filter((row) => row.stage != null);
     expect(linked.length).toBeGreaterThan(0);
     expect(linked.every((row) => row.direction === "RIH")).toBe(true);

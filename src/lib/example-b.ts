@@ -3,7 +3,7 @@ import type { Job } from "@/contract";
 // Names stripped for the public preview. Fann is core's synthetic EXAMPLE_FANN. Not a field job.
 const FANN = { r600: 80, r300: 48, r200: 36, r100: 24, r6: 9.2, r3: 8.2 };
 export const exampleB: Job = {
-  schemaVersion: 1, name: "EXAMPLE B, 8045 ft shoe, pill trip-in", savedAt: "", mode: "noDP",
+  schemaVersion: 1, name: "EXAMPLE, pill trip-in", savedAt: "", mode: "noDP",
   well: {
     mdTd_ft: 10530, tvdTd_ft: 10516, bitMd_ft: 10480, shoeMd_ft: 8045, shoeTvd_ft: 8033,
     anchorMd_ft: 10480, anchorTvd_ft: 10466, fit_ppg: 12.6, targetEmw_ppg: 12,
@@ -32,7 +32,7 @@ export const exampleB: Job = {
 /** EXAMPLE C matches EXAMPLE B except connection SBP is 550 psi, so planned SBP exceeds MASP. Stand length is seeded at 93 ft. */
 export const exampleC: Job = (() => {
   const job = structuredClone(exampleB);
-  job.name = "EXAMPLE C, 8045 ft shoe, pill trip-in, SBP 550";
+  job.name = "EXAMPLE, SBP 550";
   job.trip.sbpConn_psi = 550;
   job.trip.standLength_ft = 93;
   return job;

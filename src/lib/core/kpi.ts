@@ -1,4 +1,5 @@
 import { annularBblFt, capBblFt, ceilingMath } from "@/lib/utils";
+import { calcRefusal, demandSupported, type CalcRefusal } from "./job-support";
 import { pillPlacement, surfaceFluid } from "./column";
 import { pipePillBbl } from "./equalize";
 import { holeIdAt, intervalVolume, uniqueSorted } from "./geometry";
@@ -457,7 +458,10 @@ function surfaceLine(
 export function chaseVolume(
   job: Job,
   input: { surfaceLine_bbl?: number | null; pillBottomTargetMd_ft?: number | null } = {},
-): ChaseResult {
+): ChaseResult | CalcRefusal {
+  const refused = calcRefusal(job);
+  if (refused) return refused;
+
   const line = surfaceLine(input.surfaceLine_bbl);
   if (!line.ok) return line;
   const bore = stringCapacity(job.well);
@@ -514,7 +518,10 @@ export function chaseVolume(
   };
 }
 
-export function kmwInString(job: Job): KmwInStringResult {
+export function kmwInString(job: Job): KmwInStringResult | CalcRefusal {
+  const refused = calcRefusal(job);
+  if (refused) return refused;
+
   const pill = spottedPill(job);
   if (!pill) return fail("MISSING_PILL", "column", "Pill top is missing.");
   const bore = stringCapacity(job.well);
@@ -549,7 +556,10 @@ export function kmwInString(job: Job): KmwInStringResult {
   };
 }
 
-export function kmwBackfill(job: Job): KmwBackfillResult {
+export function kmwBackfill(job: Job): KmwBackfillResult | CalcRefusal {
+  const refused = calcRefusal(job);
+  if (refused) return refused;
+
   const pill = spottedPill(job);
   if (!pill) return fail("MISSING_PILL", "column", "Pill top is missing.");
   if (!Number.isFinite(pill.topMd) || pill.topMd < 0) {
@@ -603,7 +613,10 @@ function standRows(
 }
 
 /** Closed and open POOH tables from `job.trip.standLength_ft`. No stand length is assumed. */
-export function poohFill(job: Job): PoohFillResult {
+export function poohFill(job: Job): PoohFillResult | CalcRefusal {
+  const refused = calcRefusal(job);
+  if (refused) return refused;
+
   const entered = job.trip.standLength_ft;
   const stand = missingOrBad(
     entered != null && Number.isNaN(entered) ? null : entered,
@@ -676,7 +689,10 @@ function activeMud(
  * A missing FIT, shoe TVD, or anchor TVD stops the result. Anchor TVD is never taken from the survey.
  * A blank or non-positive stand length does not: the other fields are returned and `poohFill` carries STAND_LENGTH.
  */
-export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesResult {
+export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesResult | CalcRefusal {
+  const refused = calcRefusal(job);
+  if (refused) return refused;
+
   const mud = activeMud(job);
   if (!mud.ok) return mud;
   const planned = input.plannedSbp_psi == null ? job.trip.sbpConn_psi : input.plannedSbp_psi;
@@ -694,13 +710,13 @@ export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesRes
     anchorTvd_ft: job.well.anchorTvd_ft,
   });
   if (!kmwResult.ok) return kmwResult;
-  const chase = chaseVolume(job, input);
+  const chase = demandSupported(chaseVolume(job, input));
   if (!chase.ok) return chase;
-  const inString = kmwInString(job);
+  const inString = demandSupported(kmwInString(job));
   if (!inString.ok) return inString;
-  const backfill = kmwBackfill(job);
+  const backfill = demandSupported(kmwBackfill(job));
   if (!backfill.ok) return backfill;
-  const fill = poohFill(job);
+  const fill = demandSupported(poohFill(job));
   if (!fill.ok && fill.error.code !== "STAND_LENGTH") return fill;
   const checks = separatePillChecks(job);
   if (!checks.ok) return checks;

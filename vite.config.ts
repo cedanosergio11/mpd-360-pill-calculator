@@ -1,4 +1,4 @@
-import { readdirSync, writeFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Plugin } from "vite";
 import { defineConfig } from "vite";
@@ -183,17 +183,11 @@ export default defineConfig(({ command, isPreview }) => ({
     tanstackStart(
       isGitHubPages
         ? {
-            spa: {
-              enabled: true,
-              prerender: {
-                onSuccess: ({ html }) => {
-                  const dir = join(process.cwd(), "dist/client");
-                  writeFileSync(join(dir, "index.html"), html);
-                  writeFileSync(join(dir, "404.html"), html);
-                  writeFileSync(join(dir, ".nojekyll"), "");
-                },
-              },
-            },
+            // Prerender the index route itself. The SPA shell (isShell) SSRs
+            // only the root and leaves an empty suspense hole, while the client
+            // hydrates AppShell's "Loading…" into that hole (React #418).
+            prerender: { enabled: true, crawlLinks: false },
+            pages: [{ path: "/" }],
           }
         : undefined,
     ),

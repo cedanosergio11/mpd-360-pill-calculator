@@ -1,4 +1,5 @@
 import { esdAtMd, pillPlacement } from "./column";
+import { calcRefusal, demandSupported, type CalcRefusal } from "./job-support";
 import { buildDisplacement, pumpsOffSbpPsi, shoeEmwPpg } from "./displacement";
 import { staticColumnJob } from "./equalize";
 import { inputHash } from "./hash";
@@ -51,7 +52,7 @@ function blankResult(job: Job, issues: Result["issues"]): Result {
       pillTopTvd_ft: null,
       pillBottomTvd_ft: null,
       stages: [],
-      minStagesRih: null,
+      minStagesRih: { stages: null, reason: "GEOMETRY" },
     },
     tripSchedule: [],
     issues,
@@ -153,7 +154,10 @@ function flagShoeAtFit(
  * mud weight. Pore is the entered value, reported at TD only.
  * Missing inputs stay null or empty, never 0.
  */
-export function calculate(job: Job): Result {
+export function calculate(job: Job): Result | CalcRefusal {
+  const refused = calcRefusal(job);
+  if (refused) return refused;
+
   const issues = validate(job);
   if (hasStructureError(issues)) return blankResult(job, issues);
 
@@ -210,14 +214,14 @@ export function calculate(job: Job): Result {
   }
 
   const place = pillPlacement(job);
-  const displacement = buildDisplacement(job, issues);
-  const tripSchedule = buildTripSchedule(
+  const displacement = demandSupported(buildDisplacement(job, issues));
+  const tripSchedule = demandSupported(buildTripSchedule(
     hydro,
     place?.pill?.topMd ?? null,
     place?.pill?.bottomMd ?? null,
     displacement.stages,
     issues,
-  );
+  ));
   flagShoeAtFit(job, depths, displacement.stages, issues);
 
   return {

@@ -123,11 +123,28 @@ export interface PumpInput {
   spm?: number | null;
 }
 
+/** EXAMPLE B, C, or D. Null is the app default, not one of those presets. */
+export type PresetId = "B" | "C" | "D";
+
+/**
+ * Preset flags. Saved and loaded with the job.
+ * Excluded from `inputHash`, so they do not move a preset baseline.
+ * Absent on the preset constants until `loadPreset`. An older save with no `meta`
+ * loads as `{ presetId: null, isExample: false, modified: true }`.
+ */
+export interface JobMeta {
+  presetId: PresetId | null;
+  isExample: boolean;
+  modified: boolean;
+}
+
 export interface Job {
   schemaVersion: SchemaVersion;
   name: string;
   /** ISO-8601 timestamp. Excluded from `inputHash`. */
   savedAt: string;
+  /** Preset flags. Excluded from `inputHash`. */
+  meta?: JobMeta;
   well: Well;
   /**
    * Shoe ESD (1.0.7.1). Pill fluid counts only where it stands above the shoe,

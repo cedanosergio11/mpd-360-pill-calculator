@@ -1,7 +1,19 @@
 // UI-facing re-export of Code Ninja's calc core (cedanosergio11/mpd-360-pill-calculator @ rebuild e232618).
 // The core in src/lib/core is the source of truth; do not redefine types here.
+//
+// `jobLabel` returns `{ kind, text }`. An unmodified example with a tapered string is
+// `{ kind: "example-locked", text: "EXAMPLE, tapered strings not available yet" }`,
+// the same state as `jobSupport`'s `TAPERED_STRING_UNSUPPORTED`, and the text is never
+// "Modified". An unmodified single-string B or C example is `kind: "example"` with the
+// preset name (`EXAMPLE, pill trip-in` or `EXAMPLE, SBP 550`). The preset letter stays
+// on `PresetId` only. Every other job is `{ kind: "modified", text: "Modified, not an EXAMPLE" }`.
+//
+// `fieldLabel(path)` is `{ label, unit }` for a job input path. Unknown paths are a
+// humanized string, never the raw path.
 export type {
   Job,
+  JobMeta,
+  PresetId,
   Fluid,
   FannReading,
   ColumnSegment,
@@ -60,6 +72,34 @@ export type {
   EmwStation,
   EmwStationEmw,
   EmwStationLabel,
+  PasteError,
+  PasteIgnored,
+  PasteMatch,
+  PastePreview,
+  PastePreviewError,
+  PastePreviewKind,
+  PastePreviewRow,
+  PasteResult,
+  SimulateDepth,
+  SimulateEmwStation,
+  SimulateError,
+  SimulateFluidProfile,
+  SimulateFluidResult,
+  SimulateMeta,
+  SimulateOptions,
+  SimulateResult,
+  SimulateStep,
+  RestoreSavedResult,
+  JobLabel,
+  JobLabelKind,
+  FieldLabel,
+  JobSupport,
+  TaperedStringRefusal,
+  CalcRefusal,
+  DepthBeyondField,
+  DepthBeyondRefusal,
+  StageCount,
+  StageCountReason,
 } from "@/lib/core";
 export type { TripEmw, TripPointKey, SpeedEmw } from "@/lib/core";
 export {
@@ -77,6 +117,47 @@ export {
   poohFill,
   kpiVolumes,
   emwProfile,
+  parseWellPaste,
+  previewPaste,
+  applyPaste,
+  MD_BEYOND_SURVEY,
+  surveyTvdAt,
+  lastSurveyMd,
+  fmtDepth,
+  fmtDepthRange,
+  fmtEmw,
+  fmtKmw,
+  fmtPsi,
+  fmtBbl,
+  fmtStrokes,
+  fmtMin,
+  fmtBblPerStk,
+  fmtIn,
+  fmtBblPerStand,
+  fmtTimeCT,
+  fieldLabel,
+  canSimulate,
+  simulate,
+  DEFAULT_STEP_FT,
+  MIN_STEP_FT,
+  MAX_STEPS,
+  AVAILABLE_PRESETS,
+  LEGACY_JOB_META,
+  TAPERED_STRING_UNSUPPORTED,
+  appDefaultJob,
+  jobLabel,
+  loadPreset,
+  markEdited,
+  metaFromSaved,
+  resetToPreset,
+  restoreSaved,
+  jobSupport,
+  isTaperedRefusal,
+  isCalcRefusal,
+  DEPTH_BEYOND_TD,
+  depthBeyondFields,
+  calcRefusal,
+  rihStageCount,
 } from "@/lib/core";
 /** True once the core schema grows `pipeColumn` (fluid intervals inside the string). In core since e232618. */
 export const HAS_PIPE_COLUMN = true as const;
