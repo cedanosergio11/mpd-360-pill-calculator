@@ -137,6 +137,13 @@ describe("well ECD", () => {
     expect(result.reason).toMatch(/six Fann/);
   });
 
+  it("refuses Fann readings that are not 600 ≥ 300 ≥ 200 ≥ 100 ≥ 6 ≥ 3", () => {
+    const result = calcRp13d({ ...WELL, fann200: 50 });
+    expect(result.available).toBe(false);
+    expect(result.ecd).toEqual([]);
+    expect(result.reason).toMatch(/600 ≥ 300 ≥ 200 ≥ 100 ≥ 6 ≥ 3/);
+  });
+
   it("fits n and K through all six readings, with the same yield as the 6-and-3-rpm point", () => {
     const readings: Rheology = {
       r600: WELL.fann600,

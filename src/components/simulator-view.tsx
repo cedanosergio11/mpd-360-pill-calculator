@@ -5,7 +5,7 @@ import { SimPlacePanel, SimToolbar } from "@/components/sim-controls";
 import { StatsStrip } from "@/components/stats-strip";
 import { WellboreSchematic } from "@/components/wellbore-schematic";
 import type { CalcResults, WellInputs } from "@/lib/calc/types";
-import { computeModel } from "@/lib/pill/physics";
+import { simulate } from "@/lib/pill/simulate";
 import { useSimulator, wellFromStores } from "@/lib/pill/store";
 import { bbl, ft } from "@/lib/pill/format";
 import { asNum, formatNumber, isNum } from "@/lib/utils";
@@ -19,9 +19,11 @@ export function SimulatorView({
 }) {
   const sim = useSimulator();
   const state = wellFromStores(inputs, sim);
-  const model = useMemo(
-    () => computeModel(state),
+  const run = useMemo(
+    () => simulate(inputs, results, [state.pipeDepth], state),
     [
+      inputs,
+      results,
       state.wellDepth,
       state.holeId,
       state.pipeOd,
@@ -37,6 +39,10 @@ export function SimulatorView({
       state.baseMw,
       state.pipeKmwVolume,
       state.pipeChaseVolume,
+      state.kmwBackfillRequired,
+      state.casingMd,
+      state.openHoleId,
+      state.survey,
     ],
   );
   const [probeDepth, setProbeDepth] = useState<number | null>(null);
@@ -67,6 +73,22 @@ export function SimulatorView({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [state.wellDepth]);
+
+  if (!run.ok) {
+    return (
+      <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
+        <p className="font-semibold text-destructive">Simulator is blocked</p>
+        <ul className="mt-2 space-y-1 text-muted-foreground">
+          {run.fields.map((field) => (
+            <li key={`${field.label}-${field.limitLabel}-${field.limit}`}>
+              {field.label} {field.value} ft is past {field.limitLabel} {field.limit} ft
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+  const model = run.models[0];
 
   const programTop = isNum(results.topOfPillNoDp) ? results.topOfPillNoDp : null;
   const programBottom = isNum(asNum(inputs.spotMd)) ? asNum(inputs.spotMd) : null;

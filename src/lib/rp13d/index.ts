@@ -8,6 +8,7 @@ export {
   eccentricityRatio,
   hbParams,
   pointsOfInterest,
+  fannInOrder,
   rheologyFrom,
   segmentDp,
   tripDp,

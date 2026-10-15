@@ -115,7 +115,19 @@ export function hbParams(rh: Rheology): HbParams {
   return { ty, n, k, np };
 }
 
-/** All six dial readings. Each one has to sit above τy so the curve fit uses it. */
+const FANN_ORDER = ["fann600", "fann300", "fann200", "fann100", "fann6", "fann3"] as const;
+
+/** 600 ≥ 300 ≥ 200 ≥ 100 ≥ 6 ≥ 3. Missing numbers are not in order. */
+export function fannInOrder(inputs: Pick<Rp13dInputs, (typeof FANN_ORDER)[number]>): boolean {
+  const dials = FANN_ORDER.map((key) => inputs[key]);
+  if (!dials.every(finite)) return false;
+  for (let i = 1; i < dials.length; i++) {
+    if (!(dials[i - 1] >= dials[i])) return false;
+  }
+  return true;
+}
+
+/** All six dial readings, in decreasing order, each above τy so the curve fit uses it. */
 export function rheologyFrom(inputs: Pick<Rp13dInputs, "fann600" | "fann300" | "fann200" | "fann100" | "fann6" | "fann3">): Rheology | null {
   const r: Rheology = {
     r600: inputs.fann600,
@@ -125,8 +137,7 @@ export function rheologyFrom(inputs: Pick<Rp13dInputs, "fann600" | "fann300" | "
     r6: inputs.fann6,
     r3: inputs.fann3,
   };
-  if (![r.r600, r.r300, r.r200, r.r100, r.r6, r.r3].every(finite)) return null;
-  if (!(r.r600 > r.r300 && r.r300 > 0 && r.r3 >= 0)) return null;
+  if (!fannInOrder(inputs)) return null;
   const ty = yieldStress(r);
   if (![r.r600, r.r300, r.r200, r.r100, r.r6, r.r3].every((tau) => tau > ty)) return null;
   const fit = hbParams(r);
@@ -342,9 +353,20 @@ export function calcRp13d(inputs: Rp13dInputs): Rp13dResult {
     trips: [],
   };
   if (!rh) {
+    const dials = FANN_ORDER.map((key) => inputs[key]);
+    if (!dials.every(finite)) {
+      return {
+        ...base,
+        reason:
+          "Enter all six Fann readings (600, 300, 200, 100, 6, 3). Each dial reading has to sit above the 6-and-3-rpm yield stress.",
+      };
+    }
+    if (!fannInOrder(inputs)) {
+      return { ...base, reason: "Fann readings must satisfy 600 ≥ 300 ≥ 200 ≥ 100 ≥ 6 ≥ 3." };
+    }
     return {
       ...base,
-      reason: "Enter all six Fann readings (600, 300, 200, 100, 6, 3). Each dial reading has to sit above the 6-and-3-rpm yield stress.",
+      reason: "Each dial reading has to sit above the 6-and-3-rpm yield stress.",
     };
   }
   if (!finite(rho)) return { ...base, reason: "Enter mud weight." };

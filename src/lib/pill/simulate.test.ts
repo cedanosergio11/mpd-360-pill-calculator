@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { calculate } from "@/lib/calc/engine";
 import { EXAMPLE_8_5 } from "@/lib/calc/examples";
@@ -44,6 +45,22 @@ describe("simulate", () => {
     expect(JSON.stringify(run)).not.toMatch(/pillTop/);
   });
 
+  it("refuses while a depth block is active, before any model", () => {
+    const results = calculate(EXAMPLE_8_5);
+    const blocked = {
+      ...results,
+      depthBlock: {
+        code: "DEPTH_BEYOND_TD" as const,
+        fields: [{ label: "Anchor point MD", value: 20000, limit: 17650, limitLabel: "TD" }],
+      },
+    };
+    const run = simulate(EXAMPLE_8_5, blocked, [15400]);
+    expect(run.ok).toBe(false);
+    if (run.ok) return;
+    expect(run.fields).toEqual(blocked.depthBlock.fields);
+    expect(run).not.toHaveProperty("models");
+  });
+
   it("blocks a pipe MD past TD before any step numbers", () => {
     const results = calculate(EXAMPLE_8_5);
     const run = simulate(EXAMPLE_8_5, results, [18000]);
@@ -52,5 +69,26 @@ describe("simulate", () => {
       code: "DEPTH_BEYOND_TD",
       fields: [{ label: "Pipe MD", value: 18000, limit: 17650, limitLabel: "TD" }],
     });
+  });
+
+  it("uses the live well when one is passed, and the simulator view does not call computeModel", () => {
+    const results = calculate(EXAMPLE_8_5);
+    const geometry = geometryFromWell(EXAMPLE_8_5);
+    const placed = pillFromProcedure(EXAMPLE_8_5, results, geometry, "open");
+    const live = composeWellState(EXAMPLE_8_5, {
+      ...DEFAULT_STATE,
+      ...placed,
+      pipeEnd: "open",
+      autoBackfill: false,
+    });
+    const run = simulate(EXAMPLE_8_5, results, [live.pipeDepth], live);
+    expect(run.ok).toBe(true);
+    if (!run.ok) return;
+    const model = computeModel(live);
+    expect(run.models[0]).toEqual(model);
+    expect(run.steps[0]?.pillTop).toBe(model.pillTop);
+    const view = readFileSync(new URL("../../components/simulator-view.tsx", import.meta.url), "utf8");
+    expect(view).not.toMatch(/computeModel/);
+    expect(view).toMatch(/simulate\(/);
   });
 });

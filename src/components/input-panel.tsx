@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Field } from "@/components/fields";
 import { Input } from "@/components/ui/input";
+import { depthBlockMessage } from "@/lib/calc/depth";
 import { useAppStore } from "@/lib/store";
 import { calculate } from "@/lib/calc";
 import { formatNumber, isNum } from "@/lib/utils";
@@ -12,6 +13,7 @@ import { TRIP_TABLES } from "@/lib/calc/tables";
 
 export function InputPanel() {
   const inputs = useAppStore((s) => s.inputs);
+  const editBlock = useAppStore((s) => s.editBlock);
   const setField = useAppStore((s) => s.setField);
   const results = calculate(inputs);
 
@@ -20,6 +22,11 @@ export function InputPanel() {
       <div className="border-b border-border px-4 py-3">
         <ExcelPasteButton />
       </div>
+      {editBlock ? (
+        <p className="border-b border-destructive/40 bg-destructive/10 px-4 py-2 text-xs text-destructive">
+          {depthBlockMessage(editBlock.fields)}. TVD was not extrapolated.
+        </p>
+      ) : null}
       <Section title="Well information">
         <TextField label="Well name" value={inputs.wellName} onChange={(v) => setField("wellName", v)} />
         <TextField label="Client" value={inputs.client} onChange={(v) => setField("client", v)} />

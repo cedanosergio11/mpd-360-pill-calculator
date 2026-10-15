@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { applyWellPaste, parseWellPaste } from "@/lib/calc/paste";
+import { applyPaste, previewPaste } from "@/lib/calc/paste";
 import { useAppStore } from "@/lib/store";
 
 export function ExcelPasteButton({ compact = false }: { compact?: boolean }) {
@@ -19,13 +19,18 @@ export function ExcelPasteButton({ compact = false }: { compact?: boolean }) {
   const setInputs = useAppStore((s) => s.setInputs);
 
   function apply(raw: string) {
-    const { patch, matched } = parseWellPaste(raw);
-    if (matched.length === 0) {
+    const preview = previewPaste(inputs, raw);
+    if (preview.errors.length) {
+      toast.error(preview.errors.map((error) => error.message).join(" "));
+      return false;
+    }
+    if (preview.rows.length === 0) {
       toast.error("Nothing mapped. Copy the Well Information block (labels + values) from the Inputs sheet.");
       return false;
     }
-    setInputs(applyWellPaste(inputs, patch));
-    toast.success(`Pasted ${matched.length} field${matched.length === 1 ? "" : "s"} from Excel`);
+    setInputs(applyPaste(inputs, preview));
+    const count = preview.rows.length;
+    toast.success(`Pasted ${count} field${count === 1 ? "" : "s"} from Excel`);
     setText("");
     setOpen(false);
     return true;

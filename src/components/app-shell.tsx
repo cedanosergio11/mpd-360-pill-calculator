@@ -45,7 +45,7 @@ import { esdCasingWithDp } from "@/lib/calc/engine";
 import { PRESETS } from "@/lib/calc/examples";
 import { useAppStore, type WorkspaceTab } from "@/lib/store";
 import { useSimulator } from "@/lib/pill/store";
-import { formatExact, slugify } from "@/lib/utils";
+import { asNum, formatExact, slugify } from "@/lib/utils";
 import { RELEASES, formatVersion } from "@/lib/version";
 
 const TABS: { id: WorkspaceTab; label: string }[] = [
@@ -463,7 +463,7 @@ export function AppShell() {
             <DialogHeader>
               <DialogTitle>Shoe ESD at or above FIT</DialogTitle>
               <DialogDescription>
-                Not issuable. FIT {formatExact(inputs.fit, 2)} ppge · as-pumped {formatExact(results.esdCasingNoDp, 2)} · equalized {formatExact(esdCasingWithDp(results), 2)}. Print still works — the sheet gets a red banner.
+                Not issuable. FIT {formatExact(asNum(inputs.fit), 2)} ppge · as-pumped {formatExact(results.esdCasingNoDp, 2)} · equalized {formatExact(esdCasingWithDp(results), 2)}. Print still works — the sheet gets a red banner.
               </DialogDescription>
             </DialogHeader>
             <div className="mt-3 flex justify-end gap-2">
