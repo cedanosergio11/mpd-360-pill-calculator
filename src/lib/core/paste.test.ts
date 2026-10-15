@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { exampleB } from "@/lib/example-b";
-import type { Job } from "./job.schema";
-import { loadPreset } from "./preset";
+import { hydrostaticPsi } from "./column";
 import { inputHash } from "./hash";
-import { applyPaste, getPath, parseWellPaste, previewPaste, setPath } from "./paste";
+import type { Job } from "./job.schema";
+import { kmw, kpiVolumes } from "./kpi";
+import { applyPaste, getPath, MD_BEYOND_SURVEY, parseWellPaste, previewPaste, setPath } from "./paste";
+import { loadPreset } from "./preset";
 import { canSimulate, simulate } from "./simulate";
+import { surveyTvdAt, tvdAt } from "./tvd";
 
 function paste(text: string) {
   return parseWellPaste(text);
@@ -281,6 +284,14 @@ describe("previewPaste depth consistency", () => {
     const applied = applyPaste(job, preview);
     expect(applied.well.bitMd_ft).toBe(10500);
     expect(applied.well.mdTd_ft).toBe(exampleB.well.mdTd_ft);
+    expect(tvdAt(applied.well, applied.well.bitMd_ft)).toBe(10486);
+    expect(tvdAt(applied.well, applied.well.bitMd_ft)).toBe(surveyTvdAt(applied.well, applied.well.bitMd_ft));
+    expect(applied.well.anchorTvd_ft).toBe(exampleB.well.anchorTvd_ft);
+    expect(applied.well.shoeTvd_ft).toBe(exampleB.well.shoeTvd_ft);
+    expect(applied.well.tvdTd_ft).toBe(exampleB.well.tvdTd_ft);
+    const beforePsi = hydrostaticPsi(exampleB, exampleB.well.bitMd_ft);
+    const afterPsi = hydrostaticPsi(applied, applied.well.bitMd_ft);
+    expect(afterPsi).not.toBe(beforePsi);
     expect(job).toEqual(exampleB);
   });
 
@@ -291,12 +302,120 @@ describe("previewPaste depth consistency", () => {
     const fields = preview.errors.find((item) => item.code === "DEPTH_BEYOND_TD")?.fields ?? [];
     expect(fields).toEqual(
       expect.arrayContaining([
+        { field: "well.bitMd_ft", value: 10480, limit: 9000, limitField: "well.mdTd_ft" },
         { field: "well.survey[4].md_ft", value: 10530, limit: 9000, limitField: "well.mdTd_ft" },
         { field: "column[1].bottomMd_ft", value: 10480, limit: 9000, limitField: "well.mdTd_ft" },
         { field: "well.anchorMd_ft", value: 10480, limit: 9000, limitField: "well.mdTd_ft" },
         { field: "well.anchorTvd_ft", value: 10466, limit: 9000, limitField: "well.mdTd_ft" },
       ]),
     );
+  });
+
+  it("recomputes anchor and shoe TVD from the survey and the pressures follow", () => {
+    const job = structuredClone(exampleB);
+    const preview = previewPaste(
+      job,
+      paste(
+        [
+          "Current Well Depth (MD)\t10500\tft",
+          "Anchor Point (BOC) (MD)\t10000\tft",
+          "Casing Depth (MD)\t7000\tft",
+        ].join("\n"),
+      ),
+    );
+    expect(preview.canApply).toBe(true);
+    const applied = applyPaste(job, preview);
+    expect(applied.well.bitMd_ft).toBe(10500);
+    expect(tvdAt(applied.well, applied.well.bitMd_ft)).toBe(10486);
+    expect(surveyTvdAt(applied.well, applied.well.bitMd_ft)).toBe(10486);
+    expect(applied.well.anchorMd_ft).toBe(10000);
+    expect(applied.well.anchorTvd_ft).toBe(9986);
+    expect(applied.well.shoeMd_ft).toBe(7000);
+    expect(applied.well.shoeTvd_ft).toBe(6988);
+    expect(applied.well.tvdTd_ft).toBe(exampleB.well.tvdTd_ft);
+    expect(applied.well.survey).toEqual(exampleB.well.survey);
+
+    const volumes = kpiVolumes(applied);
+    expect(volumes.ok).toBe(true);
+    if (!volumes.ok) return;
+    const kmwAt = (anchorTvd_ft: number) =>
+      kmw({ activeMw_ppg: 11.4, sbp_psi: 325, anchorTvd_ft });
+    const freshKmw = kmwAt(9986);
+    const staleKmw = kmwAt(exampleB.well.anchorTvd_ft!);
+    expect(freshKmw.ok && staleKmw.ok).toBe(true);
+    if (!freshKmw.ok || !staleKmw.ok) return;
+    expect(volumes.kmw.anchorTvd_ft).toBe(9986);
+    expect(volumes.kmw.raw_ppg).toBe(freshKmw.raw_ppg);
+    expect(volumes.kmw.raw_ppg).not.toBe(staleKmw.raw_ppg);
+    expect(volumes.masp.shoeTvd_ft).toBe(6988);
+    const original = kpiVolumes(exampleB);
+    expect(original.ok).toBe(true);
+    if (!original.ok) return;
+    expect(volumes.masp.masp_psi).not.toBe(original.masp.masp_psi);
+    expect(volumes.masp.masp_psi).toBe((12.6 - 11.4) * 0.052 * 6988);
+
+    const stale = structuredClone(applied);
+    stale.well.anchorTvd_ft = exampleB.well.anchorTvd_ft;
+    const atAnchor = hydrostaticPsi(applied, applied.well.anchorMd_ft);
+    const staleAnchor = hydrostaticPsi(stale, stale.well.anchorMd_ft);
+    expect(atAnchor).not.toBe(staleAnchor);
+    expect(atAnchor).toBe(hydrostaticPsi(applied, 8060)! + 14 * 0.052 * (9986 - 8046));
+    expect(job.well.anchorTvd_ft).toBe(exampleB.well.anchorTvd_ft);
+  });
+
+  it("keeps TVDs byte-identical when the paste does not change an MD", () => {
+    const job = structuredClone(exampleB);
+    const named = applyPaste(job, previewPaste(job, paste("Well name\tSame depths")));
+    expect(named.well.anchorTvd_ft).toBe(exampleB.well.anchorTvd_ft);
+    expect(named.well.shoeTvd_ft).toBe(exampleB.well.shoeTvd_ft);
+    expect(named.well.tvdTd_ft).toBe(exampleB.well.tvdTd_ft);
+    expect(named.well.survey).toEqual(exampleB.well.survey);
+    const sameBit = applyPaste(job, previewPaste(job, paste("Current Well Depth (MD)\t10480\tft")));
+    expect(sameBit.well.bitMd_ft).toBe(10480);
+    expect(sameBit.well.anchorTvd_ft).toBe(exampleB.well.anchorTvd_ft);
+    expect(sameBit.well.shoeTvd_ft).toBe(exampleB.well.shoeTvd_ft);
+    expect(sameBit.well.tvdTd_ft).toBe(exampleB.well.tvdTd_ft);
+  });
+
+  it("lists the bit when it is deeper than TD and does not extrapolate past the survey", () => {
+    const job = structuredClone(exampleB);
+    const before = structuredClone(job);
+    const preview = previewPaste(job, paste("Current Well Depth (MD)\t10600\tft"));
+    expect(preview.canApply).toBe(false);
+    expect(preview.errors.find((item) => item.code === "DEPTH_BEYOND_TD")?.fields).toEqual([
+      { field: "well.bitMd_ft", value: 10600, limit: 10530, limitField: "well.mdTd_ft" },
+    ]);
+    expect(preview.errors.find((item) => item.code === MD_BEYOND_SURVEY)?.fields).toEqual([
+      { field: "well.bitMd_ft", value: 10600, limit: 10530, limitField: "well.survey" },
+    ]);
+    expect(preview.errors.find((item) => item.code === MD_BEYOND_SURVEY)?.message).toContain("not extrapolated");
+    expect(() => applyPaste(job, preview)).toThrow(/blocked/);
+    expect(job).toEqual(before);
+  });
+
+  it("blocks an MD that is inside TD but past the last survey station", () => {
+    const job = structuredClone(exampleB);
+    job.well.survey = exampleB.well.survey!.filter((station) => station.md_ft <= 10480);
+    const preview = previewPaste(job, paste("Current Well Depth (MD)\t10500\tft"));
+    expect(preview.errors.filter((item) => item.code === "DEPTH_BEYOND_TD")).toEqual([]);
+    expect(preview.canApply).toBe(false);
+    expect(preview.errors.find((item) => item.code === MD_BEYOND_SURVEY)?.fields).toEqual([
+      { field: "well.bitMd_ft", value: 10500, limit: 10480, limitField: "well.survey" },
+    ]);
+    expect(() => applyPaste(job, preview)).toThrow(/blocked/);
+    expect(job.well.bitMd_ft).toBe(10480);
+  });
+
+  it("uses the survey TVD at a moved pill bottom", () => {
+    const job = structuredClone(exampleB);
+    const preview = previewPaste(job, paste("Spot Depth (MD)\t10000\tft"));
+    expect(preview.canApply).toBe(true);
+    const applied = applyPaste(job, preview);
+    const pill = applied.column.find((segment) => segment.fluidId === "pill");
+    expect(pill?.bottomMd_ft).toBe(10000);
+    expect(tvdAt(applied.well, pill!.bottomMd_ft)).toBe(9986);
+    expect(tvdAt(applied.well, pill!.bottomMd_ft)).toBe(surveyTvdAt(applied.well, 10000));
+    expect(tvdAt(applied.well, pill!.bottomMd_ft)).not.toBe(exampleB.well.anchorTvd_ft);
   });
 });
 

@@ -1,12 +1,17 @@
 import type { Job } from "./job.schema";
 import { depthBeyondFields, type DepthBeyondField, refuseTaperedJob } from "./job-support";
 import { markEdited } from "./preset";
+import { lastSurveyMd, surveyTvdAt } from "./tvd";
 
 /**
  * Excel paste for the 2.0 job.
  * `parseWellPaste` reads text only. `previewPaste` diffs that result against a job.
  * `applyPaste` writes the preview rows and nothing else.
+ * A moved MD adds a row for its survey TVD. An MD past the last survey station is `MD_BEYOND_SURVEY` and is not extrapolated.
  */
+
+/** An MD moved past the last survey station. TVD is not extrapolated. */
+export const MD_BEYOND_SURVEY = "MD_BEYOND_SURVEY" as const;
 
 export interface PasteError {
   /** 1-based sheet row in the pasted block. */
@@ -24,7 +29,8 @@ export interface PasteError {
     | "NOT_A_2_0_INPUT"
     | "TAPERED_STRING"
     | "CONFLICTING_DUPLICATE"
-    | "DEPTH_BEYOND_TD";
+    | "DEPTH_BEYOND_TD"
+    | typeof MD_BEYOND_SURVEY;
   /** 2.0 field path when the label mapped, otherwise the raw label. */
   field: string;
   message: string;
@@ -104,11 +110,11 @@ export interface PastePreviewError {
   /**
    * True when this code blocks apply.
    * Blocking codes: `BAD_NUMBER`, `CONFLICTING_DUPLICATE`, `EMPTY`, `BAD_DATE`,
-   * `BAD_SECTION`, `BAD_BOOL`, `UNIT_MISMATCH`, `TAPERED_STRING`, `DEPTH_BEYOND_TD`.
+   * `BAD_SECTION`, `BAD_BOOL`, `UNIT_MISMATCH`, `TAPERED_STRING`, `DEPTH_BEYOND_TD`, `MD_BEYOND_SURVEY`.
    * `UNMAPPED_LABEL` and `NOT_A_2_0_INPUT` are false.
    */
   blocking: boolean;
-  /** Set for `DEPTH_BEYOND_TD`: every field past TD or past the bit, with its value and limit. */
+  /** Set for `DEPTH_BEYOND_TD` and `MD_BEYOND_SURVEY`: every offending field, with its value and the limit. */
   fields?: DepthBeyondField[];
 }
 
@@ -129,6 +135,7 @@ const BLOCKING: ReadonlySet<PasteError["code"]> = new Set([
   "UNIT_MISMATCH",
   "TAPERED_STRING",
   "DEPTH_BEYOND_TD",
+  MD_BEYOND_SURVEY,
 ]);
 
 type Kind = "text" | "number" | "date" | "section" | "bool";
@@ -971,6 +978,90 @@ function formatDisplay(value: unknown, kind: PastePreviewKind, unit: string | nu
   return String(value);
 }
 
+const MD_TVD_PAIRS: { md: string; tvd: string | null }[] = [
+  { md: "well.bitMd_ft", tvd: null },
+  { md: "well.mdTd_ft", tvd: "well.tvdTd_ft" },
+  { md: "well.anchorMd_ft", tvd: "well.anchorTvd_ft" },
+  { md: "well.shoeMd_ft", tvd: "well.shoeTvd_ft" },
+];
+
+function depthMoved(before: unknown, after: unknown): boolean {
+  if (typeof before !== "number" || typeof after !== "number" || !Number.isFinite(before) || !Number.isFinite(after)) {
+    return before !== after;
+  }
+  return Math.abs(before - after) > 1e-4;
+}
+
+function pillEndMds(job: Job): { field: string; md: number }[] {
+  const surface = job.fluids?.[0]?.id ?? job.column?.[0]?.fluidId;
+  const ends: { field: string; md: number }[] = [];
+  job.column.forEach((segment, index) => {
+    if (surface != null && segment.fluidId === surface) return;
+    ends.push({ field: `column[${index}].topMd_ft`, md: segment.topMd_ft });
+    ends.push({ field: `column[${index}].bottomMd_ft`, md: segment.bottomMd_ft });
+  });
+  return ends;
+}
+
+function tvdPreviewRow(job: Job, field: string, value: number): PastePreviewRow {
+  const oldValue = getPath(job, field);
+  const unit = "ft";
+  return {
+    field,
+    unit,
+    kind: "number",
+    oldValue,
+    newValue: value,
+    oldDisplay: formatDisplay(oldValue, "number", unit, field),
+    newDisplay: formatDisplay(value, "number", unit, field),
+    changed: !sameRaw(oldValue, value),
+    row: 0,
+    col: 0,
+  };
+}
+
+/**
+ * MDs that differ from `original` get a survey TVD. The stored TVD is replaced.
+ * An MD past the last survey station is listed and left unextrapolated.
+ * Unchanged MDs do not touch their TVDs.
+ */
+function syncMovedTvs(original: Job, projected: Job): { rows: PastePreviewRow[]; beyond: DepthBeyondField[] } {
+  const rows: PastePreviewRow[] = [];
+  const beyond: DepthBeyondField[] = [];
+  const limit = lastSurveyMd(projected.well);
+  const consider = (field: string, md: number, tvdField: string | null) => {
+    const tvd = surveyTvdAt(projected.well, md);
+    if (tvd == null) {
+      beyond.push({ field, value: md, limit: limit ?? 0, limitField: "well.survey" });
+      return;
+    }
+    if (tvdField) rows.push(tvdPreviewRow(original, tvdField, tvd));
+  };
+
+  for (const pair of MD_TVD_PAIRS) {
+    if (!depthMoved(getPath(original, pair.md), getPath(projected, pair.md))) continue;
+    const md = getPath(projected, pair.md);
+    if (typeof md === "number" && Number.isFinite(md)) consider(pair.md, md, pair.tvd);
+  }
+
+  const beforeEnds = new Map(pillEndMds(original).map((end) => [end.field, end.md]));
+  for (const end of pillEndMds(projected)) {
+    const prior = beforeEnds.get(end.field);
+    if (prior != null && !depthMoved(prior, end.md)) continue;
+    consider(end.field, end.md, null);
+  }
+  return { rows, beyond };
+}
+
+function upsertPreviewRow(rows: PastePreviewRow[], row: PastePreviewRow) {
+  const index = rows.findIndex((item) => item.field === row.field);
+  if (index < 0) {
+    rows.push(row);
+    return;
+  }
+  rows[index] = { ...row, row: rows[index].row, col: rows[index].col };
+}
+
 export function previewPaste(job: Job, result: PasteResult): PastePreview {
   const rows: PastePreviewRow[] = result.matched.map((match) => {
     const oldValue = getPath(job, match.field);
@@ -1000,6 +1091,27 @@ export function previewPaste(job: Job, result: PasteResult): PastePreview {
   if (errors.every((item) => !item.blocking)) {
     const projected = structuredClone(job);
     writePreviewRows(projected, rows);
+    const synced = syncMovedTvs(job, projected);
+    for (const row of synced.rows) {
+      upsertPreviewRow(rows, row);
+      setPath(projected, row.field, row.newValue);
+    }
+    if (synced.beyond.length > 0) {
+      errors.push({
+        code: MD_BEYOND_SURVEY,
+        row: 0,
+        col: 0,
+        message: synced.beyond
+          .map((item) =>
+            item.limit > 0
+              ? `${item.field} is ${item.value} ft, beyond the last survey station at ${item.limit} ft. TVD was not extrapolated.`
+              : `${item.field} is ${item.value} ft, and the survey has no station to interpolate. TVD was not extrapolated.`,
+          )
+          .join("; "),
+        blocking: true,
+        fields: synced.beyond,
+      });
+    }
     const fields = depthBeyondFields(projected);
     if (fields.length > 0) {
       errors.push({

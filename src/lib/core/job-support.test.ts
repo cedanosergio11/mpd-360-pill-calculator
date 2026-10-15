@@ -166,6 +166,17 @@ describe("depth beyond TD", () => {
     }
   });
 
+  it("lists the bit when bit MD is deeper than TD", () => {
+    const job = structuredClone(exampleB);
+    job.well.bitMd_ft = 10600;
+    expect(jobSupport(job)).toEqual({
+      ok: false,
+      code: DEPTH_BEYOND_TD,
+      fields: [{ field: "well.bitMd_ft", value: 10600, limit: 10530, limitField: "well.mdTd_ft" }],
+    });
+    expect(calculate(job)).toEqual({ ok: false, code: DEPTH_BEYOND_TD });
+  });
+
   it("returns NO_PIPE_BELOW_BIT instead of a bare null when the pill is below the bit", () => {
     const job = structuredClone(exampleB);
     job.well.bitMd_ft = 9000;

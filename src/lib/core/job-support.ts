@@ -20,7 +20,7 @@ export interface DepthBeyondField {
   value: number;
   /** The limit that field passed. */
   limit: number;
-  limitField: "well.mdTd_ft" | "well.bitMd_ft";
+  limitField: "well.mdTd_ft" | "well.bitMd_ft" | "well.survey";
 }
 
 /** Calc entry points return this and nothing else. The field list stays on `jobSupport` and the paste error. */
@@ -131,7 +131,7 @@ function past(fields: DepthBeyondField[], field: string, value: number | null, l
 }
 
 /**
- * Every depth that is past `mdTd_ft`, and every pill or anchor depth past `bitMd_ft`.
+ * Every depth that is past `mdTd_ft`, including `bitMd_ft`, and every pill or anchor depth past `bitMd_ft`.
  * Equal to the limit is inside the well.
  */
 export function depthBeyondFields(job: DepthJob | null | undefined): DepthBeyondField[] {

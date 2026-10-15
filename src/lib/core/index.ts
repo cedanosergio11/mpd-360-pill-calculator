@@ -97,7 +97,9 @@ export {
   type JobSupport,
   type TaperedStringRefusal,
 } from "./job-support";
+export { lastSurveyMd, surveyTvdAt } from "./tvd";
 export {
+  MD_BEYOND_SURVEY,
   applyPaste,
   parseWellPaste,
   previewPaste,
