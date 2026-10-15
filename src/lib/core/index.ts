@@ -95,6 +95,7 @@ export {
   DEFAULT_STEP_FT,
   MAX_STEPS,
   MIN_STEP_FT,
+  canSimulate,
   simulate,
   type SimulateDepth,
   type SimulateEmwStation,

@@ -99,6 +99,7 @@ export {
   parseWellPaste,
   previewPaste,
   applyPaste,
+  canSimulate,
   simulate,
   DEFAULT_STEP_FT,
   MIN_STEP_FT,

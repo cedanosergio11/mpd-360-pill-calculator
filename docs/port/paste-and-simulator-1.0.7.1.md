@@ -632,7 +632,10 @@ export type SimulateError =
       minStepFt: 10;
       maxSteps: 1000;
       requestedSteps: number;
-    };
+    }
+  | { code: "SIM_REQUIRES_TAPERED"; presetId: "D" };
+
+export function canSimulate(job: Job): { ok: boolean; reason?: string };
 
 export type SimulateResult =
   | {
@@ -660,10 +663,11 @@ export function simulate(job: Job, opts?: SimulateOptions): SimulateResult;
 
 Work per call:
 
-1. Reject a non-finite `stepMd_ft`, or a step below `MIN_STEP_FT`, with `INVALID_STEP`, including when `mds` is set. Do not raise it to 10. Reject a from/to MD outside `0…well.mdTd_ft`, or any explicit MD that is non-finite or outside that span, with `INVALID_DEPTH`. Do not clip the way 1.0 `clamp` did and then continue silently. Count the steps before building them. More than `MAX_STEPS` is `STEP_LIMIT` and the call returns no `steps`. That error is `{ code: "STEP_LIMIT", field: "stepMd_ft", message, minStepFt, maxSteps, requestedSteps }`. Do not coarsen the step. When `mds` is set and the list is within the cap, `steps.length` equals `mds.length` and `steps[i].pipeMd_ft` equals `mds[i]`. `meta.stepCount` equals that length, `meta.stepsLength` equals `stepCount`, and `meta.stepFt` is the resolved step.
-2. `kpi = kpiVolumes(job)` once, on the job passed in. That supplies MASP, KMW, chase at the procedure bit, `pillVolume_bbl` (`stringCapOverPillInterval_bbl + chase_bbl`), the breakdown, backfill, and POOH fill. Stand length still belongs to `poohFill` inside that result. A `STAND_LENGTH` error stays on `poohFill` and does not drop the steps.
-3. `pump = strokesSchedule(job, calculate(job))` once, on that same job. Stage bbl, strokes, and minutes are that function's rows. SPM blank leaves minutes null. This replaces the 1.0 `desiredResolution` ladder. The pipe steps do not walk these rows.
-4. For each pipe MD, call the existing functions with `bitMd_ft` set to that MD and discard the argument afterward.
+1. `canSimulate(job)` runs first. It returns `{ ok: true }` on this branch's single string. It returns `{ ok: false, reason }` when `job.meta.presetId` is `"D"`, or when the job carries a non-empty `stringSections` or `crossovers` list this branch cannot model. In that case `simulate` returns `{ ok: false, error: { code: "SIM_REQUIRES_TAPERED", presetId: "D" } }` and no `steps`, before the bit and step checks. EXAMPLE B and EXAMPLE C still simulate. The six EXAMPLE D simulate tests stay skipped until #6. An empty `stringSections` list is not a taper.
+2. Reject a non-finite `stepMd_ft`, or a step below `MIN_STEP_FT`, with `INVALID_STEP`, including when `mds` is set. Do not raise it to 10. Reject a from/to MD outside `0…well.mdTd_ft`, or any explicit MD that is non-finite or outside that span, with `INVALID_DEPTH`. Do not clip the way 1.0 `clamp` did and then continue silently. Count the steps before building them. More than `MAX_STEPS` is `STEP_LIMIT` and the call returns no `steps`. That error is `{ code: "STEP_LIMIT", field: "stepMd_ft", message, minStepFt, maxSteps, requestedSteps }`. Do not coarsen the step. When `mds` is set and the list is within the cap, `steps.length` equals `mds.length` and `steps[i].pipeMd_ft` equals `mds[i]`. `meta.stepCount` equals that length, `meta.stepsLength` equals `stepCount`, and `meta.stepFt` is the resolved step.
+3. `kpi = kpiVolumes(job)` once, on the job passed in. That supplies MASP, KMW, chase at the procedure bit, `pillVolume_bbl` (`stringCapOverPillInterval_bbl + chase_bbl`), the breakdown, backfill, and POOH fill. Stand length still belongs to `poohFill` inside that result. A `STAND_LENGTH` error stays on `poohFill` and does not drop the steps.
+4. `pump = strokesSchedule(job, calculate(job))` once, on that same job. Stage bbl, strokes, and minutes are that function's rows. SPM blank leaves minutes null. This replaces the 1.0 `desiredResolution` ladder. The pipe steps do not walk these rows.
+5. For each pipe MD, call the existing functions with `bitMd_ft` set to that MD and discard the argument afterward.
    - `placed = columnDisplacedByPipe` at that MD.
    - Pill top and bottom from `pillPlacement(placed)`, each `{ md_ft: number | null, tvd_ft: number | null }`. TVD comes from `tvdAt` when the measured depth exists. Null on either depth means the pill is not in the hole.
    - `chaseVolume` and `kmwInString` for the bbl fields.

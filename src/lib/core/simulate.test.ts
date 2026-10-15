@@ -5,6 +5,7 @@ import { emwProfile, type EmwLines, type EmwProfileResult } from "./emw-profile"
 import type { Job } from "./job.schema";
 import { kpiVolumes } from "./kpi";
 import {
+  canSimulate,
   DEFAULT_STEP_FT,
   MAX_STEPS,
   MIN_STEP_FT,
@@ -38,7 +39,10 @@ function withString<T>(value: T): T & StringGeometry {
 const LINES = ["static", "staticSbp", "ecd"] as const;
 
 function okSim(result: SimulateResult): Extract<SimulateResult, { ok: true }> {
-  if (!result.ok) throw new Error(result.error.message);
+  if (!result.ok) {
+    const detail = "message" in result.error ? result.error.message : result.error.code;
+    throw new Error(detail);
+  }
   return result;
 }
 
@@ -160,6 +164,59 @@ function defaultSim(job: Job) {
   fullWalk.set(job, sim);
   return sim;
 }
+
+describe("canSimulate", () => {
+  it("refuses EXAMPLE D", () => {
+    const job = structuredClone(exampleB);
+    job.meta = { presetId: "D", isExample: true, modified: false };
+    job.well.bitMd_ft = Number.NaN;
+    expect(canSimulate(job)).toEqual({ ok: false, reason: "EXAMPLE D needs tapered strings." });
+    const result = simulate(job);
+    expect(result.ok).toBe(false);
+    if (result.ok) return;
+    expect(result.error).toEqual({ code: "SIM_REQUIRES_TAPERED", presetId: "D" });
+    expect(result).not.toHaveProperty("steps");
+  });
+
+  it("refuses a taper this branch cannot model", () => {
+    const tapered = exampleDJob();
+    expect(canSimulate(tapered)).toEqual({
+      ok: false,
+      reason: "This branch cannot model a tapered string.",
+    });
+    const taperedResult = simulate(tapered, { mds: [0] });
+    expect(taperedResult.ok).toBe(false);
+    if (!taperedResult.ok) {
+      expect(taperedResult.error).toEqual({ code: "SIM_REQUIRES_TAPERED", presetId: "D" });
+      expect(taperedResult).not.toHaveProperty("steps");
+    }
+
+    const crossover = structuredClone(exampleC);
+    Object.assign(crossover.well, { crossovers: [{ md_ft: 8480, tvd_ft: 8466 }] });
+    expect(canSimulate(crossover)).toEqual({
+      ok: false,
+      reason: "This branch cannot model a string crossover.",
+    });
+    const crossoverResult = simulate(crossover, { mds: [0] });
+    expect(crossoverResult.ok).toBe(false);
+    if (!crossoverResult.ok) {
+      expect(crossoverResult.error).toEqual({ code: "SIM_REQUIRES_TAPERED", presetId: "D" });
+      expect(crossoverResult).not.toHaveProperty("steps");
+    }
+
+    const empty = structuredClone(exampleB);
+    Object.assign(empty.well, { stringSections: [] });
+    expect(canSimulate(empty)).toEqual({ ok: true });
+  });
+
+  it.each(JOBS)("still simulates $name", (job) => {
+    expect(canSimulate(job)).toEqual({ ok: true });
+    const result = simulate(job, { mds: [job.well.bitMd_ft], fromMd_ft: 0 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.steps).toHaveLength(1);
+  });
+});
 
 describe("simulate steps[0]", () => {
   it.each(JOBS)("matches KPI and EMW on $name", (job) => {
@@ -467,7 +524,7 @@ describe("simulate step size", () => {
     expect(result.ok).toBe(false);
     if (result.ok) return;
     expect(result.error.code).toBe("INVALID_STEP");
-    expect(result.error.field).toBe("stepMd_ft");
+    if (result.error.code === "INVALID_STEP") expect(result.error.field).toBe("stepMd_ft");
   });
 
   it("allows a 10 ft step on a short span", () => {

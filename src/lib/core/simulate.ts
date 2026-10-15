@@ -122,7 +122,8 @@ export type SimulateError =
       minStepFt: typeof MIN_STEP_FT;
       maxSteps: typeof MAX_STEPS;
       requestedSteps: number;
-    });
+    })
+  | { code: "SIM_REQUIRES_TAPERED"; presetId: "D" };
 
 export type SimulateResult =
   | {
@@ -144,6 +145,32 @@ export type SimulateResult =
       steps: SimulateStep[];
     }
   | { ok: false; error: SimulateError };
+
+function nonEmptyList(value: unknown): boolean {
+  return Array.isArray(value) && value.length > 0;
+}
+
+/**
+ * Whether this single-string branch can run `simulate` on `job`.
+ * EXAMPLE D and any crossover or taper return `ok: false`. The 8480 ft crossover is #6.
+ */
+export function canSimulate(job: Job): { ok: boolean; reason?: string } {
+  if (job.meta?.presetId === "D") {
+    return { ok: false, reason: "EXAMPLE D needs tapered strings." };
+  }
+  const well = job.well as { stringSections?: unknown; crossovers?: unknown };
+  if (nonEmptyList(well.stringSections)) {
+    return { ok: false, reason: "This branch cannot model a tapered string." };
+  }
+  if (nonEmptyList(well.crossovers)) {
+    return { ok: false, reason: "This branch cannot model a string crossover." };
+  }
+  return { ok: true };
+}
+
+function taperedRefusal(): SimulateResult {
+  return { ok: false, error: { code: "SIM_REQUIRES_TAPERED", presetId: "D" } };
+}
 
 function fail(
   code: "INVALID_STEP" | "INVALID_DEPTH" | "MISSING_BIT",
@@ -291,6 +318,8 @@ function stepAt(job: Job, index: number, pipeMd: number, fromMd: number): Simula
 }
 
 export function simulate(job: Job, opts: SimulateOptions = {}): SimulateResult {
+  if (!canSimulate(job).ok) return taperedRefusal();
+
   const bit = job.well.bitMd_ft;
   if (!Number.isFinite(bit) || bit < 0) {
     return fail("MISSING_BIT", "well.bitMd_ft", "Bit depth must be a finite number greater than or equal to 0.");
