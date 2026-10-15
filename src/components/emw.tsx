@@ -7,7 +7,13 @@ import { useStore } from "@/lib/store";
 /* ---------- EMW profile: display only. Every number comes from emwProfile(calcJob).
    The only arithmetic here is mapping contract values to SVG pixels (axis scaling). ---------- */
 
-type Ok = Extract<EmwProfileResult, { ok: true }>;
+/** Upcoming contract fields, optional until they land in core. Absent → those sections are hidden. */
+export interface EmwExceedance { fromTvd_ft: number; toTvd_ft: number; fromMd_ft: number; toMd_ft: number; line: EmwLineName; pillState: EmwPillState; limit: "pore" | "fit"; maxEmw_ppg: number }
+export interface EmwShoeCheck { line: EmwLineName; pillState: EmwPillState; emw_ppg: number; fit_ppg: number; margin_ppg: number; margin_psi: number; over: boolean }
+export type Ok = Extract<EmwProfileResult, { ok: true }> & { exceedances?: EmwExceedance[]; shoeCheck?: EmwShoeCheck[] };
+/** Contract numbers shown exactly as returned. */
+const vb = (v: number | null | undefined) => (v == null || !Number.isFinite(v) ? "—" : String(v));
+const lineLabel = (k: EmwLineName) => LINES.find((l) => l.k === k)?.label ?? k;
 
 function useEmw(): EmwProfileResult | null {
   const job = useStore((s) => s.calcJob);
@@ -26,7 +32,7 @@ const stateLabel = (p: Ok | null, s: EmwPillState): string => {
   return typeof l === "string" && l.trim() ? l : STATE_FALLBACK[s];
 };
 const STATION_LABEL = { shoe: "Shoe", anchor: "Anchor", bit: "Bit" } as const;
-type View = "inPlace" | "spotted" | "both";
+export type View = "inPlace" | "spotted" | "both";
 const f = (v: number | null | undefined, d: number) => (v == null || !Number.isFinite(v) ? "—" : v.toFixed(d));
 
 const EmwErr = ({ e }: { e: EmwError }) => (
@@ -80,6 +86,9 @@ function Chart({ p, view, print }: { p: Ok; view: View; print?: boolean }) {
       {p.limits.pore_ppg != null && <><line data-emw-limit="pore" x1={X(p.limits.pore_ppg)} x2={X(p.limits.pore_ppg)} y1={T} y2={H - B} stroke="var(--color-warn)" strokeWidth="2" strokeDasharray="2 3" />
         <text x={X(p.limits.pore_ppg) - 4} y={T - 8} textAnchor="end" fontSize="13" fill="var(--color-warn)">Pore {f(p.limits.pore_ppg, 2)}</text></>}
       <defs><clipPath id={clipId}><rect x={L} y={T} width={W - L - R} height={H - T - B} /></clipPath></defs>
+      {(p.exceedances ?? []).filter((e) => states.includes(e.pillState)).map((e, i) => { const y1 = Y(Math.min(e.fromTvd_ft, e.toTvd_ft)), y2 = Y(Math.max(e.fromTvd_ft, e.toTvd_ft));
+        return <g key={`ex${i}`} data-emw-band={i} clipPath={`url(#${clipId})`}><rect x={L} y={y1} width={W - L - R} height={Math.max(y2 - y1, 2)} fill="var(--color-danger)" fillOpacity="0.16" stroke="var(--color-danger)" strokeOpacity="0.5" strokeDasharray="4 3" />
+          <text x={L + 6} y={y1 + 14 + i * 14} fontSize="12" fontWeight="600" fill="var(--color-danger)">{`${lineLabel(e.line)} · ${stateLabel(p, e.pillState)} over ${e.limit === "fit" ? "FIT" : "pore"}`}</text></g>; })}
       {states.map((s) => LINES.map((l) => <path clipPath={`url(#${clipId})`} key={s + l.k} data-emw-line={`${s}.${l.k}`} d={path(p[s].lines[l.k])} fill="none" stroke={l.color} strokeWidth="2" strokeDasharray={s === "spotted" && view === "both" ? "6 4" : undefined} />))}
       {clips.map((c) => { const x = c.side === "right" ? W - R : L; const d = c.side === "right" ? -1 : 1; const y = Y(c.tvd_ft);
         return <g key={c.key} data-emw-clip={c.key}><title>{`${c.label} clipped beyond ${c.side === "right" ? f(xMax, 1) : f(xMin, 1)} ppg at ${c.tvd_ft.toLocaleString("en-US")} ft TVD`}</title>
@@ -99,6 +108,7 @@ function Legend({ p, view }: { p: Ok; view: View }) {
     {view === "both" && <span className="inline-flex items-center gap-1"><svg width="22" height="6"><line x1="0" x2="22" y1="3" y2="3" stroke="currentColor" strokeWidth="2" strokeDasharray="6 4" /></svg>{stateLabel(p, "spotted")}, dashed</span>}
     <span className="inline-flex items-center gap-1 text-danger"><svg width="22" height="6"><line x1="11" x2="11" y1="0" y2="6" stroke="currentColor" strokeWidth="2" /></svg>FIT</span>
     <span className="inline-flex items-center gap-1 text-danger">○ crossing</span>
+    {p.exceedances && p.exceedances.length > 0 && <span className="inline-flex items-center gap-1 text-danger"><svg width="16" height="10"><rect width="16" height="10" fill="currentColor" fillOpacity="0.2" stroke="currentColor" strokeDasharray="3 2" /></svg>over limit (band)</span>}
     <span className="inline-flex items-center gap-1 text-muted-foreground">› clipped: line runs past the axis window</span>
   </div>);
 }
@@ -107,6 +117,30 @@ function Crossings({ p }: { p: Ok }) {
   if (!p.crossings.length) return <p data-testid="emw-crossings" className="text-xs text-muted-foreground">No line crosses the FIT or pore limit.</p>;
   return (<ol data-testid="emw-crossings" className="list-decimal space-y-0.5 pl-5 text-xs">{p.crossings.map((c, i) => (
     <li key={i} data-emw-crossing-row={i} className="text-danger">{LINES.find((l) => l.k === c.line)?.label} · {stateLabel(p, c.pillState)} crosses {c.limit === "fit" ? "FIT" : "pore"} at <span className="font-mono">{c.tvd_ft.toLocaleString("en-US")} ft TVD</span></li>))}</ol>);
+}
+
+function Exceedances({ p }: { p: Ok }) {
+  if (!p.exceedances) return null;
+  if (!p.exceedances.length) return <p data-testid="emw-exceedances" className="text-xs text-muted-foreground">No interval exceeds the FIT or pore limit.</p>;
+  return (<div className="overflow-x-auto"><table data-testid="emw-exceedances" className="procedure-table w-full min-w-[520px] text-right font-mono text-xs">
+    <thead className="text-muted-foreground"><tr>{["Line", "State", "Limit", "TVD from–to (ft)", "MD from–to (ft)", "Max EMW (ppg)"].map((h, i) => <th key={h} className={`border-b px-2 font-normal ${i < 3 ? "text-left" : ""}`}>{h}</th>)}</tr></thead>
+    <tbody>{p.exceedances.map((e, i) => (
+      <tr key={i} data-emw-exceed-row={i} className="border-b border-border/50 text-danger [&>td]:px-2 [&>td]:py-1">
+        <td className="text-left">{lineLabel(e.line)}</td><td className="text-left">{stateLabel(p, e.pillState)}</td><td className="text-left">{e.limit === "fit" ? "FIT" : "Pore"}</td>
+        <td>{vb(e.fromTvd_ft)}–{vb(e.toTvd_ft)}</td><td>{vb(e.fromMd_ft)}–{vb(e.toMd_ft)}</td><td>{vb(e.maxEmw_ppg)}</td></tr>))}</tbody>
+  </table></div>);
+}
+
+function ShoeCheck({ p }: { p: Ok }) {
+  if (!p.shoeCheck) return null;
+  return (<div className="overflow-x-auto"><table data-testid="emw-shoe-check" className="procedure-table w-full min-w-[520px] text-right font-mono text-xs">
+    <thead className="text-muted-foreground"><tr>{["Line", "State", "EMW (ppg)", "FIT (ppg)", "Margin (ppg)", "Margin (psi)", ""].map((h, i) => <th key={h + i} className={`border-b px-2 font-normal ${i < 2 ? "text-left" : ""}`}>{h}</th>)}</tr></thead>
+    <tbody>{p.shoeCheck.map((c) => (
+      <tr key={c.pillState + c.line} data-emw-shoe-row={`${c.pillState}.${c.line}`} className="border-b border-border/50 [&>td]:px-2 [&>td]:py-1">
+        <td className="text-left">{lineLabel(c.line)}</td><td className="text-left">{stateLabel(p, c.pillState)}</td><td>{vb(c.emw_ppg)}</td><td>{vb(c.fit_ppg)}</td>
+        <td data-emw-shoe-margin-ppg>{vb(c.margin_ppg)}</td><td data-emw-shoe-margin-psi>{vb(c.margin_psi)}</td>
+        <td><span data-emw-shoe-flag={c.over ? "over" : "ok"} className={`rounded px-2 py-0.5 font-semibold ${c.over ? "kpi-flag-over" : "kpi-flag-ok"}`}>{c.over ? "OVER" : "OK"}</span></td></tr>))}</tbody>
+  </table></div>);
 }
 
 function StationTable({ p }: { p: Ok }) {
@@ -129,20 +163,33 @@ function ViewToggle({ p, view, setView }: { p: Ok; view: View; setView: (v: View
     <button key={v} data-emw-view={v} onClick={() => setView(v)} className={`rounded-md border px-2 py-1 text-xs ${view === v ? "border-primary bg-primary/20" : ""}`}>{v === "both" ? "Both" : stateLabel(p, v)}</button>))}</div>);
 }
 
+/** Chart + lists for one ok profile. Exported so a story can render a mocked contract. */
+export function EmwBody({ p, view, setView, print }: { p: Ok; view: View; setView?: (v: View) => void; print?: boolean }) {
+  if (print) return (<>
+    <div className="print-avoid"><Chart p={p} view="both" print /><Legend p={p} view="both" /></div>
+    {p.exceedances && <><h4 className="kpi-print-h mt-2 text-xs font-semibold">Limit exceedances</h4><Exceedances p={p} /></>}
+    <h4 className="kpi-print-h mt-2 text-xs font-semibold">Limit crossings</h4><Crossings p={p} />
+    <h4 className="kpi-print-h mt-2 text-xs font-semibold">Stations</h4><StationTable p={p} />
+    {p.shoeCheck && <><h4 className="kpi-print-h mt-2 text-xs font-semibold">Shoe check</h4><ShoeCheck p={p} /></>}
+  </>);
+  return (<div className="space-y-3">
+    <Card title="EMW vs TVD" right={setView ? <ViewToggle p={p} view={view} setView={setView} /> : undefined}>
+      <div className="overflow-x-auto"><Chart p={p} view={view} /></div>
+      <Legend p={p} view={view} />
+    </Card>
+    {p.exceedances && <Card title="Limit exceedances"><Exceedances p={p} /></Card>}
+    <Card title="Limit crossings"><Crossings p={p} /></Card>
+    <Card title="Stations"><StationTable p={p} /></Card>
+    {p.shoeCheck && <Card title="Shoe check"><ShoeCheck p={p} /></Card>}
+  </div>);
+}
+
 export function EmwScreen() {
   const r = useEmw();
   const [view, setView] = useState<View>("both");
   if (!r) return null;
   if (!r.ok) return <Card title="EMW profile"><EmwErr e={r.error} />{r.notes.map((n) => <p key={n.code} data-emw-note={n.code} className="text-xs italic text-muted-foreground">{n.message}</p>)}<p className="mt-2 text-xs text-muted-foreground">No profile until this input is fixed, then Calculate.</p></Card>;
-  const p = r as Ok;
-  return (<div className="space-y-3">
-    <Card title="EMW vs TVD" right={<ViewToggle p={p} view={view} setView={setView} />}>
-      <div className="overflow-x-auto"><Chart p={p} view={view} /></div>
-      <Legend p={p} view={view} />
-    </Card>
-    <Card title="Limit crossings"><Crossings p={p} /></Card>
-    <Card title="Stations"><StationTable p={p} /></Card>
-  </div>);
+  return <EmwBody p={r as Ok} view={view} setView={setView} />;
 }
 
 export function EmwPrint() {
@@ -150,8 +197,6 @@ export function EmwPrint() {
   if (!r) return null;
   return (<section className="emw-print kpi-print mb-3">
     <h3 className="mb-1 font-semibold">EMW profile{r.ok ? ` · ${stateLabel(r as Ok, "inPlace")} solid, ${stateLabel(r as Ok, "spotted")} dashed` : " · not available"}</h3>
-    {r.ok ? <><div className="print-avoid"><Chart p={r as Ok} view="both" print /><Legend p={r as Ok} view="both" /></div>
-      <h4 className="kpi-print-h mt-2 text-xs font-semibold">Limit crossings</h4><Crossings p={r as Ok} />
-      <h4 className="kpi-print-h mt-2 text-xs font-semibold">Stations</h4><StationTable p={r as Ok} /></> : <EmwErr e={r.error} />}
+    {r.ok ? <EmwBody p={r as Ok} view="both" print /> : <EmwErr e={r.error} />}
   </section>);
 }
