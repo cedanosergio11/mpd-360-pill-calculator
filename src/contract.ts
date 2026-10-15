@@ -47,12 +47,16 @@ export type {
   AnnularSection,
   EmwCrossing,
   EmwError,
+  EmwLimits,
   EmwLineName,
-  EmwPillProfile,
+  EmwLines,
+  EmwPillState,
   EmwPoint,
   EmwProfileResult,
   EmwProfileValue,
   EmwStation,
+  EmwStationEmw,
+  EmwStationLabel,
 } from "@/lib/core";
 export type { TripEmw, TripPointKey, SpeedEmw } from "@/lib/core";
 export {

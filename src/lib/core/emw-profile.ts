@@ -15,7 +15,7 @@ import { tvdAt } from "./tvd";
  * Pill in place is the entered annulus. Pill spotted is the 1.0.7.1 shoe-ESD
  * column at the bit: float balance when the pipe holds pill, otherwise closed
  * pipe displacement. A missing required input fails the whole profile.
- * Omitted pore is not defaulted: `pore_ppg` is null and there is no pore line.
+ * Omitted pore is not defaulted: `limits.pore_ppg` is null and there is no pore line.
  */
 
 const GRID_FT = 100;
@@ -35,12 +35,11 @@ export interface EmwError {
   message: string;
 }
 
-export interface EmwStation {
-  md_ft: number;
-  tvd_ft: number;
-  /** Shoe, anchor, and bit marks. One station can carry more than one. */
-  marks: ("shoe" | "anchor" | "bit")[];
-}
+export type EmwLineName = "static" | "staticSbp" | "ecd";
+
+export type EmwPillState = "inPlace" | "spotted";
+
+export type EmwStationLabel = "anchor" | "shoe" | "bit";
 
 export interface EmwPoint {
   tvd_ft: number;
@@ -48,40 +47,57 @@ export interface EmwPoint {
   emw_ppg: number;
 }
 
-export type EmwLineName = "static" | "staticSbp" | "ecd";
-
-export interface EmwCrossing {
-  line: EmwLineName;
-  limit: "pore" | "fit";
-  md_ft: number;
-  tvd_ft: number;
-  emw_ppg: number;
-  limit_ppg: number;
-}
-
-export interface EmwPillProfile {
+export interface EmwLines {
   static: EmwPoint[];
   staticSbp: EmwPoint[];
   ecd: EmwPoint[];
-  crossings: EmwCrossing[];
+}
+
+/** EMW, ppg, of one pill state at a labeled station. */
+export interface EmwStationEmw {
+  static: number;
+  staticSbp: number;
+  ecd: number;
+}
+
+export interface EmwStation {
+  label: EmwStationLabel;
+  tvd_ft: number;
+  md_ft: number;
+  emw: { inPlace: EmwStationEmw; spotted: EmwStationEmw };
+}
+
+export interface EmwLimits {
+  /** Entered pore, ppg. Null when omitted. Not defaulted. No pore-versus-depth table. */
+  pore_ppg: number | null;
+  /** FIT EMW at the shoe, ppg. Vertical limit. */
+  fit_ppg: number;
+}
+
+export interface EmwCrossing {
+  tvd_ft: number;
+  line: EmwLineName;
+  pillState: EmwPillState;
+  limit: "pore" | "fit";
 }
 
 export interface EmwProfileValue {
-  /** Regular MD grid plus the shoe, anchor, and bit. */
+  inPlace: { lines: EmwLines };
+  spotted: { lines: EmwLines };
+  /** Shoe, then anchor, then bit. Anchor and bit stay separate when they share a depth. */
   stations: EmwStation[];
-  /** FIT EMW at the shoe, ppg. Vertical limit. */
-  fit_ppg: number;
-  /**
-   * Entered pore, ppg, drawn as a vertical limit when the job has one.
-   * Null when `well.porePressure_ppg` is omitted. Not defaulted.
-   * The model has no pore-versus-depth table.
-   */
-  pore_ppg: number | null;
-  inPlace: EmwPillProfile;
-  spotted: EmwPillProfile;
+  limits: EmwLimits;
+  crossings: EmwCrossing[];
 }
 
 export type EmwProfileResult = ({ ok: true } & EmwProfileValue) | { ok: false; error: EmwError };
+
+interface GridPoint {
+  md_ft: number;
+  tvd_ft: number;
+}
+
+const STATION_LABELS: readonly EmwStationLabel[] = ["shoe", "anchor", "bit"];
 
 function fail(
   code: EmwError["code"],
@@ -95,17 +111,13 @@ function finite(value: number | null | undefined): value is number {
   return value != null && Number.isFinite(value);
 }
 
-function marksAt(job: Job, md: number): EmwStation["marks"] {
-  const marks: EmwStation["marks"] = [];
-  if (Math.abs(md - job.well.shoeMd_ft) <= 0.5) marks.push("shoe");
-  if (Math.abs(md - job.well.anchorMd_ft) <= 0.5) marks.push("anchor");
-  if (Math.abs(md - job.well.bitMd_ft) <= 0.5) marks.push("bit");
-  return marks;
+function mdFor(job: Job, label: EmwStationLabel): number {
+  if (label === "shoe") return job.well.shoeMd_ft;
+  if (label === "anchor") return job.well.anchorMd_ft;
+  return job.well.bitMd_ft;
 }
 
-function depthStations(
-  job: Job,
-): { ok: true; stations: EmwStation[] } | { ok: false; error: EmwError } {
+function depthStations(job: Job): { ok: true; grid: GridPoint[] } | { ok: false; error: EmwError } {
   const shoeTvd = job.well.shoeTvd_ft;
   if (!finite(shoeTvd) || !(shoeTvd > 0)) {
     return fail("MISSING_SHOE_TVD", "well.shoeTvd_ft", "Shoe TVD is missing.");
@@ -124,7 +136,7 @@ function depthStations(
   const raw: number[] = [job.well.shoeMd_ft, job.well.anchorMd_ft, job.well.bitMd_ft];
   for (let md = GRID_FT; md < end - 1e-4; md += GRID_FT) raw.push(md);
   if (Math.abs(end % GRID_FT) > 1e-4) raw.push(end);
-  const stations: EmwStation[] = [];
+  const grid: GridPoint[] = [];
   for (const md of uniqueSorted(
     raw.filter((md) => md > 0.5),
     1e-3,
@@ -136,17 +148,19 @@ function depthStations(
     if (!(tvd > 0)) {
       return fail("MISSING_TVD", "well.survey", "A profile station has no positive TVD.");
     }
-    stations.push({ md_ft: md, tvd_ft: tvd, marks: marksAt(job, md) });
+    grid.push({ md_ft: md, tvd_ft: tvd });
   }
-  const marked = new Set(stations.flatMap((station) => station.marks));
-  if (!marked.has("shoe") || !marked.has("anchor") || !marked.has("bit")) {
+  const present = STATION_LABELS.every((label) =>
+    grid.some((point) => Math.abs(point.md_ft - mdFor(job, label)) <= 0.5),
+  );
+  if (!present) {
     return fail(
       "INVALID_GEOMETRY",
       "well.bitMd_ft",
       "Shoe, anchor, and bit are not on the profile.",
     );
   }
-  return { ok: true, stations };
+  return { ok: true, grid };
 }
 
 function columnFluidsLackFann(job: Job): boolean {
@@ -197,58 +211,91 @@ function spottedColumn(job: Job): { ok: true; job: Job } | { ok: false; error: E
   return { ok: true, job: displaced };
 }
 
-function crossings(
+function pointAt(points: EmwPoint[], md: number): EmwPoint | undefined {
+  return points.find((point) => Math.abs(point.md_ft - md) < 0.5);
+}
+
+function stationEmw(lines: EmwLines, md: number): EmwStationEmw | null {
+  const staticPoint = pointAt(lines.static, md);
+  const sbpPoint = pointAt(lines.staticSbp, md);
+  const ecdPoint = pointAt(lines.ecd, md);
+  if (!staticPoint || !sbpPoint || !ecdPoint) return null;
+  return {
+    static: staticPoint.emw_ppg,
+    staticSbp: sbpPoint.emw_ppg,
+    ecd: ecdPoint.emw_ppg,
+  };
+}
+
+function labeledStations(
+  job: Job,
+  grid: GridPoint[],
+  inPlace: EmwLines,
+  spotted: EmwLines,
+): EmwStation[] | null {
+  const stations: EmwStation[] = [];
+  for (const label of STATION_LABELS) {
+    const md = mdFor(job, label);
+    const gridPoint = grid.find((point) => Math.abs(point.md_ft - md) <= 0.5);
+    const inPlaceEmw = stationEmw(inPlace, md);
+    const spottedEmw = stationEmw(spotted, md);
+    if (!gridPoint || !inPlaceEmw || !spottedEmw) return null;
+    stations.push({
+      label,
+      tvd_ft: gridPoint.tvd_ft,
+      md_ft: gridPoint.md_ft,
+      emw: { inPlace: inPlaceEmw, spotted: spottedEmw },
+    });
+  }
+  return stations;
+}
+
+function lineCrossings(
+  pillState: EmwPillState,
   line: EmwLineName,
   points: EmwPoint[],
   fit: number,
   pore: number | null,
 ): EmwCrossing[] {
   const flags: EmwCrossing[] = [];
-  const watch = (limit: "pore" | "fit", limitPpg: number, unsafe: (emw: number) => boolean) => {
+  const watch = (limit: "pore" | "fit", unsafe: (emw: number) => boolean) => {
     let was = unsafe(points[0].emw_ppg);
-    if (was) {
-      flags.push({
-        line,
-        limit,
-        md_ft: points[0].md_ft,
-        tvd_ft: points[0].tvd_ft,
-        emw_ppg: points[0].emw_ppg,
-        limit_ppg: limitPpg,
-      });
-    }
+    if (was) flags.push({ tvd_ft: points[0].tvd_ft, line, pillState, limit });
     for (let i = 1; i < points.length; i++) {
       const now = unsafe(points[i].emw_ppg);
-      if (now !== was) {
-        flags.push({
-          line,
-          limit,
-          md_ft: points[i].md_ft,
-          tvd_ft: points[i].tvd_ft,
-          emw_ppg: points[i].emw_ppg,
-          limit_ppg: limitPpg,
-        });
-      }
+      if (now !== was) flags.push({ tvd_ft: points[i].tvd_ft, line, pillState, limit });
       was = now;
     }
   };
-  watch("fit", fit, (emw) => emw >= fit - 1e-9);
-  if (pore != null) watch("pore", pore, (emw) => emw <= pore + 1e-9);
+  watch("fit", (emw) => emw >= fit - 1e-9);
+  if (pore != null) watch("pore", (emw) => emw <= pore + 1e-9);
   return flags;
+}
+
+function crossingsFor(
+  pillState: EmwPillState,
+  lines: EmwLines,
+  fit: number,
+  pore: number | null,
+): EmwCrossing[] {
+  return [
+    ...lineCrossings(pillState, "static", lines.static, fit, pore),
+    ...lineCrossings(pillState, "staticSbp", lines.staticSbp, fit, pore),
+    ...lineCrossings(pillState, "ecd", lines.ecd, fit, pore),
+  ];
 }
 
 function profileFor(
   column: Job,
-  stations: EmwStation[],
+  grid: GridPoint[],
   sbpConn: number,
   sbpCirc: number,
-  fit: number,
-  pore: number | null,
-): { ok: true; profile: EmwPillProfile } | { ok: false; error: EmwError } {
+): { ok: true; lines: EmwLines } | { ok: false; error: EmwError } {
   const bit = column.well.bitMd_ft;
   const staticLine: EmwPoint[] = [];
   const staticSbp: EmwPoint[] = [];
   const ecd: EmwPoint[] = [];
-  for (const station of stations) {
+  for (const station of grid) {
     const esd = esdAtMd(column, station.md_ft);
     if (esd == null || !Number.isFinite(esd)) {
       return fail("INVALID_GEOMETRY", "column", "Static EMW is not finite.");
@@ -266,19 +313,7 @@ function profileFor(
     staticSbp.push({ tvd_ft: station.tvd_ft, md_ft: station.md_ft, emw_ppg: withSbp });
     ecd.push({ tvd_ft: station.tvd_ft, md_ft: station.md_ft, emw_ppg: circulating });
   }
-  return {
-    ok: true,
-    profile: {
-      static: staticLine,
-      staticSbp,
-      ecd,
-      crossings: [
-        ...crossings("static", staticLine, fit, pore),
-        ...crossings("staticSbp", staticSbp, fit, pore),
-        ...crossings("ecd", ecd, fit, pore),
-      ],
-    },
-  };
+  return { ok: true, lines: { static: staticLine, staticSbp, ecd } };
 }
 
 /**
@@ -317,30 +352,32 @@ export function emwProfile(job: Job): EmwProfileResult {
   const spotted = spottedColumn(job);
   if (!spotted.ok) return spotted;
   const pore = enteredPore == null ? null : enteredPore;
-  const placed = profileFor(
-    inPlace.job,
-    stations.stations,
-    job.trip.sbpConn_psi,
-    job.trip.sbpCirc_psi,
-    job.well.fit_ppg,
-    pore,
-  );
+  const placed = profileFor(inPlace.job, stations.grid, job.trip.sbpConn_psi, job.trip.sbpCirc_psi);
   if (!placed.ok) return placed;
   const spottedProfile = profileFor(
     spotted.job,
-    stations.stations,
+    stations.grid,
     job.trip.sbpConn_psi,
     job.trip.sbpCirc_psi,
-    job.well.fit_ppg,
-    pore,
   );
   if (!spottedProfile.ok) return spottedProfile;
+  const labeled = labeledStations(job, stations.grid, placed.lines, spottedProfile.lines);
+  if (!labeled) {
+    return fail(
+      "INVALID_GEOMETRY",
+      "well.bitMd_ft",
+      "Shoe, anchor, and bit are not on the profile.",
+    );
+  }
   return {
     ok: true,
-    stations: stations.stations,
-    fit_ppg: job.well.fit_ppg,
-    pore_ppg: pore,
-    inPlace: placed.profile,
-    spotted: spottedProfile.profile,
+    inPlace: { lines: placed.lines },
+    spotted: { lines: spottedProfile.lines },
+    stations: labeled,
+    limits: { pore_ppg: pore, fit_ppg: job.well.fit_ppg },
+    crossings: [
+      ...crossingsFor("inPlace", placed.lines, job.well.fit_ppg, pore),
+      ...crossingsFor("spotted", spottedProfile.lines, job.well.fit_ppg, pore),
+    ],
   };
 }
