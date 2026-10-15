@@ -559,8 +559,9 @@ export function ExportScreen() {
   );
 }
 
+/** Print sheet inputs: the last-Calculate snapshot, so the table matches the results above it. */
 function InputsTable() {
-  const job = useStore((s) => s.job);
+  const job = useStore((s) => s.calcJob ?? s.job);
   const w = job.well;
   const rows: [string, string][] = [
     ["Mode", job.mode], ["TD MD / TVD", `${w.mdTd_ft} / ${w.tvdTd_ft} ft`], ["Bit MD", `${w.bitMd_ft} ft`],
