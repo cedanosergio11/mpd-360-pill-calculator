@@ -191,6 +191,12 @@
     margin-top: 0.5rem;
     break-after: avoid;
   }
+  .emw-print svg {
+    max-height: 7in;
+  }
+  .emw-print table {
+    min-width: 0 !important;
+  }
   .kpi-print details > summary {
     display: none;
   }

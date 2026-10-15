@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Drawer } from "vaul";
 import type { Job } from "@/contract";
 import { DisplacementScreen, ExportScreen, FitBanner, FluidsScreen, KpiScreen, StrokesScreen, TripScreen, WellScreen } from "@/components/screens";
+import { EmwScreen } from "@/components/emw";
 import { seeds } from "@/lib/seeds";
 import { useEdited, useOutOfDate, useStore, worst } from "@/lib/store";
 import { APP_VERSION } from "@/lib/version";
@@ -12,8 +13,9 @@ const tabs = [
   { id: "displacement", label: "3 Displacement & pill", C: DisplacementScreen },
   { id: "strokes", label: "4 Strokes", C: StrokesScreen },
   { id: "kpi", label: "5 KPI & volumes", C: KpiScreen },
-  { id: "trip", label: "6 Trip schedule", C: TripScreen },
-  { id: "export", label: "7 Export", C: ExportScreen },
+  { id: "emw", label: "6 EMW profile", C: EmwScreen },
+  { id: "trip", label: "7 Trip schedule", C: TripScreen },
+  { id: "export", label: "8 Export", C: ExportScreen },
 ] as const;
 type TabId = (typeof tabs)[number]["id"];
 

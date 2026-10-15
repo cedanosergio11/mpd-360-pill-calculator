@@ -6,6 +6,7 @@ import { getPath } from "@/lib/paths";
 import { Card, fmt, Grid, IssueList, NumField } from "@/components/fields";
 import { issuesFor, useCalcEdited, useStore } from "@/lib/store";
 import { APP_VERSION } from "@/lib/version";
+import { EmwPrint } from "@/components/emw";
 
 export function WellScreen() {
   const job = useStore((s) => s.job);
@@ -509,7 +510,7 @@ export function KpiScreen() {
   const k = useKpi();
   if (!k) return null;
   return (<div className="space-y-3">
-    <p className="text-[11px] text-muted-foreground print:hidden">Stand length is set in 6 Trip schedule → Trip inputs.</p>
+    <p className="text-[11px] text-muted-foreground print:hidden">Stand length is set in 7 Trip schedule → Trip inputs.</p>
     {k.ok ? <><KpiBody k={k} />{k.poohFill.ok ? <PoohRows fill={k.poohFill} /> : <div data-testid="pooh-table-error" className="rounded-md border p-2"><p className="mb-1 text-xs font-semibold">POOH fill table</p><KpiErr e={k.poohFill.error} /></div>}</> : <Card title="KPI & volumes"><KpiErr e={k.error} /><p className="mt-2 text-xs text-muted-foreground">No KPI numbers until this input is fixed.</p></Card>}
   </div>);
 }
@@ -548,6 +549,7 @@ export function ExportScreen() {
             <tbody>{result.displacement.stages.map((s) => <tr key={s.n}><td>{s.n}</td><td>{s.bitMd_ft}</td><td><Pumped v={s.pumped_bbl} /></td><td>{num(s.sbp_psi, 0)}</td><td>{num(s.shoeEsd_ppg)}</td><td className="font-semibold">{num(s.shoeEmw_ppg, 3)}</td><td><FitCmp n={s.n} /></td></tr>)}</tbody></table>
           <StrokesPrint />
           <KpiPrint />
+          <EmwPrint />
         </>}
         <h3 className="mb-1 font-semibold">Inputs used</h3>
         <InputsTable />
