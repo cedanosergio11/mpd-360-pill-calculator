@@ -6,3 +6,5 @@ export * from "./steel";
 export * from "./examples";
 export * from "./tables";
 export * from "./paste";
+export * from "./depth";
+export * from "./format";

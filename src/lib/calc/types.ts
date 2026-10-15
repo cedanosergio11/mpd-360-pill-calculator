@@ -168,6 +168,8 @@ export interface CalcResults {
   tapered: TaperedResults;
   procedurePossible: boolean;
   errorReason: string | null;
+  /** Set when a depth is past TD or the pill/anchor is past the bit. Null on a normal calc. */
+  depthBlock: DepthBlock | null;
 }
 
 export interface ScheduleRow {
@@ -206,4 +208,19 @@ export interface SteelRow {
 export interface WarningItem {
   level: "error" | "warn" | "info" | "ok";
   text: string;
+}
+
+/** One depth that failed a limit. Display data only — the engine does not round it. */
+export interface DepthField {
+  label: string;
+  value: number;
+  limit: number;
+  /** TD, bit MD, bit TVD, or last survey station. */
+  limitLabel: string;
+}
+
+/** Calc is blocked. `fields` is the list to show instead of empty tables. */
+export interface DepthBlock {
+  code: "DEPTH_BEYOND_TD";
+  fields: DepthField[];
 }

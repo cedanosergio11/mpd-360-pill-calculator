@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { syncChangedMd } from "@/lib/calc/depth";
 import { EMPTY_INPUTS } from "@/lib/calc/examples";
 import type { WellInputs } from "@/lib/calc/types";
 
@@ -45,7 +46,13 @@ export const useAppStore = create<AppState>()(
       hydrated: false,
       scenarios: [],
       setField: (key, value) =>
-        set((s) => ({ inputs: { ...s.inputs, [key]: value } })),
+        set((s) => {
+          const next = { ...s.inputs, [key]: value };
+          if (key !== "anchorMd" && key !== "casingMd" && key !== "spotMd") return { inputs: next };
+          const synced = syncChangedMd(s.inputs, next);
+          if (synced.beyond.length) return { inputs: next };
+          return { inputs: synced.inputs };
+        }),
       setInputs: (inputs) => set({ inputs }),
       reset: () => set({ inputs: blankWell() }),
       loadPreset: (inputs) => set({ inputs: { ...inputs } }),

@@ -4,7 +4,7 @@ import {
   roundUp,
   safeDiv,
 } from "@/lib/utils";
-import type { CalcResults, WarningItem, WellInputs } from "./types";
+import type { CalcResults, CementResults, TaperedResults, WarningItem, WellInputs } from "./types";
 import {
   calcCapacitiesAndRoom,
   calcCement,
@@ -12,8 +12,121 @@ import {
   n,
 } from "./engine";
 import { calcEqualizeExtraPpg, calcNoDpPill, calcSlugAt200FtMin } from "./engine-nodp";
+import { DEPTH_BEYOND_TD, depthBeyondFields, depthBlockMessage } from "./depth";
+
+function nanRecord<T extends object>(keys: (keyof T)[]): T {
+  const out = {} as T;
+  for (const key of keys) out[key] = Number.NaN as T[keyof T];
+  return out;
+}
+
+function blockedResults(inputs: WellInputs): CalcResults | null {
+  const fields = depthBeyondFields(inputs);
+  if (!fields.length) return null;
+  const cement = nanRecord<CementResults>([
+    "staticPressure",
+    "annularCapacity",
+    "openHoleCapacity",
+    "casingStringCapacity",
+    "openHoleToBoc",
+    "bocToShoe",
+    "requiredPillHeight",
+    "requiredCementPillVol",
+    "totalCasingStringVol",
+    "chaseToTd",
+    "chaseExitCasing",
+    "chaseBocToShoe",
+    "chaseBocShoePlusPill",
+    "totalChase",
+    "topOfPill",
+  ]);
+  const tapered = nanRecord<TaperedResults>([
+    "lengthDp2",
+    "openHoleLength",
+    "linerLength",
+    "totalPillVol",
+    "pillNeededAnnulus",
+    "dpVolume",
+    "mudInAnnulusAfterPumping",
+    "additionalChase",
+    "mudInDp",
+  ]);
+  return {
+    masp: Number.NaN,
+    initialApl: Number.NaN,
+    initialAplAnchor: Number.NaN,
+    drillStringCap: Number.NaN,
+    drillStringVolAtSpot: Number.NaN,
+    casingCap: Number.NaN,
+    casingVolAtSpot: Number.NaN,
+    annularCap: Number.NaN,
+    annularBelowShoe: Number.NaN,
+    annularAtSpot: Number.NaN,
+    openHoleCap: Number.NaN,
+    heightPillNoDp: Number.NaN,
+    totalPillVol: Number.NaN,
+    drillStringOpenHole: Number.NaN,
+    volumeBelowShoe: Number.NaN,
+    requiredVolAnnulus: Number.NaN,
+    correctedPillVol: Number.NaN,
+    calculatedChase: Number.NaN,
+    correctedChase: Number.NaN,
+    finalKwm: Number.NaN,
+    spottedKmwVol: Number.NaN,
+    kmwRoomWithPipe: Number.NaN,
+    minHeightPillWithDp: Number.NaN,
+    minHeightWithDp: Number.NaN,
+    balancedAdditionalPsi: Number.NaN,
+    addPpgCsg: Number.NaN,
+    addPpgTarget: Number.NaN,
+    balancedEsdCasing: Number.NaN,
+    esdCasingNoDp: Number.NaN,
+    anchorPointEsd: Number.NaN,
+    equalizeDumpBbl: Number.NaN,
+    remainingKmwInDp: Number.NaN,
+    airCapTopMd: Number.NaN,
+    resolutionHeightGain: Number.NaN,
+    resolutionPressureGain: Number.NaN,
+    pressureDifferential: Number.NaN,
+    pressureDifferentialSlug: Number.NaN,
+    staticStrippingPressure: Number.NaN,
+    maxDynamicSbp: Number.NaN,
+    maxSwabPressure: Number.NaN,
+    selectedTripTable: "other",
+    tripPressures: [],
+    slugPressure: Number.NaN,
+    slugPillVol: Number.NaN,
+    strokesToPumpSlug: Number.NaN,
+    pillVolAtSpot: Number.NaN,
+    slugFits: false,
+    slugFallOut: Number.NaN,
+    slugFallHeight: Number.NaN,
+    chaseWithSlug: Number.NaN,
+    slugPpgEquivalent: Number.NaN,
+    slugPsiEquivalent: Number.NaN,
+    slugApl: Number.NaN,
+    correctedSlugPill: Number.NaN,
+    totalPillVolAtSpotNoSlug: Number.NaN,
+    totalPillVolAtSpotWithSlug: Number.NaN,
+    topOfPillWithDp: Number.NaN,
+    topOfPillNoDp: Number.NaN,
+    drillStringPillHeight: Number.NaN,
+    topOfPillInsideDp: Number.NaN,
+    kwmPlusChase: Number.NaN,
+    deltaSpotBackfill: Number.NaN,
+    bblBackfill: Number.NaN,
+    safevisionSlug: Number.NaN,
+    cement,
+    tapered,
+    procedurePossible: false,
+    errorReason: depthBlockMessage(fields),
+    depthBlock: { code: DEPTH_BEYOND_TD, fields },
+  };
+}
 
 export function calculate(inputs: WellInputs): CalcResults {
+  const blocked = blockedResults(inputs);
+  if (blocked) return blocked;
   const pressures = calcTripAndStatic(inputs);
   const caps = calcCapacitiesAndRoom(inputs);
   const pill = calcNoDpPill(inputs, caps, pressures);
@@ -142,10 +255,19 @@ export function calculate(inputs: WellInputs): CalcResults {
     tapered: pill.tapered,
     procedurePossible,
     errorReason,
+    depthBlock: null,
   };
 }
 
 export function collectWarnings(inputs: WellInputs, results: CalcResults): WarningItem[] {
+  if (results.depthBlock) {
+    return [
+      {
+        level: "error",
+        text: results.errorReason ?? "A depth is past TD or the pill or anchor is past the bit.",
+      },
+    ];
+  }
   const warnings: WarningItem[] = [];
   const required: [keyof WellInputs, string][] = [
     ["anchorTvd", "Anchor point TVD"],

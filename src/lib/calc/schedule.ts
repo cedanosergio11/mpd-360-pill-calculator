@@ -24,6 +24,15 @@ function productionFlowLadder(
 
 export function buildSchedule(inputs: WellInputs, results: CalcResults, mode?: PillMode): ScheduleResult {
   const activeMode: PillMode = mode ?? inputs.pillMode;
+  if (results.depthBlock) {
+    return {
+      rows: [],
+      mode: activeMode,
+      heavyVolume: Number.NaN,
+      finalVolume: Number.NaN,
+      finalStrokes: Number.NaN,
+    };
+  }
   const withSlug = activeMode === "withSlug";
   const resolution = asNum(inputs.desiredResolution);
   const initialFlow = asNum(inputs.initialFlowRate);

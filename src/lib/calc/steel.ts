@@ -18,6 +18,19 @@ export function buildSteelSchedule(inputs: WellInputs, results: CalcResults): {
   annularCap: number;
   displacedOutDepth: number;
 } {
+  if (results.depthBlock) {
+    return {
+      rows: [],
+      windowPpg: Number.NaN,
+      needsSafevision: true,
+      kmwLength: Number.NaN,
+      kmwVolume: Number.NaN,
+      closedDisp: Number.NaN,
+      annularCap: Number.NaN,
+      displacedOutDepth: Number.NaN,
+    };
+  }
+
   const hole = asNum(inputs.openHoleDia);
   const fit = asNum(inputs.fit);
   const target = asNum(inputs.desiredEmw);
