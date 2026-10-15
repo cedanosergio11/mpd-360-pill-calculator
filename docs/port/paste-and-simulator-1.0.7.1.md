@@ -449,7 +449,7 @@ An older save with no `meta` loads as `{ presetId: null, isExample: false, modif
 
 `markEdited(job)` is pure. It sets `isExample` to false and `modified` to true and keeps `presetId`. Every input edit uses it, including `applyPaste` and the store's field setter.
 
-`jobLabel(job)` is pure. The screen header and the print title both use it. When `meta.isExample` is true and `meta.presetId` is B, C, or D, it returns `EXAMPLE B`, `EXAMPLE C`, or `EXAMPLE D`. Otherwise, including a legacy save and the app default (`presetId` null), it returns `Modified, not an EXAMPLE`.
+`jobLabel(job)` is pure. The screen header and the print title both use it. When `meta.isExample` is true and `meta.presetId` is B, C, or D, it returns `EXAMPLE B`, `EXAMPLE C`, or `EXAMPLE D`. Otherwise, including a legacy save and the app default (`presetId` null), it returns `Modified, not an EXAMPLE`. No label contains `B/C/D`. The EXAMPLE D assertion runs when `loadPreset("D")` succeeds and stays skipped until then.
 
 ### Planned paste apply test
 
@@ -717,6 +717,8 @@ Every grid MD is evaluated on its own, once in each direction, with an explicit 
 Each result has one step, and that step's `pipeMd_ft` is `md`. These fields match at every grid MD, to the tolerances in the table above: `chase_bbl`, `stringCapacity_bbl`, `kmwInString_bbl`, `pillTop.md_ft`, `pillTop.tvd_ft`, `pillBottom.md_ft`, `pillBottom.tvd_ft`, and the full `spotted` profile (lines, stations, limits, and shoe check). `inPlace` is the same reference on both calls because it does not depend on pipe MD. `tripTank_bbl` and `pipeDelta_ft` are cumulative from `fromMd_ft`, so they differ between the two calls and are not part of this equality. The single-point call at the bit with `fromMd_ft: 0`, and the single-point call at 0 with `fromMd_ft` at the bit, each have `|tripTank_bbl|` equal to `stringOd_in`² / 1029.4 × the bit MD, to 1e-6 bbl.
 
 On B and C, also run 8400 ft to 8600 ft and the reverse, `stepMd_ft: 200`. Both land on 8400 and 8600. The trip-tank increment between them equals `(stringOd_in² / 1029.4) × 200` bbl to 1e-6 bbl, positive on the way in and negative on the way out. The first step of each walk is 0.
+
+RIH from 0 to the bit is a positive trip-tank gain. POOH from the bit to 0 is an equal fill. On B and C those two runs net to 0 within 1e-6 bbl. The same round trip on EXAMPLE D stays skipped until #6.
 
 On D, the same 8400 ft to 8600 ft pair stays skipped until #6. The per-MD fields match at those two depths. The trip-tank increment between them equals `(5.5² / 1029.4) × 80 + (4² / 1029.4) × 120` bbl to 1e-6 bbl, positive on the way in and negative on the way out. The skipped direction case also compares `sections` and `crossovers` on both calls.
 

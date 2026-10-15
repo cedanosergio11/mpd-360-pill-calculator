@@ -2,23 +2,55 @@ import { describe, expect, it } from "vitest";
 import { exampleB, exampleC } from "@/lib/example-b";
 import { exampleJob } from "@/lib/example-job";
 import { inputHash } from "./hash";
+import type { PresetId } from "./job.schema";
 import { appDefaultJob, jobLabel, loadPreset, markEdited, resetToPreset } from "./preset";
 
+function presetReady(id: PresetId): boolean {
+  try {
+    loadPreset(id);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** EXAMPLE D is absent until tapered strings. The D label test runs once `loadPreset("D")` succeeds. */
+const exampleDReady = presetReady("D");
+
 describe("jobLabel", () => {
-  it("returns the preset letter when the job is an example", () => {
+  it("returns EXAMPLE B", () => {
     expect(jobLabel(loadPreset("B"))).toBe("EXAMPLE B");
+  });
+
+  it("returns EXAMPLE C", () => {
     expect(jobLabel(loadPreset("C"))).toBe("EXAMPLE C");
   });
 
   // re-enable when #6 (tapered strings) lands
-  it.skip("returns EXAMPLE D for EXAMPLE D", () => {
+  it.skipIf(!exampleDReady)("returns EXAMPLE D", () => {
     expect(jobLabel(loadPreset("D"))).toBe("EXAMPLE D");
   });
 
-  it("returns Modified, not an EXAMPLE when the job is not an example", () => {
+  it("returns Modified, not an EXAMPLE for a modified job", () => {
     expect(jobLabel(markEdited(loadPreset("B")))).toBe("Modified, not an EXAMPLE");
     expect(jobLabel(exampleC)).toBe("Modified, not an EXAMPLE");
     expect(jobLabel(appDefaultJob())).toBe("Modified, not an EXAMPLE");
+  });
+
+  it("no label contains B/C/D", () => {
+    const labels = [
+      jobLabel(loadPreset("B")),
+      jobLabel(loadPreset("C")),
+      jobLabel(markEdited(loadPreset("B"))),
+      jobLabel(markEdited(loadPreset("C"))),
+      jobLabel(exampleB),
+      jobLabel(exampleC),
+      jobLabel(exampleJob),
+      jobLabel(appDefaultJob()),
+      jobLabel({ ...loadPreset("B"), meta: { presetId: "D", isExample: true, modified: false } }),
+    ];
+    if (exampleDReady) labels.push(jobLabel(loadPreset("D")));
+    for (const label of labels) expect(label).not.toContain("B/C/D");
   });
 });
 

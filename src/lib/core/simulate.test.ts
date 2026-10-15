@@ -308,6 +308,22 @@ describe("simulate direction", () => {
   }, 180_000);
 });
 
+function expectTripTankRoundTrip(job: Job) {
+  const bit = job.well.bitMd_ft;
+  const rih = okSim(simulate(job, { fromMd_ft: 0, toMd_ft: bit }));
+  const pooh = okSim(simulate(job, { fromMd_ft: bit, toMd_ft: 0 }));
+  const gain = rih.steps[rih.steps.length - 1].tripTank_bbl;
+  const fill = pooh.steps[pooh.steps.length - 1].tripTank_bbl;
+  expect(rih.steps[0].pipeMd_ft).toBe(0);
+  expect(rih.steps[rih.steps.length - 1].pipeMd_ft).toBe(bit);
+  expect(pooh.steps[0].pipeMd_ft).toBe(bit);
+  expect(pooh.steps[pooh.steps.length - 1].pipeMd_ft).toBe(0);
+  expect(gain).toBeGreaterThan(0);
+  expect(fill).toBeLessThan(0);
+  near(fill, -gain, 1e-6, `${job.name} equal fill`);
+  near(gain + fill, 0, 1e-6, `${job.name} net`);
+}
+
 describe("simulate trip tank", () => {
   it.each(JOBS)("uses a constant pipe OD on $name", (job) => {
     const inward = okSim(simulate(job, { fromMd_ft: 8400, toMd_ft: 8600, stepMd_ft: 200 }));
@@ -324,6 +340,10 @@ describe("simulate trip tank", () => {
     const atBit = okSim(simulate(job, { mds: [job.well.bitMd_ft], fromMd_ft: 0 }));
     near(atBit.steps[0].tripTank_bbl, (job.well.stringOd_in ** 2 / 1029.4) * job.well.bitMd_ft, 1e-6, "0 to bit");
   });
+
+  it.each(JOBS)("RIH gain and POOH fill net to 0 on $name", (job) => {
+    expectTripTankRoundTrip(job);
+  }, 60_000);
 });
 
 // re-enable when #6 (tapered strings) lands
@@ -394,6 +414,11 @@ describe.skip("simulate EXAMPLE D trip tank", () => {
     const outDelta = outward.steps[1].tripTank_bbl - outward.steps[0].tripTank_bbl;
     near(inDelta, expected, 1e-6, "inward split");
     near(outDelta, -expected, 1e-6, "outward split");
+  });
+
+  // re-enable when #6 (tapered strings) lands
+  it("RIH gain and POOH fill net to 0 on EXAMPLE D", () => {
+    expectTripTankRoundTrip(exampleDJob());
   });
 });
 
