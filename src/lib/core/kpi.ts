@@ -197,7 +197,11 @@ export type KpiVolumesResult =
       chase: ChaseValue;
       kmwInString: KmwInStringValue;
       kmwBackfill: KmwBackfillValue;
-      poohFill: PoohFillValue;
+      /**
+       * Closed and open POOH tables, or `{ ok: false, error }` when stand length is blank or ≤ 0.
+       * A STAND_LENGTH error does not blank the other KPI fields.
+       */
+      poohFill: PoohFillResult;
       /** Annular volume of the pill interval. Not added to the string-capacity check. */
       pillAnnularVolume_bbl: number;
       /** String capacity over the same pill MD interval. Not added to the annular volume. */
@@ -653,7 +657,8 @@ function activeMud(
  * MASP, KMW, chase, KMW left in the string, annular backfill, and POOH fill.
  * The annular pill volume and the string capacity over that same interval are returned
  * separately and are never added together.
- * A missing FIT, shoe TVD, or anchor TVD is an error. Anchor TVD is never taken from the survey.
+ * A missing FIT, shoe TVD, or anchor TVD stops the result. Anchor TVD is never taken from the survey.
+ * A blank or non-positive stand length does not: the other fields are returned and `poohFill` carries STAND_LENGTH.
  */
 export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesResult {
   const mud = activeMud(job);
@@ -680,7 +685,7 @@ export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesRes
   const backfill = kmwBackfill(job);
   if (!backfill.ok) return backfill;
   const fill = poohFill(job);
-  if (!fill.ok) return fill;
+  if (!fill.ok && fill.error.code !== "STAND_LENGTH") return fill;
   const checks = separatePillChecks(job);
   if (!checks.ok) return checks;
   return {
@@ -690,7 +695,7 @@ export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesRes
     chase: stripOk(chase),
     kmwInString: stripOk(inString),
     kmwBackfill: stripOk(backfill),
-    poohFill: stripOk(fill),
+    poohFill: fill,
     pillAnnularVolume_bbl: checks.pillAnnularVolume_bbl,
     stringCapOverPillInterval_bbl: checks.stringCapOverPillInterval_bbl,
   };

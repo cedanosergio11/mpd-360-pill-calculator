@@ -363,6 +363,8 @@ describe("EXAMPLE B against the MPGenie expected file", () => {
     const result = kpiVolumes(exampleB, { surfaceLine_bbl: 0 });
     expect(result.ok).toBe(true);
     if (!result.ok) return;
+    expect(result.poohFill.ok).toBe(true);
+    if (!result.poohFill.ok) return;
     const expected = exampleBExpected;
     const cased = result.kmwBackfill.sections[0];
     const openHole = result.kmwBackfill.sections[1];
@@ -466,10 +468,14 @@ describe("EXAMPLE B against the MPGenie expected file", () => {
     });
   });
 
-  it("returns STAND_LENGTH from kpiVolumes when the job omits stand length", () => {
+  it("keeps the other KPIs when stand length is omitted and reports STAND_LENGTH on POOH only", () => {
     const job: Job = structuredClone(exampleB);
     delete job.trip.standLength_ft;
-    expect(kpiVolumes(job, { surfaceLine_bbl: 0 })).toEqual({
+    const result = kpiVolumes(job, { surfaceLine_bbl: 0 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.masp.masp_psi).toBeCloseTo(501.26, 2);
+    expect(result.poohFill).toEqual({
       ok: false,
       error: {
         code: "STAND_LENGTH",
@@ -498,5 +504,34 @@ describe("EXAMPLE C against MPGenie", () => {
     expect(result.chase).toEqual(base.chase);
     expect(result.kmwBackfill).toEqual(base.kmwBackfill);
     expect(result.poohFill).toEqual(base.poohFill);
+  });
+
+  it("keeps MASP and KMW when stand length is blank and reports STAND_LENGTH on POOH only", () => {
+    const job: Job = structuredClone(exampleC);
+    delete job.trip.standLength_ft;
+    const seeded = kpiVolumes(exampleC, { surfaceLine_bbl: 0 });
+    const result = kpiVolumes(job, { surfaceLine_bbl: 0 });
+    expect(seeded.ok).toBe(true);
+    expect(result.ok).toBe(true);
+    if (!seeded.ok || !result.ok) return;
+    expect(result.masp.masp_psi).toBeCloseTo(501.26, 2);
+    expect(result.masp.margin_psi).toBeCloseTo(-48.74, 2);
+    expect(result.masp.sbpExceedsMasp).toBe(true);
+    expect(result.masp.sbpFlag).toBe("SBP >= MASP");
+    expect(result.kmw.raw_ppg).toBeCloseTo(12.4106, 4);
+    expect(result.kmw.rounded_ppg).toBe(12.5);
+    expect(result.chase).toEqual(seeded.chase);
+    expect(result.kmwInString).toEqual(seeded.kmwInString);
+    expect(result.kmwBackfill).toEqual(seeded.kmwBackfill);
+    expect(result.pillAnnularVolume_bbl).toBe(seeded.pillAnnularVolume_bbl);
+    expect(result.stringCapOverPillInterval_bbl).toBe(seeded.stringCapOverPillInterval_bbl);
+    expect(result.poohFill).toEqual({
+      ok: false,
+      error: {
+        code: "STAND_LENGTH",
+        field: "trip.standLength_ft",
+        message: "Stand length is blank.",
+      },
+    });
   });
 });

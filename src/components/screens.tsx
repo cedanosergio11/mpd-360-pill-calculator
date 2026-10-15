@@ -441,7 +441,8 @@ const Kv = ({ k, v, u, strong, id }: { k: string; v: string; u?: string; strong?
 /** Shows the contract's STAND_LENGTH error under the Trip inputs stand-length field. */
 function StandLengthErr() {
   const k = useKpi();
-  return !k.ok && k.error.field === "trip.standLength_ft" ? <div className="mt-2"><KpiErr e={k.error} /></div> : null;
+  const error = !k.ok ? null : !k.poohFill.ok && k.poohFill.error.code === "STAND_LENGTH" ? k.poohFill.error : null;
+  return error ? <div className="mt-2"><KpiErr e={error} /></div> : null;
 }
 const PILL_PENDING = "Pill volume basis pending Sergio's choice";
 
@@ -478,12 +479,12 @@ function KpiBody({ k, print }: { k: Extract<KpiVolumesResult, { ok: true }>; pri
       <Kv k="Total" v={fx(b.volume_bbl, 3)} u="bbl" strong id="backfill" />
       {b.sections.map((x, i) => <Kv key={i} k={`${fx(x.topMd_ft, 0)}–${fx(x.bottomMd_ft, 0)} ft · ${fx(x.holeId_in, 3)} in`} v={fx(x.volume_bbl, 3)} u="bbl" id={`backfill-${i}`} />)}
     </Box>
-    <Box title={`POOH fill · ${fx(fill.standLength_ft, 0)} ft stands`}>
-      <Kv k="Per stand, closed pipe" v={fx(fill.closed.perStand_bbl, 4)} u="bbl" id="pooh-stand-closed" />
-      <Kv k="Total, closed pipe" v={fx(fill.closed.total_bbl, 3)} u="bbl" strong id="pooh-total-closed" />
-      <Kv k="Per stand, open pipe" v={fx(fill.open.perStand_bbl, 4)} u="bbl" id="pooh-stand-open" />
-      <Kv k="Total, open pipe" v={fx(fill.open.total_bbl, 3)} u="bbl" strong id="pooh-total-open" />
-      <Kv k="Rows" v={`${fill.closed.stands.length} (${fill.fullStandCount} stands${fill.partialStand_ft ? ` + ${fx(fill.partialStand_ft, 0)} ft single` : ""})`} id="pooh-rows" />
+    <Box title={fill.ok ? `POOH fill · ${fx(fill.standLength_ft, 0)} ft stands` : "POOH fill"}>
+      {fill.ok ? <><Kv k="Per stand, closed pipe" v={fx(fill.closed.perStand_bbl, 4)} u="bbl" id="pooh-stand-closed" />
+        <Kv k="Total, closed pipe" v={fx(fill.closed.total_bbl, 3)} u="bbl" strong id="pooh-total-closed" />
+        <Kv k="Per stand, open pipe" v={fx(fill.open.perStand_bbl, 4)} u="bbl" id="pooh-stand-open" />
+        <Kv k="Total, open pipe" v={fx(fill.open.total_bbl, 3)} u="bbl" strong id="pooh-total-open" />
+        <Kv k="Rows" v={`${fill.closed.stands.length} (${fill.fullStandCount} stands${fill.partialStand_ft ? ` + ${fx(fill.partialStand_ft, 0)} ft single` : ""})`} id="pooh-rows" /></> : <KpiErr e={fill.error} />}
     </Box>
     <Box title="Pill volume">
       <p data-kpi="pill-volume" className="text-xs italic text-muted-foreground">{PILL_PENDING}</p>
@@ -508,7 +509,7 @@ export function KpiScreen() {
   const k = useKpi();
   return (<div className="space-y-3">
     <p className="text-[11px] text-muted-foreground print:hidden">Stand length is set in 6 Trip schedule → Trip inputs.</p>
-    {k.ok ? <><KpiBody k={k} /><PoohRows fill={k.poohFill} /></> : <><Card title="KPI & volumes"><KpiErr e={k.error} /><p className="mt-2 text-xs text-muted-foreground">No KPI numbers until this input is fixed.</p></Card>
+    {k.ok ? <><KpiBody k={k} />{k.poohFill.ok && <PoohRows fill={k.poohFill} />}</> : <><Card title="KPI & volumes"><KpiErr e={k.error} /><p className="mt-2 text-xs text-muted-foreground">No KPI numbers until this input is fixed.</p></Card>
       <Card title="Pill volume"><p data-kpi="pill-volume" className="text-xs italic text-muted-foreground">{PILL_PENDING}</p></Card></>}
   </div>);
 }
@@ -517,7 +518,7 @@ function KpiPrint() {
   const k = useKpi();
   return (<section className="kpi-print mb-3">
     <h3 className="mb-1 font-semibold">KPI &amp; volumes{k.ok ? "" : " · not available"}</h3>
-    {k.ok ? <><KpiBody k={k} print /><h4 className="kpi-print-h mt-2 text-xs font-semibold">POOH fill · {fx(k.poohFill.standLength_ft, 0)} ft stands</h4><PoohRows fill={k.poohFill} print /></> : <KpiErr e={k.error} />}
+    {k.ok ? <><KpiBody k={k} print />{k.poohFill.ok && <><h4 className="kpi-print-h mt-2 text-xs font-semibold">POOH fill · {fx(k.poohFill.standLength_ft, 0)} ft stands</h4><PoohRows fill={k.poohFill} print /></>}</> : <KpiErr e={k.error} />}
   </section>);
 }
 
