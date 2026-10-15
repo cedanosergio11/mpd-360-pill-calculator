@@ -50,11 +50,14 @@ export function resetToPreset(job: Job): Job {
 }
 
 /**
- * Screen header and print title. An example is `EXAMPLE B/C/D`.
- * Anything else, including a legacy save, is `Modified, not an EXAMPLE`.
+ * Screen header and print title. An unmodified B, C, or D preset is `EXAMPLE B`,
+ * `EXAMPLE C`, or `EXAMPLE D` from `meta.presetId`.
+ * Anything else, including a legacy save and the app default, is `Modified, not an EXAMPLE`.
  */
 export function jobLabel(job: Job): string {
-  return job.meta?.isExample === true ? "EXAMPLE B/C/D" : "Modified, not an EXAMPLE";
+  const id = job.meta?.isExample === true ? job.meta.presetId : null;
+  if (id === "B" || id === "C" || id === "D") return `EXAMPLE ${id}`;
+  return "Modified, not an EXAMPLE";
 }
 
 /**

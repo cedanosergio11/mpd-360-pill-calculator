@@ -5,20 +5,20 @@ import { inputHash } from "./hash";
 import { appDefaultJob, jobLabel, loadPreset, markEdited, resetToPreset } from "./preset";
 
 describe("jobLabel", () => {
-  it("returns EXAMPLE B/C/D when the job is an example", () => {
-    for (const id of ["B", "C"] as const) {
-      expect(jobLabel(loadPreset(id))).toBe("EXAMPLE B/C/D");
-    }
+  it("returns the preset letter when the job is an example", () => {
+    expect(jobLabel(loadPreset("B"))).toBe("EXAMPLE B");
+    expect(jobLabel(loadPreset("C"))).toBe("EXAMPLE C");
   });
 
   // re-enable when #6 (tapered strings) lands
-  it.skip("returns EXAMPLE B/C/D for EXAMPLE D", () => {
-    expect(jobLabel(loadPreset("D"))).toBe("EXAMPLE B/C/D");
+  it.skip("returns EXAMPLE D for EXAMPLE D", () => {
+    expect(jobLabel(loadPreset("D"))).toBe("EXAMPLE D");
   });
 
   it("returns Modified, not an EXAMPLE when the job is not an example", () => {
     expect(jobLabel(markEdited(loadPreset("B")))).toBe("Modified, not an EXAMPLE");
     expect(jobLabel(exampleC)).toBe("Modified, not an EXAMPLE");
+    expect(jobLabel(appDefaultJob())).toBe("Modified, not an EXAMPLE");
   });
 });
 

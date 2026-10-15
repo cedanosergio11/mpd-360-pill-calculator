@@ -449,7 +449,7 @@ An older save with no `meta` loads as `{ presetId: null, isExample: false, modif
 
 `markEdited(job)` is pure. It sets `isExample` to false and `modified` to true and keeps `presetId`. Every input edit uses it, including `applyPaste` and the store's field setter.
 
-`jobLabel(job)` is pure. The screen header and the print title both use it. When `meta.isExample` is true it returns `EXAMPLE B/C/D`. Otherwise, including a legacy save, it returns `Modified, not an EXAMPLE`.
+`jobLabel(job)` is pure. The screen header and the print title both use it. When `meta.isExample` is true and `meta.presetId` is B, C, or D, it returns `EXAMPLE B`, `EXAMPLE C`, or `EXAMPLE D`. Otherwise, including a legacy save and the app default (`presetId` null), it returns `Modified, not an EXAMPLE`.
 
 ### Planned paste apply test
 
