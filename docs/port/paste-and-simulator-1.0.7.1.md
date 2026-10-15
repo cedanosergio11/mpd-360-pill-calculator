@@ -442,9 +442,11 @@ export interface JobMeta {
 
 `Job.meta` is saved and loaded with the job. It is optional on the preset constants and absent until `loadPreset`. `inputHash` still excludes it.
 
-An older save with no `meta` loads as `{ presetId: null, isExample: false, modified: true }`. That save is not an EXAMPLE.
+An older save with no `meta` loads as `{ presetId: null, isExample: false, modified: true }` when the string is a single section. That save is not an EXAMPLE.
 
 `loadPreset(id)` returns the B or C job with `{ presetId: id, isExample: true, modified: false }`. It does not mutate the preset constant. `AVAILABLE_PRESETS` is `["B", "C"]`. D returns with #6 (tapered strings); `loadPreset("D")` throws until then.
+
+`restoreSaved(input)` is the saved-job and legacy-job path, including the call to `metaFromSaved`. It never throws. Invalid input returns null. A single string returns `{ ok: true, job, baselineHash }`. `metaFromSaved` runs only on that returned copy. A saved string with more than one section, a crossover depth, or an OD/ID change returns `{ ok: false, code: "TAPERED_STRING_UNSUPPORTED", saved }`. `saved` is the original object, deep-equal to the input, and is not rewritten as one section. The code is the exported `TAPERED_STRING_UNSUPPORTED`. Restore does not write storage. EXAMPLE B and EXAMPLE C restore normally. `canSimulate` and `simulate` on that saved object still return `SIM_REQUIRES_TAPERED`.
 
 `resetToPreset(job)` returns that preset when `meta.presetId` is B, C, or D. When `presetId` is null, or `meta` is absent, it returns the app default (EXAMPLE Well A) with `{ presetId: null, isExample: true, modified: false }`.
 

@@ -79,6 +79,7 @@ export type {
   SimulateOptions,
   SimulateResult,
   SimulateStep,
+  RestoreSavedResult,
 } from "@/lib/core";
 export type { TripEmw, TripPointKey, SpeedEmw } from "@/lib/core";
 export {
@@ -106,12 +107,14 @@ export {
   MAX_STEPS,
   AVAILABLE_PRESETS,
   LEGACY_JOB_META,
+  TAPERED_STRING_UNSUPPORTED,
   appDefaultJob,
   jobLabel,
   loadPreset,
   markEdited,
   metaFromSaved,
   resetToPreset,
+  restoreSaved,
 } from "@/lib/core";
 /** True once the core schema grows `pipeColumn` (fluid intervals inside the string). In core since e232618. */
 export const HAS_PIPE_COLUMN = true as const;

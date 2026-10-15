@@ -71,12 +71,15 @@ export {
 export {
   AVAILABLE_PRESETS,
   LEGACY_JOB_META,
+  TAPERED_STRING_UNSUPPORTED,
   appDefaultJob,
   jobLabel,
   loadPreset,
   markEdited,
   metaFromSaved,
   resetToPreset,
+  restoreSaved,
+  type RestoreSavedResult,
 } from "./preset";
 export {
   applyPaste,

@@ -161,8 +161,14 @@ interface StringGeometry {
  * The decision is the drill string, not `meta.presetId`. More than one section,
  * a crossover depth, or an OD/ID change along the string is #6.
  */
+/** True when `well` has more than one section, a crossover depth, or an OD/ID change. Never throws. */
+export function drillStringNeedsTaper(well: unknown): boolean {
+  if (well == null || typeof well !== "object") return false;
+  return taperReason(well as Job["well"] & StringGeometry) != null;
+}
+
 export function canSimulate(job: Job): { ok: boolean; reason?: string } {
-  const reason = taperReason(job.well as Job["well"] & StringGeometry);
+  const reason = drillStringNeedsTaper(job.well) ? taperReason(job.well as Job["well"] & StringGeometry) : null;
   return reason == null ? { ok: true } : { ok: false, reason };
 }
 

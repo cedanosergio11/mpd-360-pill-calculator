@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { exampleB, exampleC } from "@/lib/example-b";
-import { parseSaved, toSaved } from "@/lib/store";
 import { columnDisplacedByPipe, pillPlacement } from "./column";
 import { emwProfile, type EmwLines, type EmwProfileResult } from "./emw-profile";
 import type { Job } from "./job.schema";
@@ -179,15 +178,11 @@ function expectTaperRefusal(job: Job) {
 }
 
 describe("canSimulate", () => {
-  it("refuses a loaded EXAMPLE D", () => {
+  it("refuses EXAMPLE D geometry", () => {
     const job = exampleDJob();
     job.meta = { presetId: "D", isExample: true, modified: false };
-    const loaded = parseSaved(JSON.stringify(toSaved(job, null)));
-    expect(loaded).not.toBeNull();
-    expect(loaded!.job.meta).toEqual({ presetId: "D", isExample: true, modified: false });
-    const sections = (loaded!.job.well as { stringSections?: unknown[] }).stringSections;
-    expect(sections).toHaveLength(2);
-    expectTaperRefusal(loaded!.job);
+    expect((job.well as { stringSections?: unknown[] }).stringSections).toHaveLength(2);
+    expectTaperRefusal(job);
   });
 
   it("refuses EXAMPLE D after markEdited", () => {

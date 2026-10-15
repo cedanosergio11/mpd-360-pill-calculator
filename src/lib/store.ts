@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Issue, Job, Result } from "@/contract";
-import { calculate, inputHash, markEdited, metaFromSaved, resetToPreset } from "@/contract";
+import { calculate, inputHash, markEdited, resetToPreset, restoreSaved, type RestoreSavedResult } from "@/contract";
 import { exampleJob } from "@/lib/example-job";
 import { setPath } from "@/lib/paths";
 
@@ -11,17 +11,9 @@ export type SavedJob = Job & { presetBaseline?: string };
 export function toSaved(job: Job, baselineHash: string | null): SavedJob {
   return baselineHash ? { ...job, presetBaseline: baselineHash } : { ...job };
 }
-/** Parses a saved job. Old saves without `presetBaseline` load with no baseline (no "(edited)" marker). */
-export function parseSaved(raw: string | null): { job: Job; baselineHash: string | null } | null {
-  if (!raw) return null;
-  try {
-    const j = JSON.parse(raw) as SavedJob;
-    if (j?.schemaVersion !== 1) return null;
-    const { presetBaseline, ...rest } = j;
-    const job = { ...rest, pipeColumn: rest.pipeColumn ?? [] } as Job;
-    job.meta = metaFromSaved(rest.meta);
-    return { job, baselineHash: typeof presetBaseline === "string" && presetBaseline ? presetBaseline : null };
-  } catch { return null; }
+/** Parses a saved job. Old saves without `presetBaseline` load with no baseline (no "(edited)" marker). A tapered string is not rewritten. */
+export function parseSaved(raw: string | null): RestoreSavedResult | null {
+  return restoreSaved(raw);
 }
 
 type State = {
@@ -37,9 +29,14 @@ type State = {
 export const useStore = create<State>((set, get) => ({
   job: exampleJob, result: null, calcJob: null, baselineHash: null, saved: false, loaded: false,
   load: () => {
-    let job = exampleJob; let baselineHash: string | null = null;
-    try { const p = parseSaved(localStorage.getItem(KEY)); if (p) { job = p.job; baselineHash = p.baselineHash; } } catch { /* ignore */ }
-    set({ job, baselineHash, saved: !!localStorage.getItem(KEY), loaded: true, result: calculate(job), calcJob: job });
+    let job = exampleJob; let baselineHash: string | null = null; let hasRaw = false;
+    try {
+      const raw = localStorage.getItem(KEY);
+      hasRaw = !!raw;
+      const restored = restoreSaved(raw);
+      if (restored?.ok) { job = restored.job; baselineHash = restored.baselineHash; }
+    } catch { /* ignore */ }
+    set({ job, baselineHash, saved: hasRaw, loaded: true, result: calculate(job), calcJob: job });
   },
   set: (path, v) => set({ job: markEdited(setPath(get().job, path, v)), saved: false }),
   replace: (j) => { const { presetBaseline: _pb, ...rest } = j as SavedJob; const job = { ...rest, pipeColumn: rest.pipeColumn ?? [] } as Job; set({ job, saved: false, result: calculate(job), calcJob: job, baselineHash: inputHash(job) }); },

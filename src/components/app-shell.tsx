@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Drawer } from "vaul";
-import { jobLabel, loadPreset, metaFromSaved, type Job, type PresetId } from "@/contract";
+import { jobLabel, loadPreset, restoreSaved, type PresetId } from "@/contract";
 import { DisplacementScreen, ExportScreen, FitBanner, FluidsScreen, KpiScreen, StrokesScreen, TripScreen, WellScreen } from "@/components/screens";
 import { EmwScreen } from "@/components/emw";
 import { seeds } from "@/lib/seeds";
@@ -47,8 +47,12 @@ export function AppShell() {
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `${job.name.replace(/\W+/g, "_")}.pillview.json`; a.click();
   };
   const importJson = async (f: File) => {
-    try { const j = JSON.parse(await f.text()) as Job; if (j.schemaVersion !== 1) throw new Error("schemaVersion must be 1"); replace({ ...j, meta: metaFromSaved(j.meta) }); }
-    catch (e) { alert(`Import failed: ${(e as Error).message}`); }
+    try {
+      const restored = restoreSaved(await f.text());
+      if (!restored) throw new Error("schemaVersion must be 1");
+      if (!restored.ok) throw new Error("A tapered string cannot be restored on this branch.");
+      replace(restored.job);
+    } catch (e) { alert(`Import failed: ${(e as Error).message}`); }
   };
   if (!loaded) return <main className="p-4 text-sm text-muted-foreground">Loading…</main>;
 
