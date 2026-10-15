@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { EmwError, EmwLineName, EmwPillState, EmwPoint, EmwProfileResult, EmwStation } from "@/contract";
+import type { EmwNote, EmwError, EmwLineName, EmwPillState, EmwPoint, EmwProfileResult, EmwStation } from "@/contract";
 import { emwProfile } from "@/contract";
 import { Card } from "@/components/fields";
 import { useStore } from "@/lib/store";
@@ -7,8 +7,7 @@ import { useStore } from "@/lib/store";
 /* ---------- EMW profile: display only. Every number comes from emwProfile(calcJob).
    The only arithmetic here is mapping contract values to SVG pixels (axis scaling). ---------- */
 
-type EmwNote = { code: string; field: string; message: string };
-type Ok = Extract<EmwProfileResult, { ok: true }> & { notes?: EmwNote[] };
+type Ok = Extract<EmwProfileResult, { ok: true }>;
 
 function useEmw(): EmwProfileResult | null {
   const job = useStore((s) => s.calcJob);
@@ -20,19 +19,18 @@ const LINES: { k: EmwLineName; label: string; color: string }[] = [
   { k: "staticSbp", label: "Static + SBP", color: "var(--color-pill)" },
   { k: "ecd", label: "ECD", color: "var(--color-kmw)" },
 ];
-const STATE_LABEL: Record<EmwPillState, string> = { inPlace: "In place", spotted: "Spotted" };
+const STATE_FALLBACK: Record<EmwPillState, string> = { inPlace: "In place", spotted: "Spotted (definition pending)" };
+/** Pill-state name from the contract (`inPlace.label` / `spotted.label`, optional) or the placeholder. */
+const stateLabel = (p: Ok | null, s: EmwPillState): string => {
+  const l = (p?.[s] as { label?: unknown } | undefined)?.label;
+  return typeof l === "string" && l.trim() ? l : STATE_FALLBACK[s];
+};
 const STATION_LABEL = { shoe: "Shoe", anchor: "Anchor", bit: "Bit" } as const;
 type View = "inPlace" | "spotted" | "both";
 const f = (v: number | null | undefined, d: number) => (v == null || !Number.isFinite(v) ? "—" : v.toFixed(d));
 
 const EmwErr = ({ e }: { e: EmwError }) => (
   <p data-emw-error={e.code} role="alert" className="text-xs text-danger">✖ {e.message} <span className="font-mono opacity-70">[{e.code} · {e.field}]</span></p>);
-
-/** Notes from the contract; until `notes` ships, the pore note is shown from `limits.pore_ppg === null` (no calculation). */
-function notesOf(p: Ok): EmwNote[] {
-  if (p.notes) return p.notes;
-  return p.limits.pore_ppg == null ? [{ code: "NO_PORE", field: "well.porePressure_ppg", message: "Pore line not shown: no pore value entered." }] : [];
-}
 
 /** Station labels for the chart: anchor + bit at the same TVD merge to one label (chart only). */
 function chartStations(st: EmwStation[]): { label: string; tvd_ft: number }[] {
@@ -61,6 +59,15 @@ function Chart({ p, view, print }: { p: Ok; view: View; print?: boolean }) {
   const clipId = `emw-clip-${print ? "p" : "s"}`;
   const yt: number[] = []; for (let v = 0; v <= yTop; v += 1000) yt.push(v);
   const path = (pts: EmwPoint[]) => pts.map((q, i) => `${i ? "L" : "M"}${X(q.emw_ppg).toFixed(1)},${Y(q.tvd_ft).toFixed(1)}`).join("");
+  /* Clip markers: where a line leaves the x window, mark the chart edge at that point's TVD (contract points only, no interpolation). */
+  const clips: { key: string; side: "left" | "right"; tvd_ft: number; color: string; label: string }[] = [];
+  for (const s of states) for (const l of LINES) {
+    const pts = p[s].lines[l.k];
+    const out = (q: EmwPoint) => q.emw_ppg > xMax ? "right" : q.emw_ppg < xMin ? "left" : null;
+    pts.forEach((q, i) => { const side = out(q); if (!side) return;
+      const nb = [pts[i - 1], pts[i + 1]].some((n) => n && !out(n));
+      if (nb || (i === 0 && pts.every(out))) clips.push({ key: `${s}.${l.k}.${i}`, side, tvd_ft: q.tvd_ft, color: l.color, label: `${l.label} · ${stateLabel(p, s)}` }); });
+  }
   const crossings = p.crossings.filter((c) => states.includes(c.pillState));
   return (
     <svg data-testid="emw-chart" viewBox={`0 0 ${W} ${H}`} className={`mx-auto w-full max-w-[760px]`} role="img" aria-label="EMW versus TVD">
@@ -74,27 +81,32 @@ function Chart({ p, view, print }: { p: Ok; view: View; print?: boolean }) {
         <text x={X(p.limits.pore_ppg) - 4} y={T - 8} textAnchor="end" fontSize="13" fill="var(--color-warn)">Pore {f(p.limits.pore_ppg, 2)}</text></>}
       <defs><clipPath id={clipId}><rect x={L} y={T} width={W - L - R} height={H - T - B} /></clipPath></defs>
       {states.map((s) => LINES.map((l) => <path clipPath={`url(#${clipId})`} key={s + l.k} data-emw-line={`${s}.${l.k}`} d={path(p[s].lines[l.k])} fill="none" stroke={l.color} strokeWidth="2" strokeDasharray={s === "spotted" && view === "both" ? "6 4" : undefined} />))}
+      {clips.map((c) => { const x = c.side === "right" ? W - R : L; const d = c.side === "right" ? -1 : 1; const y = Y(c.tvd_ft);
+        return <g key={c.key} data-emw-clip={c.key}><title>{`${c.label} clipped beyond ${c.side === "right" ? f(xMax, 1) : f(xMin, 1)} ppg at ${c.tvd_ft.toLocaleString("en-US")} ft TVD`}</title>
+          <path d={`M${x + d * 10},${y - 6}L${x},${y}L${x + d * 10},${y + 6}`} fill="none" stroke={c.color} strokeWidth="2.5" />
+          <text x={x + d * 13} y={y + 4} textAnchor={c.side === "right" ? "end" : "start"} fontSize="11" fill={c.color}>clipped</text></g>; })}
       {chartStations(p.stations).map((s) => <g key={s.label} data-emw-station={s.label}><line x1={L} x2={W - R} y1={Y(s.tvd_ft)} y2={Y(s.tvd_ft)} stroke="var(--color-foreground)" strokeOpacity="0.35" strokeDasharray="3 3" />
         <text x={W - R - 4} y={Y(s.tvd_ft) - 4} textAnchor="end" fontSize="13" fill="var(--color-foreground)">{s.label} · {s.tvd_ft.toLocaleString("en-US")} ft</text></g>)}
       {crossings.map((c, i) => <g key={i} data-emw-crossing={i}><circle cx={X(c.limit === "fit" ? p.limits.fit_ppg : p.limits.pore_ppg ?? 0)} cy={Y(c.tvd_ft)} r="5" fill="none" stroke="var(--color-danger)" strokeWidth="2" />
         <text x={X(c.limit === "fit" ? p.limits.fit_ppg : p.limits.pore_ppg ?? 0) + 7} y={Y(c.tvd_ft) + 3} fontSize="13" fontWeight="700" fill="var(--color-danger)">{i + 1}</text></g>)}
-      {notesOf(p).map((n, i) => <text key={n.code} data-emw-note={n.code} x={L + 6} y={H - B - 8 - i * 14} fontSize="13" fontStyle="italic" fill="var(--color-muted-foreground)">{n.message}</text>)}
+      {p.notes.map((n, i) => <text key={n.code} data-emw-note={n.code} x={L + 6} y={H - B - 8 - i * 14} fontSize="13" fontStyle="italic" fill="var(--color-muted-foreground)">{n.message}</text>)}
     </svg>);
 }
 
-function Legend({ view }: { view: View }) {
+function Legend({ p, view }: { p: Ok; view: View }) {
   return (<div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
     {LINES.map((l) => <span key={l.k} className="inline-flex items-center gap-1"><svg width="22" height="6"><line x1="0" x2="22" y1="3" y2="3" stroke={l.color} strokeWidth="2" /></svg>{l.label}</span>)}
-    {view === "both" && <span className="inline-flex items-center gap-1"><svg width="22" height="6"><line x1="0" x2="22" y1="3" y2="3" stroke="currentColor" strokeWidth="2" strokeDasharray="6 4" /></svg>Spotted (dashed)</span>}
+    {view === "both" && <span className="inline-flex items-center gap-1"><svg width="22" height="6"><line x1="0" x2="22" y1="3" y2="3" stroke="currentColor" strokeWidth="2" strokeDasharray="6 4" /></svg>{stateLabel(p, "spotted")}, dashed</span>}
     <span className="inline-flex items-center gap-1 text-danger"><svg width="22" height="6"><line x1="11" x2="11" y1="0" y2="6" stroke="currentColor" strokeWidth="2" /></svg>FIT</span>
     <span className="inline-flex items-center gap-1 text-danger">○ crossing</span>
+    <span className="inline-flex items-center gap-1 text-muted-foreground">› clipped: line runs past the axis window</span>
   </div>);
 }
 
 function Crossings({ p }: { p: Ok }) {
   if (!p.crossings.length) return <p data-testid="emw-crossings" className="text-xs text-muted-foreground">No line crosses the FIT or pore limit.</p>;
   return (<ol data-testid="emw-crossings" className="list-decimal space-y-0.5 pl-5 text-xs">{p.crossings.map((c, i) => (
-    <li key={i} data-emw-crossing-row={i} className="text-danger">{LINES.find((l) => l.k === c.line)?.label} ({STATE_LABEL[c.pillState]}) crosses {c.limit === "fit" ? "FIT" : "pore"} at <span className="font-mono">{c.tvd_ft.toLocaleString("en-US")} ft TVD</span></li>))}</ol>);
+    <li key={i} data-emw-crossing-row={i} className="text-danger">{LINES.find((l) => l.k === c.line)?.label} · {stateLabel(p, c.pillState)} crosses {c.limit === "fit" ? "FIT" : "pore"} at <span className="font-mono">{c.tvd_ft.toLocaleString("en-US")} ft TVD</span></li>))}</ol>);
 }
 
 function StationTable({ p }: { p: Ok }) {
@@ -102,7 +114,7 @@ function StationTable({ p }: { p: Ok }) {
   return (<div className="overflow-x-auto"><table data-testid="emw-stations" className="procedure-table w-full min-w-[560px] text-right font-mono text-xs">
     <thead className="text-muted-foreground">
       <tr><th className="px-2 text-left font-normal" rowSpan={2}>Station</th><th className="px-2 font-normal" rowSpan={2}>MD (ft)</th><th className="px-2 font-normal" rowSpan={2}>TVD (ft)</th>
-        <th className="border-b px-2 text-center font-normal" colSpan={3}>In place (ppg)</th><th className="border-b px-2 text-center font-normal" colSpan={3}>Spotted (ppg)</th></tr>
+        <th className="border-b px-2 text-center font-normal" colSpan={3}>{stateLabel(p, "inPlace")} (ppg)</th><th className="border-b px-2 text-center font-normal" colSpan={3}>{stateLabel(p, "spotted")} (ppg)</th></tr>
       <tr>{cols.map(([s, k]) => <th key={s + k} className="border-b px-2 font-normal">{LINES.find((l) => l.k === k)?.label}</th>)}</tr>
     </thead>
     <tbody>{p.stations.map((st) => (
@@ -112,21 +124,21 @@ function StationTable({ p }: { p: Ok }) {
   </table></div>);
 }
 
-function ViewToggle({ view, setView }: { view: View; setView: (v: View) => void }) {
+function ViewToggle({ p, view, setView }: { p: Ok; view: View; setView: (v: View) => void }) {
   return (<div className="flex gap-1 print:hidden">{(["inPlace", "spotted", "both"] as const).map((v) => (
-    <button key={v} data-emw-view={v} onClick={() => setView(v)} className={`rounded-md border px-2 py-1 text-xs ${view === v ? "border-primary bg-primary/20" : ""}`}>{v === "both" ? "Both" : STATE_LABEL[v]}</button>))}</div>);
+    <button key={v} data-emw-view={v} onClick={() => setView(v)} className={`rounded-md border px-2 py-1 text-xs ${view === v ? "border-primary bg-primary/20" : ""}`}>{v === "both" ? "Both" : stateLabel(p, v)}</button>))}</div>);
 }
 
 export function EmwScreen() {
   const r = useEmw();
   const [view, setView] = useState<View>("both");
   if (!r) return null;
-  if (!r.ok) return <Card title="EMW profile"><EmwErr e={r.error} /><p className="mt-2 text-xs text-muted-foreground">No profile until this input is fixed, then Calculate.</p></Card>;
+  if (!r.ok) return <Card title="EMW profile"><EmwErr e={r.error} />{r.notes.map((n) => <p key={n.code} data-emw-note={n.code} className="text-xs italic text-muted-foreground">{n.message}</p>)}<p className="mt-2 text-xs text-muted-foreground">No profile until this input is fixed, then Calculate.</p></Card>;
   const p = r as Ok;
   return (<div className="space-y-3">
-    <Card title="EMW vs TVD" right={<ViewToggle view={view} setView={setView} />}>
+    <Card title="EMW vs TVD" right={<ViewToggle p={p} view={view} setView={setView} />}>
       <div className="overflow-x-auto"><Chart p={p} view={view} /></div>
-      <Legend view={view} />
+      <Legend p={p} view={view} />
     </Card>
     <Card title="Limit crossings"><Crossings p={p} /></Card>
     <Card title="Stations"><StationTable p={p} /></Card>
@@ -137,8 +149,8 @@ export function EmwPrint() {
   const r = useEmw();
   if (!r) return null;
   return (<section className="emw-print kpi-print mb-3">
-    <h3 className="mb-1 font-semibold">EMW profile{r.ok ? " · in place solid, spotted dashed" : " · not available"}</h3>
-    {r.ok ? <><div className="print-avoid"><Chart p={r as Ok} view="both" print /><Legend view="both" /></div>
+    <h3 className="mb-1 font-semibold">EMW profile{r.ok ? ` · ${stateLabel(r as Ok, "inPlace")} solid, ${stateLabel(r as Ok, "spotted")} dashed` : " · not available"}</h3>
+    {r.ok ? <><div className="print-avoid"><Chart p={r as Ok} view="both" print /><Legend p={r as Ok} view="both" /></div>
       <h4 className="kpi-print-h mt-2 text-xs font-semibold">Limit crossings</h4><Crossings p={r as Ok} />
       <h4 className="kpi-print-h mt-2 text-xs font-semibold">Stations</h4><StationTable p={r as Ok} /></> : <EmwErr e={r.error} />}
   </section>);
