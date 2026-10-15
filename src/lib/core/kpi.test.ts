@@ -493,16 +493,30 @@ describe("KPI pill volume", () => {
       expect(result.ok).toBe(true);
       if (!result.ok) return;
       expect(result.pillVolumeBreakdown).toEqual({
-        stringCapacity_bbl: result.stringCapOverPillInterval_bbl,
+        stringCapOverPillInterval_bbl: result.stringCapOverPillInterval_bbl,
         chase_bbl: result.chase.chase_bbl,
       });
       expect(result.pillVolume_bbl).toBe(
-        result.pillVolumeBreakdown.stringCapacity_bbl + result.pillVolumeBreakdown.chase_bbl,
+        result.stringCapOverPillInterval_bbl + result.chase.chase_bbl,
       );
-      expect(result.pillVolumeBreakdown.stringCapacity_bbl).toBeCloseTo(53.669, 3);
+      expect(result.pillVolumeBreakdown.stringCapOverPillInterval_bbl).toBeCloseTo(53.669, 3);
       expect(result.pillVolumeBreakdown.chase_bbl).toBeCloseTo(232.418, 3);
       expect(result.pillVolume_bbl).toBeCloseTo(286.087, 3);
     }
+  });
+
+  it("does not double-count the full string capacity on EXAMPLE C", () => {
+    const result = kpiVolumes(exampleC, { surfaceLine_bbl: 0 });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const doubled = result.chase.stringCapacity_bbl + result.chase.chase_bbl;
+    expect(doubled).toBeCloseTo(464.836, 3);
+    expect(result.pillVolumeBreakdown.stringCapOverPillInterval_bbl).not.toBeCloseTo(
+      result.chase.stringCapacity_bbl,
+      0,
+    );
+    expect(result.pillVolume_bbl).toBeCloseTo(286.087, 3);
+    expect(result.pillVolume_bbl).not.toBeCloseTo(doubled, 0);
   });
 });
 

@@ -189,11 +189,14 @@ export interface KpiVolumesInput {
   plannedSbp_psi?: number | null;
 }
 
-/** String capacity over the pill interval, plus chase. Both are existing KPI values. */
+/**
+ * Pill volume parts. The string term is capacity over the pill length only,
+ * not the surface-to-bit string capacity.
+ */
 export interface PillVolumeBreakdown {
-  /** `stringCapOverPillInterval_bbl`. Not the surface-to-bit string capacity. */
-  stringCapacity_bbl: number;
-  /** `chase.chase_bbl`. */
+  /** String-ID capacity × pill length. Same value as `stringCapOverPillInterval_bbl`. */
+  stringCapOverPillInterval_bbl: number;
+  /** Existing chase volume, `chase.chase_bbl`. */
   chase_bbl: number;
 }
 
@@ -214,7 +217,7 @@ export type KpiVolumesResult =
       pillAnnularVolume_bbl: number;
       /** String capacity over the same pill MD interval. Not added to the annular volume. */
       stringCapOverPillInterval_bbl: number;
-      /** `pillVolumeBreakdown.stringCapacity_bbl + pillVolumeBreakdown.chase_bbl`. */
+      /** `stringCapOverPillInterval_bbl + chase.chase_bbl`. */
       pillVolume_bbl: number;
       pillVolumeBreakdown: PillVolumeBreakdown;
     }
@@ -668,7 +671,8 @@ function activeMud(
  * MASP, KMW, chase, KMW left in the string, annular backfill, and POOH fill.
  * The annular pill volume and the string capacity over that same interval are returned
  * separately and are never added together.
- * Pill volume is that string capacity plus chase. It is their sum, not a third formula.
+ * Pill volume is string capacity over the pill interval plus chase.
+ * It is that sum, not the surface-to-bit string capacity added again.
  * A missing FIT, shoe TVD, or anchor TVD stops the result. Anchor TVD is never taken from the survey.
  * A blank or non-positive stand length does not: the other fields are returned and `poohFill` carries STAND_LENGTH.
  */
@@ -702,7 +706,7 @@ export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesRes
   if (!checks.ok) return checks;
   const chaseValue = stripOk(chase);
   const pillVolumeBreakdown: PillVolumeBreakdown = {
-    stringCapacity_bbl: checks.stringCapOverPillInterval_bbl,
+    stringCapOverPillInterval_bbl: checks.stringCapOverPillInterval_bbl,
     chase_bbl: chaseValue.chase_bbl,
   };
   return {
@@ -716,7 +720,8 @@ export function kpiVolumes(job: Job, input: KpiVolumesInput = {}): KpiVolumesRes
     pillAnnularVolume_bbl: checks.pillAnnularVolume_bbl,
     stringCapOverPillInterval_bbl: checks.stringCapOverPillInterval_bbl,
     pillVolumeBreakdown,
-    pillVolume_bbl: pillVolumeBreakdown.stringCapacity_bbl + pillVolumeBreakdown.chase_bbl,
+    pillVolume_bbl:
+      pillVolumeBreakdown.stringCapOverPillInterval_bbl + pillVolumeBreakdown.chase_bbl,
   };
 }
 
