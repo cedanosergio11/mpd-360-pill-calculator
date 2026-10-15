@@ -48,6 +48,20 @@ describe("previewPaste", () => {
     expect(applyPaste(EXAMPLE_8_5, preview).anchorTvd).toBe(11111);
   });
 
+  it("blocks a paste that ends past the last survey station", () => {
+    const preview = previewPaste(
+      EXAMPLE_8_5,
+      ["Well name\tEXAMPLE", "Current MW\t12.4", "Spot depth MD\t16000\tft"].join("\n"),
+    );
+    expect(preview.canApply).toBe(false);
+    expect(preview.errors.map((error) => error.code)).toContain("MD_BEYOND_SURVEY");
+    const beyond = preview.errors.find((error) => error.code === "MD_BEYOND_SURVEY");
+    expect(beyond?.fields).toEqual([
+      { label: "Spot depth MD", value: 16000, limit: 13900, limitLabel: "last survey station" },
+    ]);
+    expect(() => applyPaste(EXAMPLE_8_5, preview)).toThrow(/blocked/);
+  });
+
   it("blocks an MD past the last survey station", () => {
     const preview = previewPaste(EXAMPLE_8_5, "Anchor point MD\t20000\tft");
     expect(preview.canApply).toBe(false);

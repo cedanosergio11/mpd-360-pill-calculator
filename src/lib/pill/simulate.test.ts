@@ -45,6 +45,19 @@ describe("simulate", () => {
     expect(JSON.stringify(run)).not.toMatch(/pillTop/);
   });
 
+  it("refuses a calculated depthBlock before any model", () => {
+    const inputs = { ...EXAMPLE_8_5, spotMd: 18000 };
+    const results = calculate(inputs);
+    expect(results.depthBlock).not.toBeNull();
+    const run = simulate(inputs, results, [15400]);
+    expect(run.ok).toBe(false);
+    if (run.ok) return;
+    expect(run.code).toBe("DEPTH_BEYOND_TD");
+    expect(run.fields.length).toBeGreaterThan(0);
+    expect(run).not.toHaveProperty("steps");
+    expect(run).not.toHaveProperty("models");
+  });
+
   it("refuses while a depth block is active, before any model", () => {
     const results = calculate(EXAMPLE_8_5);
     const blocked = {

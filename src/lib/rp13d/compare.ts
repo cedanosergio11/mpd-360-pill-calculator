@@ -1,21 +1,31 @@
 import type { DepthKey, EcdPoint } from "./engine";
 
 /**
- * Sheet circulating ECD at a depth is `currentMw + initialAplAnchor / (0.052 * TVD)`.
- * At the anchor that is the SafeVision no-slug ECD the sheet already stored as APL.
- * At the shoe it is the same APL spread over the shoe TVD. The bit has no sheet ECD.
- * When MW, APL, or TVD cannot produce that number, the row falls back to static ESD.
+ * Annular friction is taken from surface down to the point, then
+ * ECD = currentMw + frictionPsi / (0.052 * TVD).
+ *
+ * At the anchor the sheet's friction is `initialAplAnchor`
+ * (SafeVision no-slug turned into psi). At the shoe the sheet has no
+ * friction from surface to the shoe — `initialAplAnchor` is not scaled
+ * onto the shoe TVD. The shoe then uses the static ESD. The bit has no
+ * sheet ECD and stays empty.
  */
 export type SheetBasis = "esd" | "ecd";
 
 export interface SheetEcd {
-  /** Static ESD fallbacks. */
+  /** Static ESD fallbacks. The bit value is not used. */
   anchor?: number | null;
   shoe?: number | null;
   bit?: number | null;
   currentMw?: number | null;
+  /** Annular friction from surface to the anchor, psi. */
   initialAplAnchor?: number | null;
   anchorTvd?: number | null;
+  /**
+   * Annular friction from surface to the shoe, psi.
+   * Omit it when the sheet has no such number. Do not pass the anchor APL here.
+   */
+  shoeFrictionPsi?: number | null;
   shoeTvd?: number | null;
 }
 
@@ -28,7 +38,7 @@ export interface EcdComparison {
    * RP 13D ECD minus the sheet value, ppg. Null when either side is missing.
    * With `sheetBasis: "esd"` this is RP 13D ECD minus sheet ESD.
    * With `sheetBasis: "ecd"` this is RP 13D ECD minus the sheet circulating ECD
-   * (`currentMw + initialAplAnchor / (0.052 * TVD)`).
+   * (`currentMw + friction to that point / (0.052 * TVD)`).
    */
   difference: number | null;
   sheetBasis: SheetBasis;
@@ -46,24 +56,35 @@ function finite(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-/** Sheet ECD = currentMw + initialAplAnchor / (0.052 * TVD). Null when it cannot be computed. */
-export function sheetCirculatingEcd(mw: unknown, apl: unknown, tvd: unknown): number | null {
-  if (!finite(mw) || !finite(apl) || !finite(tvd) || !(tvd > 0)) return null;
-  return mw + apl / (PSI_PER_PPG_FT * tvd);
+/** currentMw + frictionPsi / (0.052 * TVD). Null when any input cannot be used. */
+export function sheetCirculatingEcd(mw: unknown, frictionPsi: unknown, tvd: unknown): number | null {
+  if (!finite(mw) || !finite(frictionPsi) || !finite(tvd) || !(tvd > 0)) return null;
+  return mw + frictionPsi / (PSI_PER_PPG_FT * tvd);
+}
+
+function fallback(value: unknown): { value: number | null; basis: SheetBasis } {
+  return { value: finite(value) ? value : null, basis: "esd" };
 }
 
 function sheetAt(depth: DepthKey, sheet: SheetEcd): { value: number | null; basis: SheetBasis } {
-  const tvd = depth === "anchor" ? sheet.anchorTvd : depth === "shoe" ? sheet.shoeTvd : null;
-  const circulating = depth === "bit" ? null : sheetCirculatingEcd(sheet.currentMw, sheet.initialAplAnchor, tvd);
+  if (depth === "bit") return { value: null, basis: "esd" };
+  if (depth === "anchor") {
+    const circulating = sheetCirculatingEcd(sheet.currentMw, sheet.initialAplAnchor, sheet.anchorTvd);
+    if (circulating != null) return { value: circulating, basis: "ecd" };
+    return fallback(sheet.anchor);
+  }
+  const circulating = sheetCirculatingEcd(sheet.currentMw, sheet.shoeFrictionPsi, sheet.shoeTvd);
   if (circulating != null) return { value: circulating, basis: "ecd" };
-  return { value: finite(sheet[depth]) ? sheet[depth] : null, basis: "esd" };
+  return fallback(sheet.shoe);
 }
 
 /**
  * RP 13D ECD beside the sheet value at the anchor, the shoe, and the bit.
  * The sheet numbers are passed in. This does not run the sheet.
- * Anchor and shoe use `currentMw + initialAplAnchor / (0.052 * TVD)` when that
- * can be computed (`sheetBasis: "ecd"`). Otherwise the static ESD (`sheetBasis: "esd"`).
+ * The anchor uses `currentMw + initialAplAnchor / (0.052 * anchorTVD)`.
+ * The shoe uses `currentMw + shoeFrictionPsi / (0.052 * shoeTVD)` only when
+ * that friction is supplied. Otherwise the shoe is the static ESD.
+ * The bit stays empty.
  */
 export function compareEcd(points: Pick<EcdPoint, "depth" | "ecd">[], sheet: SheetEcd): EcdComparison[] {
   return DEPTHS.map(({ depth, label }) => {
