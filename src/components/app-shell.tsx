@@ -75,7 +75,6 @@ export function AppShell() {
   const loadScenario = useAppStore((s) => s.loadScenario);
   const deleteScenario = useAppStore((s) => s.deleteScenario);
   const scenarios = useAppStore((s) => s.scenarios);
-
   const [drawer, setDrawer] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
@@ -130,6 +129,7 @@ export function AppShell() {
       <Toaster
         theme="dark"
         position="bottom-right"
+        className="print:hidden"
         toastOptions={{ className: "border-border bg-card text-card-foreground" }}
       />
       <div className="flex min-h-dvh flex-col bg-background text-foreground">

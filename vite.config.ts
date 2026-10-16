@@ -178,9 +178,9 @@ export default defineConfig(({ command, isPreview }) => ({
     // GitHub Pages is static — skip Grok PWA server middleware / install page.
     ...(isGitHubPages ? [] : [grokPwaPlugin()]),
     tailwindcss(),
-    // Pages: prerender the real `/` document. SPA shell mode emits an empty
-    // suspense shell and hydrateRoot then mismatches it (React #418).
-    // Nitro's github_pages preset is skipped; this writes the static files.
+    // Pages prerender used TanStack Start SPA shell mode: an empty suspense
+    // document that hydrateRoot then mismatches (React #418). Prerender the
+    // real `/` document instead. Nitro's github_pages preset stays skipped.
     tanstackStart(
       isGitHubPages
         ? {

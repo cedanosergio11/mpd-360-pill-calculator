@@ -82,6 +82,10 @@
 }
 
 @media print {
+  /* Toasts (e.g. "Loaded <preset>") never print. */
+  [data-sonner-toaster] {
+    display: none !important;
+  }
   @page {
     size: letter portrait;
     margin: 12mm 10mm 14mm;
