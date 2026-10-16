@@ -1,11 +1,4 @@
-import {
-  DEPTH_BEYOND_TD,
-  depthBeyondFields,
-  depthBlockMessage,
-  MD_BEYOND_SURVEY,
-  MD_TVD_PAIRS,
-  syncChangedMd,
-} from "./depth";
+import { DEPTH_BEYOND_TD, depthBeyondFields, depthBlockMessage } from "./depth";
 import type { DepthField, SectionType, WellInputs } from "./types";
 
 type FieldKind = "text" | "number" | "date" | "section" | "bool";
@@ -289,7 +282,7 @@ export interface PastePreviewRow {
 }
 
 export interface PastePreviewError {
-  code: "BAD_NUMBER" | typeof DEPTH_BEYOND_TD | typeof MD_BEYOND_SURVEY;
+  code: "BAD_NUMBER" | typeof DEPTH_BEYOND_TD;
   message: string;
   blocking: true;
   fields?: DepthField[];
@@ -388,18 +381,11 @@ function previewRow(
   };
 }
 
-function upsertRow(rows: PastePreviewRow[], row: PastePreviewRow) {
-  const index = rows.findIndex((item) => item.field === row.field);
-  if (index < 0) rows.push(row);
-  else rows[index] = row;
-}
-
 /**
  * Preview a sheet paste. Does not write.
  * "Current well depth" maps to `currentDepthMd` only.
- * A changed MD with no TVD in the paste is recomputed from the survey.
- * An MD past the last other station blocks, and TVD is not extrapolated.
- * A TVD pasted with its MD is kept as the survey tie.
+ * TVDs are the sheet fields in the paste. A changed MD does not recompute its TVD.
+ * An MD or TVD past TD blocks.
  */
 export function previewPaste(current: WellInputs, text: string): PastePreview {
   const { patch, matched, errors } = collectPaste(text, true);
@@ -410,32 +396,6 @@ export function previewPaste(current: WellInputs, text: string): PastePreview {
   if (errors.length) return { rows, errors, canApply: false };
 
   const projected: WellInputs = { ...current, ...patch };
-  const synced = syncChangedMd(current, projected);
-  const beyond = synced.beyond.filter((field) => {
-    const pair = MD_TVD_PAIRS.find((item) => item.mdLabel === field.label);
-    if (!pair) return true;
-    return !(pair.tvd in patch) || typeof patch[pair.tvd] !== "number";
-  });
-  for (const update of synced.updated) {
-    const pair = MD_TVD_PAIRS.find((item) => item.tvd === update.field);
-    if (pair && typeof patch[pair.tvd] === "number") continue;
-    projected[update.field] = update.tvd;
-    upsertRow(rows, previewRow(current, update.field, update.tvd));
-  }
-  if (beyond.length) {
-    errors.push({
-      code: MD_BEYOND_SURVEY,
-      message: beyond
-        .map((field) =>
-          field.limit > 0
-            ? `${field.label} is ${field.value} ft, past the last survey station at ${field.limit} ft. TVD was not extrapolated.`
-            : `${field.label} is ${field.value} ft, and the survey has no station to interpolate. TVD was not extrapolated.`,
-        )
-        .join("; "),
-      blocking: true,
-      fields: beyond,
-    });
-  }
   const depthFields = depthBeyondFields(projected);
   if (depthFields.length) {
     errors.push({

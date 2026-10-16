@@ -34,7 +34,7 @@ export interface EcdComparison {
   label: string;
   rp13dEcd: number | null;
   sheetEcd: number | null;
-  /** Why this row has no RP 13D ECD. The bit past the survey is "needs survey to bit". */
+  /** Why this row has no RP 13D ECD. A missing bit TVD is "bit TVD not in sheet paste". */
   reason: string | null;
   /**
    * RP 13D ECD minus the sheet value, ppg. Null when either side is missing.

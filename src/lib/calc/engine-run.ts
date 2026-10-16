@@ -12,7 +12,7 @@ import {
   n,
 } from "./engine";
 import { calcEqualizeExtraPpg, calcNoDpPill, calcSlugAt200FtMin } from "./engine-nodp";
-import { DEPTH_BEYOND_TD, MD_BEYOND_SURVEY, depthBeyondFields, depthBlockMessage, mdBeyondSurveyFields } from "./depth";
+import { DEPTH_BEYOND_TD, depthBeyondFields, depthBlockMessage } from "./depth";
 
 function nanRecord<T extends object>(keys: (keyof T)[]): T {
   const out = {} as T;
@@ -21,11 +21,9 @@ function nanRecord<T extends object>(keys: (keyof T)[]): T {
 }
 
 function blockedResults(inputs: WellInputs): CalcResults | null {
-  const tdFields = depthBeyondFields(inputs);
-  const surveyFields = mdBeyondSurveyFields(inputs);
-  const fields = [...tdFields, ...surveyFields];
+  const fields = depthBeyondFields(inputs);
   if (!fields.length) return null;
-  const code = tdFields.length ? DEPTH_BEYOND_TD : MD_BEYOND_SURVEY;
+  const code = DEPTH_BEYOND_TD;
   const cement = nanRecord<CementResults>([
     "staticPressure",
     "annularCapacity",

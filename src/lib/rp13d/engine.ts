@@ -263,14 +263,14 @@ export interface Poi {
   tvd: number;
 }
 
-export const BIT_NEEDS_SURVEY = "needs survey to bit";
+export const BIT_TVD_NOT_IN_SHEET = "bit TVD not in sheet paste";
 
 export interface EcdPoint extends Poi {
   pa: number;
   esd: number;
   ecd: number;
   laminar: boolean;
-  /** Set when this depth cannot be calculated. The bit uses `BIT_NEEDS_SURVEY`. */
+  /** Set when this depth cannot be calculated. The bit uses `BIT_TVD_NOT_IN_SHEET`. */
   reason?: string | null;
 }
 
@@ -337,13 +337,13 @@ export function pointsOfInterest(inputs: Rp13dInputs): Poi[] {
 }
 
 export function calcRp13d(inputs: Rp13dInputs): Rp13dResult {
-  return withBitSurveyRow(inputs, calcRp13dBody(inputs));
+  return withMissingBitTvd(inputs, calcRp13dBody(inputs));
 }
 
-function withBitSurveyRow(inputs: Rp13dInputs, result: Rp13dResult): Rp13dResult {
+function withMissingBitTvd(inputs: Rp13dInputs, result: Rp13dResult): Rp13dResult {
   if (finite(inputs.bitTvd) && inputs.bitTvd > 0) return result;
   if (!finite(inputs.bitMd) || !(inputs.bitMd > 0)) return result;
-  if (result.ecd.some((point) => point.depth === "bit" && point.reason === BIT_NEEDS_SURVEY)) return result;
+  if (result.ecd.some((point) => point.depth === "bit" && point.reason === BIT_TVD_NOT_IN_SHEET)) return result;
   const bit: EcdPoint = {
     depth: "bit",
     label: "Bit",
@@ -353,7 +353,7 @@ function withBitSurveyRow(inputs: Rp13dInputs, result: Rp13dResult): Rp13dResult
     esd: Number.NaN,
     ecd: Number.NaN,
     laminar: false,
-    reason: BIT_NEEDS_SURVEY,
+    reason: BIT_TVD_NOT_IN_SHEET,
   };
   return { ...result, ecd: [...result.ecd.filter((point) => point.depth !== "bit"), bit] };
 }

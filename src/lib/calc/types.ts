@@ -215,12 +215,12 @@ export interface DepthField {
   label: string;
   value: number;
   limit: number;
-  /** TD, bit MD, bit TVD, or last survey station. */
+  /** TD or bit MD. */
   limitLabel: string;
 }
 
 /** Calc is blocked. `fields` is the list to show instead of empty tables. */
 export interface DepthBlock {
-  code: "DEPTH_BEYOND_TD" | "MD_BEYOND_SURVEY";
+  code: "DEPTH_BEYOND_TD";
   fields: DepthField[];
 }

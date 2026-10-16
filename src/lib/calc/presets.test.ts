@@ -37,8 +37,7 @@ describe("Load well", () => {
   it("loads each preset and calculates", () => {
     for (const preset of PRESETS) {
       useAppStore.getState().loadPreset(preset.inputs);
-      const { inputs, editBlock } = useAppStore.getState();
-      expect(editBlock, preset.label).toBeNull();
+      const { inputs } = useAppStore.getState();
       const results = calculate(inputs);
       const reason = results.depthBlock
         ? `${results.depthBlock.code}: ${results.errorReason}`

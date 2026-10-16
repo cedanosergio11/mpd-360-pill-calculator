@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { tvdAt } from "@/lib/pill/hydrostatic";
-import { surveyFromInputs } from "./equalize";
 import { EXAMPLE_8_5, EMPTY_INPUTS } from "./examples";
 import { applyPaste, applyWellPaste, parseWellPaste, previewPaste } from "./paste";
 
@@ -29,14 +27,13 @@ describe("previewPaste", () => {
     expect(applied.pumpDisp).toBe(1500);
   });
 
-  it("recomputes TVD when only the MD is pasted", () => {
+  it("keeps the sheet TVD when only the MD is pasted", () => {
     const preview = previewPaste(EXAMPLE_8_5, "Anchor point MD\t12000\tft");
     expect(preview.canApply).toBe(true);
     const applied = applyPaste(EXAMPLE_8_5, preview);
-    const survey = surveyFromInputs({ ...applied, anchorMd: "", anchorTvd: "" });
     expect(applied.anchorMd).toBe(12000);
-    expect(applied.anchorTvd).toBe(tvdAt(survey, 12000));
-    expect(preview.rows.some((row) => row.field === "anchorTvd" && row.changed)).toBe(true);
+    expect(applied.anchorTvd).toBe(EXAMPLE_8_5.anchorTvd);
+    expect(preview.rows.some((row) => row.field === "anchorTvd")).toBe(false);
   });
 
   it("keeps a TVD pasted with its MD", () => {
@@ -48,44 +45,42 @@ describe("previewPaste", () => {
     expect(applyPaste(EXAMPLE_8_5, preview).anchorTvd).toBe(11111);
   });
 
-  it("blocks a paste that ends past the last survey station", () => {
+  it("applies a spot MD inside TD and keeps the sheet TVD", () => {
     const preview = previewPaste(
       EXAMPLE_8_5,
       ["Well name\tEXAMPLE", "Current MW\t12.4", "Spot depth MD\t16000\tft"].join("\n"),
     );
-    expect(preview.canApply).toBe(false);
-    expect(preview.errors.map((error) => error.code)).toContain("MD_BEYOND_SURVEY");
-    const beyond = preview.errors.find((error) => error.code === "MD_BEYOND_SURVEY");
-    expect(beyond?.fields).toEqual([
-      { label: "Spot depth MD", value: 16000, limit: 13900, limitLabel: "last survey station" },
-    ]);
-    expect(() => applyPaste(EXAMPLE_8_5, preview)).toThrow(/blocked/);
+    expect(preview.canApply).toBe(true);
+    const applied = applyPaste(EXAMPLE_8_5, preview);
+    expect(applied.spotMd).toBe(16000);
+    expect(applied.spotTvd).toBe(EXAMPLE_8_5.spotTvd);
   });
 
-  it("blocks an MD past the last survey station", () => {
+  it("blocks an anchor MD past TD", () => {
     const preview = previewPaste(EXAMPLE_8_5, "Anchor point MD\t20000\tft");
     expect(preview.canApply).toBe(false);
-    expect(preview.errors[0]?.code).toBe("MD_BEYOND_SURVEY");
-    expect(preview.errors[0]?.fields).toEqual([
-      { label: "Anchor point MD", value: 20000, limit: 15400, limitLabel: "last survey station" },
-    ]);
+    expect(preview.errors[0]?.code).toBe("DEPTH_BEYOND_TD");
+    expect(preview.errors[0]?.fields).toEqual(
+      expect.arrayContaining([
+        { label: "Anchor point MD", value: 20000, limit: 17650, limitLabel: "TD" },
+        { label: "Anchor point MD", value: 20000, limit: 17650, limitLabel: "bit MD" },
+      ]),
+    );
     expect(() => applyPaste(EXAMPLE_8_5, preview)).toThrow(/blocked/);
   });
 
-  it("does not block a bit MD past the survey when it is inside TD", () => {
+  it("applies a bit MD inside TD", () => {
     const preview = previewPaste(EXAMPLE_8_5, "Current well depth\t17000\tft");
-    expect(preview.errors.map((error) => error.code)).not.toContain("MD_BEYOND_SURVEY");
     expect(preview.canApply).toBe(true);
     expect(applyPaste(EXAMPLE_8_5, preview).currentDepthMd).toBe(17000);
   });
 
-  it("blocks a shoe MD past the last survey station", () => {
+  it("applies a shoe MD inside TD and keeps the sheet TVD", () => {
     const preview = previewPaste(EXAMPLE_8_5, "Casing depth MD\t16000\tft");
-    expect(preview.canApply).toBe(false);
-    expect(preview.errors[0]?.code).toBe("MD_BEYOND_SURVEY");
-    expect(preview.errors[0]?.fields).toEqual([
-      { label: "Casing depth MD", value: 16000, limit: 15400, limitLabel: "last survey station" },
-    ]);
+    expect(preview.canApply).toBe(true);
+    const applied = applyPaste(EXAMPLE_8_5, preview);
+    expect(applied.casingMd).toBe(16000);
+    expect(applied.casingTvd).toBe(EXAMPLE_8_5.casingTvd);
   });
 
   it("blocks a depth past TD with the field list", () => {

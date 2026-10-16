@@ -1,23 +1,17 @@
 import { useMemo } from "react";
-import { bitTvd } from "@/lib/calc/depth";
 import type { CalcResults, WellInputs } from "@/lib/calc/types";
-import { calcRp13d, compareEcd } from "@/lib/rp13d";
+import { BIT_TVD_NOT_IN_SHEET, calcRp13d, compareEcd } from "@/lib/rp13d";
 import { asNum, formatExact, isNum } from "@/lib/utils";
-
-const NEEDS_SURVEY = "needs survey to bit";
-const NO_SHEET_BIT = "no sheet value at bit";
 
 /**
  * RP 13D beside the sheet ECD. The sheet has no Fann readings, so this
  * does not invent dials. `trips` stays on the result and is not rendered.
- * The bit row keys off `bitTvd === null`, not the calc result code.
+ * The sheet paste has no bit TVD, so the bit row does not invent one.
  */
 export function Rp13dView({ inputs, results }: { inputs: WellInputs; results: CalcResults }) {
-  const { rows, note, bitSurveyTvd } = useMemo(() => {
-    const bitSurveyTvd = bitTvd(inputs);
-    const rp = calcRp13d(rpInputs(inputs, bitSurveyTvd));
+  const { rows, note } = useMemo(() => {
+    const rp = calcRp13d(rpInputs(inputs));
     return {
-      bitSurveyTvd,
       note: rp.reason,
       rows: compareEcd(rp.ecd, {
         currentMw: asNum(inputs.currentMw),
@@ -54,10 +48,10 @@ export function Rp13dView({ inputs, results }: { inputs: WellInputs; results: Ca
                 <td className="py-2 pr-3 font-mono tabular-nums">{ppg(row.sheetEcd)}</td>
                 <td className="py-2 pr-3 uppercase">{row.sheetBasis}</td>
                 <td className="py-2 pr-3 font-mono tabular-nums" data-rp13d-column="ecd">
-                  {row.depth === "bit" ? bitEcdCell(bitSurveyTvd, row.rp13dEcd) : ppg(row.rp13dEcd)}
+                  {row.depth === "bit" ? bitEcdCell() : ppg(row.rp13dEcd)}
                 </td>
                 <td className="py-2 font-mono tabular-nums" data-rp13d-column="difference">
-                  {row.depth === "bit" ? bitDifferenceCell(bitSurveyTvd) : ppg(row.difference)}
+                  {row.depth === "bit" ? bitDifferenceCell() : ppg(row.difference)}
                 </td>
               </tr>
             ))}
@@ -68,7 +62,7 @@ export function Rp13dView({ inputs, results }: { inputs: WellInputs; results: Ca
   );
 }
 
-function rpInputs(inputs: WellInputs, surveyed: number | null) {
+function rpInputs(inputs: WellInputs) {
   return {
     fann600: Number.NaN,
     fann300: Number.NaN,
@@ -87,20 +81,17 @@ function rpInputs(inputs: WellInputs, surveyed: number | null) {
     anchorMd: asNum(inputs.anchorMd),
     anchorTvd: asNum(inputs.anchorTvd),
     bitMd: asNum(inputs.currentDepthMd),
-    bitTvd: surveyed ?? Number.NaN,
+    bitTvd: Number.NaN,
   };
 }
 
-/** Bit cells follow the survey TVD. A null TVD is not the calc result code. */
-export function bitEcdCell(tvd: number | null, ecd: number | null): string {
-  if (tvd === null) return NEEDS_SURVEY;
-  const ecdText = isNum(ecd) ? `${formatExact(ecd, 2)} ppg` : "—";
-  return `${ecdText} ${NO_SHEET_BIT}`;
+/** The sheet paste has no bit TVD, so both bit columns say so. */
+export function bitEcdCell(): string {
+  return BIT_TVD_NOT_IN_SHEET;
 }
 
-export function bitDifferenceCell(tvd: number | null): string {
-  if (tvd === null) return NEEDS_SURVEY;
-  return NO_SHEET_BIT;
+export function bitDifferenceCell(): string {
+  return BIT_TVD_NOT_IN_SHEET;
 }
 
 function ppg(value: number | null): string {

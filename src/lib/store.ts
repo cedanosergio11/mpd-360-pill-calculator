@@ -1,8 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { MD_BEYOND_SURVEY, syncChangedMd } from "@/lib/calc/depth";
 import { EMPTY_INPUTS } from "@/lib/calc/examples";
-import type { DepthField, WellInputs } from "@/lib/calc/types";
+import type { WellInputs } from "@/lib/calc/types";
 
 export type WorkspaceTab =
   | "simulator"
@@ -20,22 +19,11 @@ interface ScenarioRecord {
   inputs: WellInputs;
 }
 
-/** An MD edit that cannot be tied to the other survey stations. The MD is not stored. */
-export interface SurveyEditBlock {
-  code: typeof MD_BEYOND_SURVEY;
-  fields: DepthField[];
-}
-
 interface AppState {
   inputs: WellInputs;
   tab: WorkspaceTab;
   hydrated: boolean;
   scenarios: ScenarioRecord[];
-  /**
-   * Set when an anchor, shoe, or spot MD is past the last other survey station.
-   * A bit MD past the survey is not a block. Not persisted.
-   */
-  editBlock: SurveyEditBlock | null;
   setField: <K extends keyof WellInputs>(key: K, value: WellInputs[K]) => void;
   setInputs: (inputs: WellInputs) => void;
   reset: () => void;
@@ -57,23 +45,10 @@ export const useAppStore = create<AppState>()(
       tab: "simulator",
       hydrated: false,
       scenarios: [],
-      editBlock: null,
-      setField: (key, value) =>
-        set((s) => {
-          const next = { ...s.inputs, [key]: value };
-          // Bit MD is a volume depth. It is stored past the survey; only anchor, shoe, and spot are ties.
-          if (key !== "anchorMd" && key !== "casingMd" && key !== "spotMd") {
-            return { inputs: next, editBlock: null };
-          }
-          const synced = syncChangedMd(s.inputs, next);
-          if (synced.beyond.length) {
-            return { editBlock: { code: MD_BEYOND_SURVEY, fields: synced.beyond } };
-          }
-          return { inputs: synced.inputs, editBlock: null };
-        }),
-      setInputs: (inputs) => set({ inputs, editBlock: null }),
-      reset: () => set({ inputs: blankWell(), editBlock: null }),
-      loadPreset: (inputs) => set({ inputs: { ...inputs }, editBlock: null }),
+      setField: (key, value) => set((s) => ({ inputs: { ...s.inputs, [key]: value } })),
+      setInputs: (inputs) => set({ inputs }),
+      reset: () => set({ inputs: blankWell() }),
+      loadPreset: (inputs) => set({ inputs: { ...inputs } }),
       setTab: (tab) => set({ tab }),
       saveScenario: (name) => {
         const { inputs, scenarios } = get();
@@ -100,7 +75,7 @@ export const useAppStore = create<AppState>()(
       },
       loadScenario: (id) => {
         const found = get().scenarios.find((s) => s.id === id);
-        if (found) set({ inputs: { ...found.inputs }, editBlock: null });
+        if (found) set({ inputs: { ...found.inputs } });
       },
       deleteScenario: (id) =>
         set((s) => ({ scenarios: s.scenarios.filter((x) => x.id !== id) })),
