@@ -89,12 +89,12 @@ describe("setField survey TVD", () => {
     useAppStore.getState().setInputs(EXAMPLE_8_5);
   });
 
-  it("stores a one-foot bit MD edit on EXAMPLE 8.5 and the sheet still calculates", () => {
+  it("stores a bit MD of 17649, inside TD and past the survey, and the sheet still calculates", () => {
     useAppStore.getState().setInputs(EXAMPLE_8_5);
-    useAppStore.getState().setField("currentDepthMd", 17651);
+    useAppStore.getState().setField("currentDepthMd", 17649);
     const { inputs, editBlock } = useAppStore.getState();
     expect(editBlock).toBeNull();
-    expect(inputs.currentDepthMd).toBe(17651);
+    expect(inputs.currentDepthMd).toBe(17649);
     expect(bitTvd(inputs)).toBeNull();
     const results = calculate(inputs);
     const baseline = calculate(EXAMPLE_8_5);
@@ -103,6 +103,22 @@ describe("setField survey TVD", () => {
     expect(results.totalPillVol).toBe(baseline.totalPillVol);
     expect(results.masp).toBe(baseline.masp);
     expect(simulate(inputs, results, [15400]).ok).toBe(true);
+    useAppStore.getState().setInputs(EXAMPLE_8_5);
+  });
+
+  it("refuses a bit MD of 17651 with the bit-past-TD check", () => {
+    useAppStore.getState().setInputs(EXAMPLE_8_5);
+    useAppStore.getState().setField("currentDepthMd", 17651);
+    const { inputs, editBlock } = useAppStore.getState();
+    expect(editBlock).toBeNull();
+    expect(inputs.currentDepthMd).toBe(17651);
+    const results = calculate(inputs);
+    expect(results.depthBlock).toEqual({
+      code: "DEPTH_BEYOND_TD",
+      fields: [{ label: "Current well depth", value: 17651, limit: 17650, limitLabel: "TD" }],
+    });
+    expect(results.procedurePossible).toBe(false);
+    expect(simulate(inputs, results, [15400])).toMatchObject({ ok: false, code: "DEPTH_BEYOND_TD" });
     useAppStore.getState().setInputs(EXAMPLE_8_5);
   });
 

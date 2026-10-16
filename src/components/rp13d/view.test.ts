@@ -24,8 +24,8 @@ describe("RP 13D bit row", () => {
     expect(bitDifferenceCell(11250)).toBe("no sheet value at bit");
   });
 
-  it("EXAMPLE 8.5 at 17651 says needs survey to bit in both columns", () => {
-    const inputs = { ...EXAMPLE_8_5, currentDepthMd: 17651 as const };
+  it("EXAMPLE 8.5 at 17649 says needs survey to bit in both columns", () => {
+    const inputs = { ...EXAMPLE_8_5, currentDepthMd: 17649 as const };
     expect(bitTvd(inputs)).toBeNull();
     expect(calculate(inputs).depthBlock).toBeNull();
     const cells = bitCells(inputs);

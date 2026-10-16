@@ -114,11 +114,7 @@ export function depthBeyondFields(inputs: WellInputs): DepthField[] {
   const bit = finite(inputs.currentDepthMd);
   const bitTvdFt = bitTvd(inputs);
 
-  // Bit MD is a volume depth. One foot past TD still runs the sheet.
-  // Anything farther is the existing bit-past-TD block, reported against TD.
-  if (bit != null && td != null && bit > td + 1 + EPS) {
-    fields.push({ label: "Current well depth", value: bit, limit: td, limitLabel: "TD" });
-  }
+  past(fields, "Current well depth", bit, td, "TD");
   past(fields, "Current well depth TVD", bitTvdFt, td, "TD");
 
   for (const pair of MD_TVD_PAIRS) {
