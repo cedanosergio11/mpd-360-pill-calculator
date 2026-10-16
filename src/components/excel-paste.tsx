@@ -148,13 +148,12 @@ export function ExcelPasteButton({ compact = false }: { compact?: boolean }) {
             </p>
           ) : null}
 
-          {preview && preview.rows.length ? (
+          {preview ? (
             <div data-paste-tvds className="mt-3 rounded-xl border border-border bg-muted/30 px-3 py-2 text-xs">
               <p className="font-medium">TVDs in this paste</p>
               <ul className="mt-1 grid gap-0.5">
                 {PASTE_TVDS.map(([field, label]) => {
-                  const flagged = preview.foundTvds?.[field];
-                  const found = typeof flagged === "boolean" ? flagged : preview.rows.some((row) => row.field === field);
+                  const found = preview.foundTvds[field];
                   return (
                     <li key={field} data-paste-tvd={field} data-found={found ? "yes" : "no"} className="flex flex-wrap gap-x-2">
                       <span className={found ? "font-semibold text-foreground" : "font-semibold text-destructive"}>{found ? "Found" : "Missing"}</span>

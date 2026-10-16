@@ -11,6 +11,7 @@ import { BIT_TVD_NOT_IN_SHEET, calcRp13d, compareEcd, type EcdComparison, type R
 import { asNum } from "@/lib/utils";
 
 export const RP13D_REFERENCE_LINE = "RP 13D hydraulics, reference only, not used on the sheet tabs.";
+export const NOT_COMPARABLE_ESD = "not comparable (sheet is static ESD)";
 export const RP13D_EXAMPLE_DIALS_LINE = "Fann dials shown are EXAMPLE values.";
 
 /** Synthetic EXAMPLE dials (the 1.0.7.1 sheet has no Fann readings). */
@@ -229,8 +230,14 @@ function CompareTable({ rows }: { rows: Row[] }) {
                   <span className="text-xs text-muted-foreground italic">{bitDifferenceCell()}</span>
                 ) : (
                   <>
-                    <span className="block text-[11px] text-muted-foreground">{diffLabel(row.sheetBasis)}</span>
-                    <span className="font-mono tabular-nums">{diff(row.difference)}</span>
+                    {row.sheetBasis === "esd" ? (
+                      <span data-not-comparable className="text-xs text-muted-foreground italic">{NOT_COMPARABLE_ESD}</span>
+                    ) : (
+                      <>
+                        <span className="block text-[11px] text-muted-foreground">{diffLabel(row.sheetBasis)}</span>
+                        <span className="font-mono tabular-nums">{diff(row.difference)}</span>
+                      </>
+                    )}
                   </>
                 )}
               </td>
