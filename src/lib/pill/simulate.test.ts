@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { calculate } from "@/lib/calc/engine";
 import { EXAMPLE_8_5 } from "@/lib/calc/examples";
+import { useAppStore } from "@/lib/store";
 import { composeWellState, geometryFromWell, pillFromProcedure } from "./from-calc";
 import { computeModel } from "./physics";
 import { simulate } from "./simulate";
@@ -56,6 +57,23 @@ describe("simulate", () => {
     expect(run.fields.length).toBeGreaterThan(0);
     expect(run).not.toHaveProperty("steps");
     expect(run).not.toHaveProperty("models");
+  });
+
+  it("refuses while the store editBlock is set, even when the sheet has no depth block", () => {
+    useAppStore.getState().setInputs(EXAMPLE_8_5);
+    useAppStore.getState().setField("anchorMd", 20000);
+    const { editBlock, inputs } = useAppStore.getState();
+    expect(editBlock?.code).toBe("MD_BEYOND_SURVEY");
+    const results = calculate(inputs);
+    expect(results.depthBlock).toBeNull();
+    const run = simulate(inputs, results, [15400]);
+    expect(run.ok).toBe(false);
+    if (run.ok) return;
+    expect(run.code).toBe("MD_BEYOND_SURVEY");
+    expect(run.fields).toEqual(editBlock?.fields);
+    expect(run).not.toHaveProperty("steps");
+    expect(run).not.toHaveProperty("models");
+    useAppStore.getState().setInputs(EXAMPLE_8_5);
   });
 
   it("refuses while a depth block is active, before any model", () => {

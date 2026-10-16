@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { calculate } from "./engine";
 import { buildSchedule } from "./schedule";
-import { AUBURNIA, EXAMPLE_SHALLOW, MOMENTUM, WW_FARMS } from "./examples";
+import { EXAMPLE_1, EXAMPLE_2, EXAMPLE_3, EXAMPLE_SHALLOW } from "./examples";
 import { round } from "../utils";
 
-describe("calculate — Auburnia", () => {
-  const r = calculate(AUBURNIA);
+describe("calculate — EXAMPLE 1", () => {
+  const r = calculate(EXAMPLE_1);
 
   it("locks workbook MASP / static / volumes", () => {
     expect(round(r.masp, 1)).toBe(1192.7);
@@ -22,7 +22,7 @@ describe("calculate — Auburnia", () => {
   });
 
   it("builds a spotting schedule", () => {
-    const sched = buildSchedule(AUBURNIA, r, "noSlug");
+    const sched = buildSchedule(EXAMPLE_1, r, "noSlug");
     expect(sched.rows.length).toBeGreaterThanOrEqual(6);
     expect(sched.rows[0].volume).toBe(166);
     expect(Math.round(sched.rows[0].flow)).toBe(242);
@@ -42,39 +42,39 @@ describe("calculate — shallow snapshot", () => {
   });
 });
 
-describe("calculate — Momentum 17.4 EMW", () => {
-  const momentum = calculate(MOMENTUM);
+describe("calculate — EXAMPLE 2 at 17.4 EMW", () => {
+  const example2 = calculate(EXAMPLE_2);
 
   it("locks procedure volumes", () => {
-    expect(round(momentum.masp, 1)).toBe(965.0);
-    expect(momentum.heightPillNoDp).toBe(7810);
-    expect(momentum.totalPillVol).toBe(358);
-    expect(momentum.correctedChase).toBe(0);
-    expect(momentum.drillStringVolAtSpot).toBe(153);
-    expect(momentum.topOfPillNoDp).toBe(3717);
-    expect(round(momentum.finalKwm, 0)).toBe(153);
-    expect(momentum.correctedPillVol).toBe(204);
-    expect(momentum.spottedKmwVol).toBe(momentum.correctedPillVol + momentum.finalKwm);
-    expect(momentum.bblBackfill).toBe(0);
-    expect(momentum.kmwRoomWithPipe).toBe(455);
+    expect(round(example2.masp, 1)).toBe(965.0);
+    expect(example2.heightPillNoDp).toBe(7810);
+    expect(example2.totalPillVol).toBe(358);
+    expect(example2.correctedChase).toBe(0);
+    expect(example2.drillStringVolAtSpot).toBe(153);
+    expect(example2.topOfPillNoDp).toBe(3717);
+    expect(round(example2.finalKwm, 0)).toBe(153);
+    expect(example2.correctedPillVol).toBe(204);
+    expect(example2.spottedKmwVol).toBe(example2.correctedPillVol + example2.finalKwm);
+    expect(example2.bblBackfill).toBe(0);
+    expect(example2.kmwRoomWithPipe).toBe(455);
   });
 
   it("locks oilfield capacities", () => {
-    expect(round(momentum.annularCap, 6)).toBe(0.026311);
-    expect(round(momentum.drillStringCap, 6)).toBe(0.013299);
+    expect(round(example2.annularCap, 6)).toBe(0.026311);
+    expect(round(example2.drillStringCap, 6)).toBe(0.013299);
   });
 
   it("locks equalize dump / extra EMW to 2 decimals", () => {
-    expect(round(momentum.equalizeDumpBbl, 2)).toBe(7.39);
-    expect(round(momentum.addPpgTarget, 2)).toBe(0.08);
-    expect(round(momentum.anchorPointEsd, 2)).toBe(17.48);
-    expect(round(momentum.remainingKmwInDp, 2)).toBe(145.61);
+    expect(round(example2.equalizeDumpBbl, 2)).toBe(7.39);
+    expect(round(example2.addPpgTarget, 2)).toBe(0.08);
+    expect(round(example2.anchorPointEsd, 2)).toBe(17.48);
+    expect(round(example2.remainingKmwInDp, 2)).toBe(145.61);
   });
 });
 
-describe("calculate — Momentum 18.0 ppge", () => {
+describe("calculate — EXAMPLE 2 at 18.0 ppge", () => {
   it("needs 460, fits 455, backfill 5", () => {
-    const tight = calculate({ ...MOMENTUM, wellName: "Backfill check", desiredEmw: 18 });
+    const tight = calculate({ ...EXAMPLE_2, wellName: "Backfill check", desiredEmw: 18 });
     expect(tight.totalPillVol).toBe(460);
     expect(tight.kmwRoomWithPipe).toBe(455);
     expect(tight.bblBackfill).toBe(5);
@@ -86,9 +86,9 @@ describe("calculate — Momentum 18.0 ppge", () => {
   });
 });
 
-describe("calculate — WW Farms MASP at shoe", () => {
+describe("calculate — EXAMPLE 3 MASP at shoe", () => {
   it("uses casing TVD, not anchor TVD", () => {
-    const r = calculate(WW_FARMS);
+    const r = calculate(EXAMPLE_3);
     expect(round(r.masp, 1)).toBe(1244.1);
   });
 });

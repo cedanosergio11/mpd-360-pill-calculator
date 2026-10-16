@@ -19,10 +19,23 @@ function sourceFiles(dir: string): string[] {
   return out;
 }
 
+const APP_SHELL_VIEW = "@/components/rp13d/view";
+
+/** Specifiers of rp13d imports. A fresh regex each call, so lastIndex cannot leak. */
+function rp13dSpecifiers(source: string): string[] {
+  return [...source.matchAll(/(?:from|import)\s*\(?\s*["']([^"']*rp13d[^"']*)["']/g)].map(
+    (match) => match[1],
+  );
+}
+
 describe("RP 13D stays off the sheet", () => {
   it("no sheet module imports rp13d", () => {
-    const importFrom = /(?:from|import)\s*\(?\s*["'][^"']*rp13d[^"']*["']/;
-    const hits = sourceFiles(SRC).filter((path) => importFrom.test(readFileSync(path, "utf8")));
+    const appShell = join(SRC, "components", "app-shell.tsx");
+    const hits = sourceFiles(SRC).filter((path) => {
+      const specs = rp13dSpecifiers(readFileSync(path, "utf8"));
+      if (!specs.length) return false;
+      return !(path === appShell && specs.every((spec) => spec === APP_SHELL_VIEW));
+    });
     expect(hits).toEqual([]);
   });
 

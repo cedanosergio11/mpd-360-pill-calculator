@@ -1,6 +1,7 @@
 import type { CalcResults, WellInputs } from "@/lib/calc/types";
-import { DEPTH_BEYOND_TD, depthBeyondFields } from "@/lib/calc/depth";
+import { DEPTH_BEYOND_TD, MD_BEYOND_SURVEY, depthBeyondFields } from "@/lib/calc/depth";
 import type { DepthField } from "@/lib/calc/types";
+import { useAppStore } from "@/lib/store";
 import { asNum, isNum } from "@/lib/utils";
 import { composeWellState, geometryFromWell, pillFromProcedure } from "./from-calc";
 import { computeModel } from "./physics";
@@ -16,7 +17,7 @@ export interface SimStep {
 
 export type SimulateResult =
   | { ok: true; steps: SimStep[]; models: PillModel[] }
-  | { ok: false; code: typeof DEPTH_BEYOND_TD; fields: DepthField[] };
+  | { ok: false; code: typeof DEPTH_BEYOND_TD | typeof MD_BEYOND_SURVEY; fields: DepthField[] };
 
 /**
  * Step the existing 1.0 pill model at each pipe MD.
@@ -28,6 +29,11 @@ export function simulate(
   pipeMds: number[],
   live?: WellState,
 ): SimulateResult {
+  const editBlock = useAppStore.getState().editBlock;
+  if (editBlock) {
+    return { ok: false, code: editBlock.code, fields: editBlock.fields };
+  }
+
   const fields = depthBeyondFields(inputs);
   const td = asNum(inputs.tdDepth);
   if (isNum(td)) {

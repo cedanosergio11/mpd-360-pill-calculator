@@ -6,8 +6,8 @@ import { buildSchedule } from "./schedule";
 import { buildSteelSchedule } from "./steel";
 import type { CalcResults, WellInputs } from "./types";
 
-/** Lock Sub sheet numbers, with the client and well name removed. */
-const LOCK_SUB: WellInputs = {
+/** EXAMPLE sheet numbers, with no client or well name. */
+const EXAMPLE_5: WellInputs = {
   ...EMPTY_INPUTS,
   wellName: "EXAMPLE",
   client: "",
@@ -88,11 +88,11 @@ function golden(name: string) {
 }
 
 describe("1.0.7.1 outputs stay put", () => {
-  it("pins EXAMPLE 8.5 in, the shallow check, and the lock-sub sheet", () => {
+  it("pins EXAMPLE 8.5 in, the shallow check, and EXAMPLE 5", () => {
     for (const [name, inputs] of [
       ["EXAMPLE_8_5", EXAMPLE_8_5],
       ["EXAMPLE_SHALLOW", EXAMPLE_SHALLOW],
-      ["LOCK", LOCK_SUB],
+      ["EXAMPLE_5", EXAMPLE_5],
     ] as const) {
       const got = sheet(inputs) as { depthBlock: CalcResults["depthBlock"] };
       expect(got.depthBlock).toBeNull();

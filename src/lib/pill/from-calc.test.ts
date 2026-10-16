@@ -1,14 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { calculate } from "../calc/engine";
-import { AUBURNIA, MOMENTUM } from "../calc/examples";
+import { EXAMPLE_1, EXAMPLE_2 } from "../calc/examples";
 import { computeModel, floatDrainOnMove, pipeBoreBblPerFt, volumeFromDepths } from "./physics";
 import { composeWellState, geometryFromWell, pillFromProcedure } from "./from-calc";
 import { emwAt, hydrostaticLayers, tvdAt, tvdFn } from "./hydrostatic";
 
-describe("from-calc — Auburnia placement", () => {
-  const results = calculate(AUBURNIA);
-  const geo = geometryFromWell(AUBURNIA);
-  const placement = pillFromProcedure(AUBURNIA, results, geo, "closed");
+describe("from-calc — EXAMPLE 1 placement", () => {
+  const results = calculate(EXAMPLE_1);
+  const geo = geometryFromWell(EXAMPLE_1);
+  const placement = pillFromProcedure(EXAMPLE_1, results, geo, "closed");
 
   it("maps well geometry", () => {
     expect(geo.wellDepth).toBe(18359);
@@ -50,7 +50,7 @@ describe("from-calc — Auburnia placement", () => {
   });
 
   it("model has KMW and chase in the string", () => {
-    const state = composeWellState(AUBURNIA, {
+    const state = composeWellState(EXAMPLE_1, {
       ...placement,
       pipeEnd: "closed",
       autoBackfill: true,
@@ -62,7 +62,7 @@ describe("from-calc — Auburnia placement", () => {
   });
 
   it("POOH with trip tank on fills steel", () => {
-    const pulled = composeWellState(AUBURNIA, {
+    const pulled = composeWellState(EXAMPLE_1, {
       ...placement,
       pipeDepth: placement.pipeDepth - 1000,
       pipeEnd: "closed",
@@ -74,10 +74,10 @@ describe("from-calc — Auburnia placement", () => {
   });
 });
 
-describe("from-calc — Momentum", () => {
-  const mRes = calculate(MOMENTUM);
-  const mGeo = geometryFromWell(MOMENTUM);
-  const mPlace = pillFromProcedure(MOMENTUM, mRes, mGeo, "closed");
+describe("from-calc — EXAMPLE 2", () => {
+  const mRes = calculate(EXAMPLE_2);
+  const mGeo = geometryFromWell(EXAMPLE_2);
+  const mPlace = pillFromProcedure(EXAMPLE_2, mRes, mGeo, "closed");
 
   it("splits mixed volume into annulus + string, no chase", () => {
     expect(mRes.totalPillVol).toBe(358);
@@ -89,14 +89,14 @@ describe("from-calc — Momentum", () => {
   });
 
   it("string is full of KMW as-pumped", () => {
-    const mState = composeWellState(MOMENTUM, { ...mPlace, pipeEnd: "closed", autoBackfill: true });
+    const mState = composeWellState(EXAMPLE_2, { ...mPlace, pipeEnd: "closed", autoBackfill: true });
     const mModel = computeModel(mState);
     expect(mModel.pipeKmwTop).toBeLessThan(200);
   });
 
   it("equalized-with-float dumps string KMW into the annulus", () => {
-    const eqPlace = pillFromProcedure(MOMENTUM, mRes, mGeo, "closed", { equalized: true });
-    const eqState = composeWellState(MOMENTUM, { ...eqPlace, pipeEnd: "closed", autoBackfill: true });
+    const eqPlace = pillFromProcedure(EXAMPLE_2, mRes, mGeo, "closed", { equalized: true });
+    const eqState = composeWellState(EXAMPLE_2, { ...eqPlace, pipeEnd: "closed", autoBackfill: true });
     const eqModel = computeModel(eqState);
     expect(eqModel.pipeKmwTop).toBeGreaterThan(400);
     expect(Math.abs(eqPlace.placedPillBottom - mPlace.placedPillBottom)).toBeLessThan(5);
@@ -107,10 +107,10 @@ describe("from-calc — Momentum", () => {
   });
 
   it("anchor EMW stays on 17.4 as-pumped and after equalize", () => {
-    const mState = composeWellState(MOMENTUM, { ...mPlace, pipeEnd: "closed", autoBackfill: true });
+    const mState = composeWellState(EXAMPLE_2, { ...mPlace, pipeEnd: "closed", autoBackfill: true });
     const mModel = computeModel(mState);
-    const eqPlace = pillFromProcedure(MOMENTUM, mRes, mGeo, "closed", { equalized: true });
-    const eqState = composeWellState(MOMENTUM, { ...eqPlace, pipeEnd: "closed", autoBackfill: true });
+    const eqPlace = pillFromProcedure(EXAMPLE_2, mRes, mGeo, "closed", { equalized: true });
+    const eqState = composeWellState(EXAMPLE_2, { ...eqPlace, pipeEnd: "closed", autoBackfill: true });
     const eqModel = computeModel(eqState);
     const anchorMd = 12281;
     expect(Math.abs(tvdAt(mState.survey, anchorMd) - 11888)).toBeLessThan(2);
@@ -121,7 +121,7 @@ describe("from-calc — Momentum", () => {
   });
 
   it("float drains KMW on POOH and blocks influx on RIH", () => {
-    const mState = composeWellState(MOMENTUM, { ...mPlace, pipeEnd: "closed", autoBackfill: true });
+    const mState = composeWellState(EXAMPLE_2, { ...mPlace, pipeEnd: "closed", autoBackfill: true });
     const bore = pipeBoreBblPerFt(mState);
     const pull = floatDrainOnMove(11527, 10527, mPlace.pipeKmwVolume, bore);
     expect(pull.drained).toBeGreaterThan(10);
@@ -133,17 +133,17 @@ describe("from-calc — Momentum", () => {
 });
 
 describe("from-calc — 18 ppge KMW backfill", () => {
-  const tightRes = calculate({ ...MOMENTUM, wellName: "18 ppge backfill", desiredEmw: 18 });
+  const tightRes = calculate({ ...EXAMPLE_2, wellName: "18 ppge backfill", desiredEmw: 18 });
   const tightPlace = pillFromProcedure(
-    { ...MOMENTUM, desiredEmw: 18 },
+    { ...EXAMPLE_2, desiredEmw: 18 },
     tightRes,
-    geometryFromWell(MOMENTUM),
+    geometryFromWell(EXAMPLE_2),
     "closed",
   );
 
   it("carries backfill into the sim and applies it while POOH", () => {
     expect(tightRes.bblBackfill).toBeGreaterThanOrEqual(1);
-    const tightPulled = composeWellState(MOMENTUM, {
+    const tightPulled = composeWellState(EXAMPLE_2, {
       ...tightPlace,
       pipeEnd: "closed",
       autoBackfill: true,
@@ -159,7 +159,7 @@ describe("from-calc — 18 ppge KMW backfill", () => {
   });
 
   it("pipe-out annulus matches needed KMW", () => {
-    const tightOut = composeWellState(MOMENTUM, {
+    const tightOut = composeWellState(EXAMPLE_2, {
       ...tightPlace,
       pipeEnd: "closed",
       autoBackfill: true,

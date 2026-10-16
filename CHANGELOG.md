@@ -13,7 +13,7 @@ Version scheme: `major.minor.patch.build` (shown in-app as `v 1.0.0.0`).
 
 Shoe ESD counts only KMW above the shoe
 
-- Shoe ESD no longer drops below MW when the pill top is below the casing shoe. With DP, only the part of the equalized pill above the shoe adds to shoe ESD. Unchanged when the pill already reaches into casing (Auburnia, Momentum, WW Farms, WoolWorth, examples). Steel displacement table shoe EMW follows each row's pill top and base, same column model as the RIH / FIT stops (was all KMW above the shoe, could read above KMW).
+- Shoe ESD no longer drops below MW when the pill top is below the casing shoe. With DP, only the part of the equalized pill above the shoe adds to shoe ESD. Unchanged when the pill already reaches into casing (EXAMPLE 1, EXAMPLE 2, EXAMPLE 3, EXAMPLE 4, and the workbook examples). Steel displacement table shoe EMW follows each row's pill top and base, same column model as the RIH / FIT stops (was all KMW above the shoe, could read above KMW).
 
 ## 1.0.7.0 — 2026-09-03
 
@@ -31,13 +31,13 @@ RIH heading is stage count
 
 RIH pill base is spot
 
-- Displacement shoe ESD uses KMW only from pill top to spot, not the casing shoe. WW Farms stops unchanged.
+- Displacement shoe ESD uses KMW only from pill top to spot, not the casing shoe. EXAMPLE 3 stops unchanged.
 
 ## 1.0.6.2 — 2026-09-01
 
-WoolWorth Load well
+EXAMPLE 4 Load well
 
-- Load well includes WoolWorth #11 HH (R Lacy, Tanner Hembling, 2026-07-26).
+- Load well includes EXAMPLE 4.
 
 ## 1.0.6.1 — 2026-09-01
 
@@ -82,21 +82,21 @@ Print fidelity and sim ≠ procedure chip
 POOH pill volume honors open hole
 
 - No-DP pill volume uses 6.75 in OH + 6.88 in casing instead of casing ID for the whole height.
-- After the pipe is pulled, annulus KMW = spotted + KMW backfill (18.0 ppge Momentum: 460 bbl).
+- After the pipe is pulled, annulus KMW = spotted + KMW backfill (18.0 ppge on EXAMPLE 2: 460 bbl).
 
 ## 1.0.3.2 — 2026-08-25
 
 Honor open-hole geometry in room-with-pipe
 
 - KMW that fits with pipe is casing annulus + OH annulus + DP bore to the bit, not a uniform 6.88 in hole.
-- 18.0 ppge on Momentum geometry: 462 needed, 455 fits, 7 bbl KMW backfill while POOH.
+- 18.0 ppge on EXAMPLE 2 geometry: 462 needed, 455 fits, 7 bbl KMW backfill while POOH.
 
 ## 1.0.3.1 — 2026-08-25
 
 Room-with-pipe backfill
 
 - KMW that fits with pipe in the hole is spot × (C_ann + C_DP), not pill-height annulus + DP volume.
-- 18.0 ppge on Momentum geometry: 462 needed, 457 fits, 5 bbl KMW backfill while POOH.
+- 18.0 ppge on EXAMPLE 2 geometry: 462 needed, 457 fits, 5 bbl KMW backfill while POOH.
 
 ## 1.0.3.0 — 2026-08-25
 
@@ -109,8 +109,8 @@ KMW backfill while POOH
 
 Blank startup
 
-- App opens on empty well fields instead of Momentum.
-- Momentum remains under Load well → Workbook examples. Saved wells are kept.
+- App opens on empty well fields instead of a workbook example.
+- Workbook examples remain under Load well. Saved wells are kept.
 
 ## 1.0.2.3 — 2026-08-24
 

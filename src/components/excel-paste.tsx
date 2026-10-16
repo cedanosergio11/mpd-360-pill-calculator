@@ -71,7 +71,7 @@ export function ExcelPasteButton({ compact = false }: { compact?: boolean }) {
                 apply(clip);
               }
             }}
-            placeholder={"Well name\tMomentum 5-12-12 HU2\nClient\tPaloma/Apex\nSpot Depth (MD)\t11527"}
+            placeholder={"Well name\tEXAMPLE 2\nClient\t\nSpot Depth (MD)\t11527"}
             className="mt-1 min-h-40 w-full rounded-xl border border-border bg-muted/40 p-3 font-mono text-xs leading-relaxed outline-none focus:ring-2 focus:ring-ring"
           />
           <div className="mt-3 flex justify-end gap-2">

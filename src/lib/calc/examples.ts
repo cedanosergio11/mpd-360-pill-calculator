@@ -50,13 +50,13 @@ export const EMPTY_INPUTS: WellInputs = {
   customSwab: [...DEFAULT_CUSTOM_SWAB],
 };
 
-/** Live values from MPD 360 (2026) Master Procedure Template — AUBURNIA 20-17 HC #4 ALT. */
-export const AUBURNIA: WellInputs = {
+/** EXAMPLE 1 sheet numbers. No well, client, or person name. */
+export const EXAMPLE_1: WellInputs = {
   ...EMPTY_INPUTS,
-  wellName: "AUBURNIA 20-17 HC #4 ALT",
-  client: "EXCO",
+  wellName: "EXAMPLE 1",
+  client: "",
   date: "2026-08-10",
-  producedBy: "Josh Russell",
+  producedBy: "",
   sectionType: "Production",
   pillMode: "noSlug",
   currentDepthMd: 18359,
@@ -148,12 +148,13 @@ export const EXAMPLE_SHALLOW: WellInputs = {
   overbalanceSlug: 200,
 };
 
-export const MOMENTUM: WellInputs = {
+/** EXAMPLE 2 sheet numbers. No well, client, or person name. */
+export const EXAMPLE_2: WellInputs = {
   ...EMPTY_INPUTS,
-  wellName: "Momentum 5-12-12 HU2",
-  client: "Paloma/Apex",
+  wellName: "EXAMPLE 2",
+  client: "",
   date: "2026-08-19",
-  producedBy: "Donald Sehr",
+  producedBy: "",
   sectionType: "Production",
   pillMode: "noSlug",
   currentDepthMd: 18889,
@@ -183,12 +184,13 @@ export const MOMENTUM: WellInputs = {
 };
 
 
-export const WW_FARMS: WellInputs = {
+/** EXAMPLE 3 sheet numbers. No well, client, or person name. */
+export const EXAMPLE_3: WellInputs = {
   ...EMPTY_INPUTS,
-  wellName: "WW Farms 34-3-10HC 1 Alt",
-  client: "Aethon",
+  wellName: "EXAMPLE 3",
+  client: "",
   date: "2026-08-30",
-  producedBy: "Donald Sehr",
+  producedBy: "",
   sectionType: "Production",
   pillMode: "noSlug",
   currentDepthMd: 26270,
@@ -216,12 +218,13 @@ export const WW_FARMS: WellInputs = {
 };
 
 
-export const WOOLWORTH: WellInputs = {
+/** EXAMPLE 4 sheet numbers. No well, client, or person name. */
+export const EXAMPLE_4: WellInputs = {
   ...EMPTY_INPUTS,
-  wellName: "WoolWorth #11 HH",
-  client: "R Lacy",
+  wellName: "EXAMPLE 4",
+  client: "",
   date: "2026-07-26",
-  producedBy: "Tanner Hembling",
+  producedBy: "",
   sectionType: "Production",
   pillMode: "noSlug",
   currentDepthMd: 11760,
@@ -251,10 +254,6 @@ export const WOOLWORTH: WellInputs = {
 };
 
 export const PRESETS: { id: string; label: string; inputs: WellInputs }[] = [
-  { id: "woolworth", label: "WoolWorth #11 HH", inputs: WOOLWORTH },
-  { id: "ww-farms", label: "WW Farms 34-3-10HC 1 Alt", inputs: WW_FARMS },
-  { id: "momentum", label: "Momentum 5-12-12 HU2", inputs: MOMENTUM },
-  { id: "auburnia", label: "Auburnia 20-17 HC #4 ALT", inputs: AUBURNIA },
   { id: "example-85", label: "Example 8.5 in hole", inputs: EXAMPLE_8_5 },
   { id: "shallow", label: "Shallow spot snapshot", inputs: EXAMPLE_SHALLOW },
 ];

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { bitTvd } from "@/lib/calc/depth";
 import { calculate } from "@/lib/calc/engine";
 import { EXAMPLE_8_5 } from "@/lib/calc/examples";
 import { asNum } from "@/lib/utils";
@@ -90,8 +91,13 @@ describe("compareEcd", () => {
 
   it("EXAMPLE 8.5 anchor is RP 13D ECD minus the SafeVision sheet ECD", () => {
     const results = calculate(EXAMPLE_8_5);
+    const currentMw = asNum(EXAMPLE_8_5.currentMw);
+    const anchorTvd = asNum(EXAMPLE_8_5.anchorTvd);
+    const initialAplAnchor =
+      (asNum(EXAMPLE_8_5.safevisionNoSlug) - currentMw) * 0.052 * anchorTvd;
     // The 1.0.7.1 sheet has no Fann readings. These are the synthetic EXAMPLE
-    // dials, not adjusted to land on a difference.
+    // dials, not adjusted to land on a difference. Bit TVD is null: the bit
+    // MD is past the last survey station.
     const rp = calcRp13d({
       fann600: 80,
       fann300: 48,
@@ -99,7 +105,7 @@ describe("compareEcd", () => {
       fann100: 24,
       fann6: 9.2,
       fann3: 8.2,
-      mw: asNum(EXAMPLE_8_5.currentMw),
+      mw: currentMw,
       flowGpm: asNum(EXAMPLE_8_5.initialFlowRate),
       pipeOd: asNum(EXAMPLE_8_5.odDp),
       pipeId: asNum(EXAMPLE_8_5.idDp),
@@ -108,19 +114,19 @@ describe("compareEcd", () => {
       casingTvd: asNum(EXAMPLE_8_5.casingTvd),
       openHoleDia: asNum(EXAMPLE_8_5.openHoleDia),
       anchorMd: asNum(EXAMPLE_8_5.anchorMd),
-      anchorTvd: asNum(EXAMPLE_8_5.anchorTvd),
+      anchorTvd,
       bitMd: asNum(EXAMPLE_8_5.currentDepthMd),
-      bitTvd: asNum(EXAMPLE_8_5.anchorTvd),
+      bitTvd: bitTvd(EXAMPLE_8_5) ?? Number.NaN,
     });
     const rows = compareEcd(rp.ecd, {
-      currentMw: asNum(EXAMPLE_8_5.currentMw),
-      initialAplAnchor: results.initialAplAnchor,
-      anchorTvd: asNum(EXAMPLE_8_5.anchorTvd),
+      currentMw,
+      initialAplAnchor,
+      anchorTvd,
       shoeTvd: asNum(EXAMPLE_8_5.casingTvd),
       shoe: results.esdCasingNoDp,
     });
     expect(rows[0].sheetBasis).toBe("ecd");
-    expect(rows[0].sheetEcd).toBeCloseTo(12.85, 9);
+    expect(rows[0].sheetEcd).toBeCloseTo(currentMw + initialAplAnchor / (0.052 * anchorTvd), 9);
     expect(rows[0].difference).toBeCloseTo(-0.035934759224972, 8);
     expect(rows[1].sheetBasis).toBe("esd");
     expect(rows[1].sheetEcd).toBe(results.esdCasingNoDp);

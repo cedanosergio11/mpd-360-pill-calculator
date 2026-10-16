@@ -5,8 +5,8 @@ import { surveyTvdAt } from "@/lib/calc/depth";
 import type { WellInputs } from "@/lib/calc/types";
 import { useAppStore } from "@/lib/store";
 
-/** Lock Sub depths, with the client and well name removed. */
-const LOCK_SUB: WellInputs = {
+/** EXAMPLE depths, with no client or well name. */
+const EXAMPLE_5: WellInputs = {
   ...EMPTY_INPUTS,
   wellName: "EXAMPLE",
   client: "",
@@ -40,8 +40,8 @@ const LOCK_SUB: WellInputs = {
 };
 
 describe("setField survey TVD", () => {
-  it("blocks a Lock Sub anchor moved from 10480 to 10500 instead of keeping TVD 10466", () => {
-    useAppStore.getState().setInputs(LOCK_SUB);
+  it("blocks an EXAMPLE anchor moved from 10480 to 10500 instead of keeping TVD 10466", () => {
+    useAppStore.getState().setInputs(EXAMPLE_5);
     useAppStore.getState().setField("anchorMd", 10500);
     const { inputs, editBlock } = useAppStore.getState();
     expect(inputs.anchorMd).toBe(10480);
@@ -58,18 +58,18 @@ describe("setField survey TVD", () => {
       ],
     });
     const onSheet = calculate(inputs);
-    const stale = calculate({ ...LOCK_SUB, anchorMd: 10500, anchorTvd: 10466 });
+    const stale = calculate({ ...EXAMPLE_5, anchorMd: 10500, anchorTvd: 10466 });
     expect(onSheet.depthBlock).toBeNull();
-    expect(onSheet.cement.bocToShoe).toBe(calculate(LOCK_SUB).cement.bocToShoe);
+    expect(onSheet.cement.bocToShoe).toBe(calculate(EXAMPLE_5).cement.bocToShoe);
     expect(onSheet.cement.bocToShoe).not.toBe(stale.cement.bocToShoe);
     expect(onSheet.heightPillNoDp).toBe(2420);
   });
 
   it("recomputes anchor TVD when the new MD is still inside the other stations", () => {
-    useAppStore.getState().setInputs(LOCK_SUB);
+    useAppStore.getState().setInputs(EXAMPLE_5);
     useAppStore.getState().setField("anchorMd", 8000);
     const { inputs, editBlock } = useAppStore.getState();
-    const expected = surveyTvdAt({ ...LOCK_SUB, anchorMd: "", anchorTvd: "" }, 8000);
+    const expected = surveyTvdAt({ ...EXAMPLE_5, anchorMd: "", anchorTvd: "" }, 8000);
     expect(editBlock).toBeNull();
     expect(inputs.anchorMd).toBe(8000);
     expect(expected).not.toBeNull();
