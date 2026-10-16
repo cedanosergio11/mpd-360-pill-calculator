@@ -3,6 +3,7 @@ import { calculate } from "./engine";
 import { EMPTY_INPUTS } from "./examples";
 import { bbl, bblPerFt, columnTopFt, ft, placedAnnulusBbl } from "./nodp-placement";
 import type { WellInputs } from "./types";
+import { round } from "@/lib/utils";
 
 /** Anonymized well whose string cannot hold the inside share of the pill. */
 const NEGATIVE_CHASE: WellInputs = {
@@ -17,8 +18,8 @@ const NEGATIVE_CHASE: WellInputs = {
   tdDepth: 21750,
   anchorMd: 12000,
   anchorTvd: 11226,
-  casingMd: 9919,
-  casingTvd: 10378,
+  casingMd: 10378,
+  casingTvd: 9919,
   spotMd: 6000,
   spotTvd: 6000,
   openHoleDia: 6.75,
@@ -63,5 +64,58 @@ describe("negative chase well", () => {
     const annulusTop = columnTopFt(ft(6000), bbl(r.correctedPillVol), bblPerFt(r.annularCap));
     expect(annulusTop).toBeCloseTo(627, 0);
     expect(r.topOfPillInsideDp).toBeCloseTo(23, 0);
+  });
+});
+
+/**
+ * Tapered trigger on. Sheet R24 (additional chase) is about −96.78 bbl.
+ * The annulus stays the rounded share. The non-tapered add-back would make it 266.
+ */
+const TAPERED_NEGATIVE_CHASE: WellInputs = {
+  ...EMPTY_INPUTS,
+  wellName: "EXAMPLE",
+  client: "",
+  date: "",
+  producedBy: "",
+  sectionType: "Production",
+  pillMode: "noSlug",
+  currentDepthMd: 20000,
+  tdDepth: 20000,
+  anchorMd: 16000,
+  anchorTvd: 16000,
+  casingMd: 12000,
+  casingTvd: 11000,
+  spotMd: 7000,
+  spotTvd: 7000,
+  openHoleDia: 6.75,
+  odDp: 5,
+  idDp: 4.276,
+  idCasing: 8.835,
+  currentMw: 15,
+  kmw: 18,
+  desiredEmw: 16.5,
+  pumpDisp: 0.09,
+  taperedOn: true,
+  casingIdLarger: 8.835,
+  linerId: 6,
+  linerHangerMd: 1044,
+  linerShoeMd: 7000,
+  odDp1: 5,
+  idDp1: 3.34,
+  lengthDp1: 3874,
+  odDp2: 5.5,
+  idDp2: 4.276,
+};
+
+describe("tapered trigger with a negative chase", () => {
+  const r = calculate(TAPERED_NEGATIVE_CHASE);
+
+  it("keeps main's rounded annulus share", () => {
+    expect(r.calculatedChase).toBeCloseTo(-96.78, 2);
+    expect(r.correctedChase).toBe(0);
+    expect(r.correctedPillVol).toBe(169);
+    expect(r.correctedPillVol).toBe(round(r.requiredVolAnnulus, 0));
+    expect(r.bblBackfill).toBe(0);
+    expect(round(r.requiredVolAnnulus - r.calculatedChase, 0)).toBe(266);
   });
 });

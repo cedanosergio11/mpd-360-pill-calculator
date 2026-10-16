@@ -73,7 +73,9 @@ export function calcNoDpPill(inputs: WellInputs, caps: WellCaps, pressures: Trip
         ? safeDiv(totalPillVol, capPipeOh)
         : drillStringOpenHole + (totalPillVol - volOhWithPipe) / capPipeCsg;
   }
-  const correctedPillVol = placedAnnulusBbl(bbl(requiredVolAnnulus), bbl(calculatedChase));
+  const correctedPillVol = useTapered
+    ? round(requiredVolAnnulus, 0)
+    : placedAnnulusBbl(bbl(requiredVolAnnulus), bbl(calculatedChase));
   const finalKwm = useTapered
     ? tapered.mudInDp
     : correctedChase === 0
@@ -82,6 +84,7 @@ export function calcNoDpPill(inputs: WellInputs, caps: WellCaps, pressures: Trip
   const bblBackfill = !isNum(kmwRoomWithPipe)
     ? 0
     : Math.max(0, round((isNum(totalPillVol) ? totalPillVol : 0) - kmwRoomWithPipe, 0));
+  // Room cap plus the trip-out backfill departs from the sheet on purpose, because H20 volume can exceed annulus capacity.
   const pumpedAnnulus =
     bblBackfill > 0 ? Math.max(0, kmwRoomWithPipe - drillStringVolAtSpot) : correctedPillVol;
   const spottedKmwVol = bblBackfill > 0
