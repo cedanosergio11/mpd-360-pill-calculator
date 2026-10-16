@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { calculate, esdCasingWithDp, esdTargetWithDp, pillHeightWithDp } from "./engine";
-import { AUBURNIA, EMPTY_INPUTS } from "./examples";
+import { EXAMPLE_1, EMPTY_INPUTS } from "./examples";
 import { buildSteelSchedule } from "./steel";
 import type { WellInputs } from "./types";
 import { round } from "../utils";
 
-/** EXCO Lock Sub 1H — Stasis pill sheet inputs (12.25 in intermediate, shoe 3199 MD / 3187 TVD). */
-const LOCK_SUB_1H: WellInputs = {
+/** EXAMPLE sheet inputs (12.25 in intermediate, shoe 3199 MD / 3187 TVD). */
+const EXAMPLE_5: WellInputs = {
   ...EMPTY_INPUTS,
-  wellName: "Lock Sub 1H",
-  client: "EXCO",
+  wellName: "EXAMPLE",
+  client: "",
   date: "2026-10-05",
   sectionType: "Intermediate",
   pillMode: "noSlug",
@@ -40,8 +40,8 @@ const LOCK_SUB_1H: WellInputs = {
   idDp1: 4.778,
 };
 
-describe("shoe ESD — Lock Sub 1H (pill top far below the shoe)", () => {
-  const r = calculate(LOCK_SUB_1H);
+describe("shoe ESD — EXAMPLE (pill top far below the shoe)", () => {
+  const r = calculate(EXAMPLE_5);
 
   it("keeps pill sizing and MASP", () => {
     expect(r.heightPillNoDp).toBe(2420);
@@ -68,7 +68,7 @@ describe("shoe ESD — Lock Sub 1H (pill top far below the shoe)", () => {
 
 describe("shoe ESD — pill reaches into casing (hand calc)", () => {
   // Same well, shoe moved to 9000 MD / 8990 TVD.
-  const w: WellInputs = { ...LOCK_SUB_1H, wellName: "Deep shoe", casingMd: 9000, casingTvd: 8990 };
+  const w: WellInputs = { ...EXAMPLE_5, wellName: "Deep shoe", casingMd: 9000, casingTvd: 8990 };
   const r = calculate(w);
 
   it("no DP: 11.4 + (2420 - 10466 + 8990) x 2.6 / 8990", () => {
@@ -91,7 +91,7 @@ describe("shoe ESD — pill reaches into casing (hand calc)", () => {
 
 describe("shoe ESD — only the equalized pill crosses the shoe", () => {
   // Shoe at 8033 TVD: 10466 - 8033 = 2433 ft, between 2420 (no DP) and ~2446 (with DP).
-  const r = calculate({ ...LOCK_SUB_1H, wellName: "Crossing shoe", casingMd: 8045, casingTvd: 8033 });
+  const r = calculate({ ...EXAMPLE_5, wellName: "Crossing shoe", casingMd: 8045, casingTvd: 8033 });
 
   it("no DP stays at MW, with DP counts only the part above the shoe", () => {
     expect(r.esdCasingNoDp).toBe(11.4);
@@ -104,14 +104,14 @@ describe("shoe ESD — only the equalized pill crosses the shoe", () => {
 });
 
 describe("steel displacement — shoe EMW follows each row's pill", () => {
-  it("Lock Sub 1H: pill stays below the shoe on every row -> 11.40", () => {
-    const steel = buildSteelSchedule(LOCK_SUB_1H, calculate(LOCK_SUB_1H));
+  it("EXAMPLE: pill stays below the shoe on every row -> 11.40", () => {
+    const steel = buildSteelSchedule(EXAMPLE_5, calculate(EXAMPLE_5));
     expect(steel.rows.map((row) => row.bitDepth)).toEqual([0, 8060, 10480]);
     for (const row of steel.rows) expect(row.emwShoeStatic).toBe(11.4);
   });
 
-  it("Auburnia: pill crosses the shoe (hand calc)", () => {
-    const steel = buildSteelSchedule(AUBURNIA, calculate(AUBURNIA));
+  it("EXAMPLE 1: pill crosses the shoe (hand calc)", () => {
+    const steel = buildSteelSchedule(EXAMPLE_1, calculate(EXAMPLE_1));
     const at = (bit: number) => steel.rows.find((row) => row.bitDepth === bit)!;
     const casingCap = 6.875 ** 2 / 1029.4;
     const annularCap = (6.875 ** 2 - 4.5 ** 2) / 1029.4;

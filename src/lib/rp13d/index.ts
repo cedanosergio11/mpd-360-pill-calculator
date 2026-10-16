@@ -1,0 +1,36 @@
+export {
+  DEFAULT_CLINGING,
+  DEFAULT_TRIP_SPEEDS,
+  annularFrictionTo,
+  annulusSections,
+  BIT_TVD_NOT_IN_SHEET,
+  calcRp13d,
+  ecd,
+  eccentricityRatio,
+  hbParams,
+  pointsOfInterest,
+  fannInOrder,
+  rheologyFrom,
+  segmentDp,
+  tripDp,
+  tripOptions,
+  tripSpeeds,
+  veffClosed,
+  veffOpen,
+  vel,
+} from "./engine";
+export type {
+  AnnulusSection,
+  DepthKey,
+  EcdPoint,
+  HbParams,
+  Poi,
+  Rheology,
+  Rp13dInputs,
+  Rp13dResult,
+  SegmentResult,
+  TripPoint,
+  TripRow,
+} from "./engine";
+export { compareEcd } from "./compare";
+export type { EcdComparison, SheetBasis, SheetEcd } from "./compare";

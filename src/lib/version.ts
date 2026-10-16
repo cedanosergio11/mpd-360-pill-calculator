@@ -10,7 +10,7 @@
  * Always prepend a ReleaseNote and mirror it in CHANGELOG.md.
  */
 
-export const APP_VERSION = "2.0.0";
+export const APP_VERSION = "2.1.0 (1.0.7.1 sheet model)";
 
 export type ReleaseNote = {
   version: string;
@@ -21,18 +21,11 @@ export type ReleaseNote = {
 
 export const RELEASES: ReleaseNote[] = [
   {
-    version: "2.0.0",
-    date: "2026-10-14",
-    title: "PillView 2.0",
-    notes: ["Displayed version is PillView 2.0 (2.0.0)."],
-  },
-  {
-    version: "1.0.8.0",
-    date: "2026-10-13",
-    title: "API RP 13D swab/surge and ECD replace the SafeVision tables",
+    version: "2.1.0",
+    date: "2026-10-16",
+    title: "Displayed version 2.1.0, sheet model 1.0.7.1",
     notes: [
-      "Swab (trip speed table, dynamic SBP, slug at 200 ft/min) and steel-displacement surge now come from API RP 13D Herschel-Bulkley hydraulics (Fann 600/300/6/3, clinging factor 0.45, closed pipe by default, open pipe Eq 101 optional). The SafeVision swab/surge lookup tables and the custom swab table are removed. Without Fann readings no swab is calculated and a warning shows.",
-      "New RP 13D ECD and swab/surge EMW at shoe, anchor and bit / TD: ECD = MW + (annular friction above the point + circulating SBP) / (0.052 · TVD). Warnings when surge EMW at the shoe is above FIT or swab EMW at the anchor is below desired EMW. Surface rheology, no temperature / pressure correction, uniform string OD, no tool joints. Verified against RP 13D Annex C (within 1 psi, ECD 13.60 ppg) and Annex D effective velocities.",
+      "The app shows 2.1.0 (1.0.7.1 sheet model). The sheet calculation is unchanged.",
     ],
   },
   {
@@ -40,7 +33,7 @@ export const RELEASES: ReleaseNote[] = [
     date: "2026-10-05",
     title: "Shoe ESD counts only KMW above the shoe",
     notes: [
-      "Shoe ESD no longer drops below MW when the pill top is below the casing shoe. With DP, only the part of the equalized pill above the shoe adds to shoe ESD. Unchanged when the pill already reaches into casing (Auburnia, Momentum, WW Farms, WoolWorth, examples). Steel displacement table shoe EMW follows each row's pill top and base, same column model as the RIH / FIT stops (was all KMW above the shoe, could read above KMW).",
+      "Shoe ESD no longer drops below MW when the pill top is below the casing shoe. With DP, only the part of the equalized pill above the shoe adds to shoe ESD. Unchanged when the pill already reaches into casing (EXAMPLE 1, EXAMPLE 2, EXAMPLE 3, EXAMPLE 4, and the workbook examples). Steel displacement table shoe EMW follows each row's pill top and base, same column model as the RIH / FIT stops (was all KMW above the shoe, could read above KMW).",
     ],
   },
   {
@@ -64,15 +57,15 @@ export const RELEASES: ReleaseNote[] = [
     date: "2026-09-01",
     title: "RIH pill base is spot",
     notes: [
-      "Displacement shoe ESD uses KMW only from pill top to spot, not the casing shoe. WW Farms stops unchanged.",
+      "Displacement shoe ESD uses KMW only from pill top to spot, not the casing shoe. EXAMPLE 3 stops unchanged.",
     ],
   },
   {
     version: "1.0.6.2",
     date: "2026-09-01",
-    title: "WoolWorth Load well",
+    title: "EXAMPLE 4 Load well",
     notes: [
-      "Load well includes WoolWorth #11 HH (R Lacy, Tanner Hembling, 2026-07-26).",
+      "Load well includes EXAMPLE 4.",
     ],
   },
   {
@@ -128,7 +121,7 @@ export const RELEASES: ReleaseNote[] = [
     title: "POOH pill volume honors open hole",
     notes: [
       "No-DP pill volume uses 6.75 in OH + 6.88 in casing instead of casing ID for the whole height.",
-      "After the pipe is pulled, annulus KMW = spotted + KMW backfill (18.0 ppge Momentum: 460 bbl).",
+      "After the pipe is pulled, annulus KMW = spotted + KMW backfill (18.0 ppge on EXAMPLE 2: 460 bbl).",
     ],
   },
   {
@@ -137,7 +130,7 @@ export const RELEASES: ReleaseNote[] = [
     title: "Honor open-hole geometry in room-with-pipe",
     notes: [
       "KMW that fits with pipe is casing annulus + OH annulus + DP bore to the bit, not a uniform 6.88 in hole.",
-      "18.0 ppge on Momentum geometry: 462 needed, 455 fits, 7 bbl KMW backfill while POOH.",
+      "18.0 ppge on EXAMPLE 2 geometry: 462 needed, 455 fits, 7 bbl KMW backfill while POOH.",
     ],
   },
   {
@@ -146,7 +139,7 @@ export const RELEASES: ReleaseNote[] = [
     title: "Room-with-pipe backfill",
     notes: [
       "KMW that fits with pipe in the hole is spot × (C_ann + C_DP), not pill-height annulus + DP volume.",
-      "18.0 ppge on Momentum geometry: 462 needed, 457 fits, 5 bbl KMW backfill while POOH.",
+      "18.0 ppge on EXAMPLE 2 geometry: 462 needed, 457 fits, 5 bbl KMW backfill while POOH.",
     ],
   },
   {
@@ -163,8 +156,8 @@ export const RELEASES: ReleaseNote[] = [
     date: "2026-08-25",
     title: "Blank startup",
     notes: [
-      "App opens on empty well fields instead of Momentum.",
-      "Momentum remains under Load well → Workbook examples. Saved wells are kept.",
+      "App opens on empty well fields instead of a workbook example.",
+      "Workbook examples remain under Load well. Saved wells are kept.",
     ],
   },
   {
@@ -226,5 +219,5 @@ export const RELEASES: ReleaseNote[] = [
 ];
 
 export function formatVersion(version = APP_VERSION) {
-  return `v ${version}`;
+  return version;
 }

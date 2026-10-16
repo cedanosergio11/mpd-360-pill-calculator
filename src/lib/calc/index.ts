@@ -4,5 +4,7 @@ export * from "./rih-fit";
 export * from "./schedule";
 export * from "./steel";
 export * from "./examples";
-export * from "./rp13d";
+export * from "./tables";
 export * from "./paste";
+export * from "./depth";
+export * from "./format";

@@ -4,7 +4,7 @@ import {
   roundUp,
   safeDiv,
 } from "@/lib/utils";
-import type { CalcResults, WarningItem, WellInputs } from "./types";
+import type { CalcResults, CementResults, TaperedResults, WarningItem, WellInputs } from "./types";
 import {
   calcCapacitiesAndRoom,
   calcCement,
@@ -12,8 +12,122 @@ import {
   n,
 } from "./engine";
 import { calcEqualizeExtraPpg, calcNoDpPill, calcSlugAt200FtMin } from "./engine-nodp";
+import { DEPTH_BEYOND_TD, depthBeyondFields, depthBlockMessage } from "./depth";
+
+function nanRecord<T extends object>(keys: (keyof T)[]): T {
+  const out = {} as T;
+  for (const key of keys) out[key] = Number.NaN as T[keyof T];
+  return out;
+}
+
+function blockedResults(inputs: WellInputs): CalcResults | null {
+  const fields = depthBeyondFields(inputs);
+  if (!fields.length) return null;
+  const code = DEPTH_BEYOND_TD;
+  const cement = nanRecord<CementResults>([
+    "staticPressure",
+    "annularCapacity",
+    "openHoleCapacity",
+    "casingStringCapacity",
+    "openHoleToBoc",
+    "bocToShoe",
+    "requiredPillHeight",
+    "requiredCementPillVol",
+    "totalCasingStringVol",
+    "chaseToTd",
+    "chaseExitCasing",
+    "chaseBocToShoe",
+    "chaseBocShoePlusPill",
+    "totalChase",
+    "topOfPill",
+  ]);
+  const tapered = nanRecord<TaperedResults>([
+    "lengthDp2",
+    "openHoleLength",
+    "linerLength",
+    "totalPillVol",
+    "pillNeededAnnulus",
+    "dpVolume",
+    "mudInAnnulusAfterPumping",
+    "additionalChase",
+    "mudInDp",
+  ]);
+  return {
+    masp: Number.NaN,
+    initialApl: Number.NaN,
+    initialAplAnchor: Number.NaN,
+    drillStringCap: Number.NaN,
+    drillStringVolAtSpot: Number.NaN,
+    casingCap: Number.NaN,
+    casingVolAtSpot: Number.NaN,
+    annularCap: Number.NaN,
+    annularBelowShoe: Number.NaN,
+    annularAtSpot: Number.NaN,
+    openHoleCap: Number.NaN,
+    heightPillNoDp: Number.NaN,
+    totalPillVol: Number.NaN,
+    drillStringOpenHole: Number.NaN,
+    volumeBelowShoe: Number.NaN,
+    requiredVolAnnulus: Number.NaN,
+    correctedPillVol: Number.NaN,
+    calculatedChase: Number.NaN,
+    correctedChase: Number.NaN,
+    finalKwm: Number.NaN,
+    spottedKmwVol: Number.NaN,
+    kmwRoomWithPipe: Number.NaN,
+    minHeightPillWithDp: Number.NaN,
+    minHeightWithDp: Number.NaN,
+    balancedAdditionalPsi: Number.NaN,
+    addPpgCsg: Number.NaN,
+    addPpgTarget: Number.NaN,
+    balancedEsdCasing: Number.NaN,
+    esdCasingNoDp: Number.NaN,
+    anchorPointEsd: Number.NaN,
+    equalizeDumpBbl: Number.NaN,
+    remainingKmwInDp: Number.NaN,
+    airCapTopMd: Number.NaN,
+    resolutionHeightGain: Number.NaN,
+    resolutionPressureGain: Number.NaN,
+    pressureDifferential: Number.NaN,
+    pressureDifferentialSlug: Number.NaN,
+    staticStrippingPressure: Number.NaN,
+    maxDynamicSbp: Number.NaN,
+    maxSwabPressure: Number.NaN,
+    selectedTripTable: "other",
+    tripPressures: [],
+    slugPressure: Number.NaN,
+    slugPillVol: Number.NaN,
+    strokesToPumpSlug: Number.NaN,
+    pillVolAtSpot: Number.NaN,
+    slugFits: false,
+    slugFallOut: Number.NaN,
+    slugFallHeight: Number.NaN,
+    chaseWithSlug: Number.NaN,
+    slugPpgEquivalent: Number.NaN,
+    slugPsiEquivalent: Number.NaN,
+    slugApl: Number.NaN,
+    correctedSlugPill: Number.NaN,
+    totalPillVolAtSpotNoSlug: Number.NaN,
+    totalPillVolAtSpotWithSlug: Number.NaN,
+    topOfPillWithDp: Number.NaN,
+    topOfPillNoDp: Number.NaN,
+    drillStringPillHeight: Number.NaN,
+    topOfPillInsideDp: Number.NaN,
+    kwmPlusChase: Number.NaN,
+    deltaSpotBackfill: Number.NaN,
+    bblBackfill: Number.NaN,
+    safevisionSlug: Number.NaN,
+    cement,
+    tapered,
+    procedurePossible: false,
+    errorReason: depthBlockMessage(fields),
+    depthBlock: { code, fields },
+  };
+}
 
 export function calculate(inputs: WellInputs): CalcResults {
+  const blocked = blockedResults(inputs);
+  if (blocked) return blocked;
   const pressures = calcTripAndStatic(inputs);
   const caps = calcCapacitiesAndRoom(inputs);
   const pill = calcNoDpPill(inputs, caps, pressures);
@@ -114,7 +228,7 @@ export function calculate(inputs: WellInputs): CalcResults {
     staticStrippingPressure: pressures.staticStrippingPressure,
     maxDynamicSbp: pressures.maxDynamicSbp,
     maxSwabPressure: pressures.maxSwabPressure,
-    rp13d: pressures.rp13d,
+    selectedTripTable: pressures.selectedTripTable,
     tripPressures: pressures.tripPressures,
     slugPressure: slug.slugPressure,
     slugPillVol: slug.slugPillVol,
@@ -142,10 +256,19 @@ export function calculate(inputs: WellInputs): CalcResults {
     tapered: pill.tapered,
     procedurePossible,
     errorReason,
+    depthBlock: null,
   };
 }
 
 export function collectWarnings(inputs: WellInputs, results: CalcResults): WarningItem[] {
+  if (results.depthBlock) {
+    return [
+      {
+        level: "error",
+        text: results.errorReason ?? "A depth is past TD or the pill or anchor is past the bit.",
+      },
+    ];
+  }
   const warnings: WarningItem[] = [];
   const required: [keyof WellInputs, string][] = [
     ["anchorTvd", "Anchor point TVD"],
@@ -214,39 +337,11 @@ export function collectWarnings(inputs: WellInputs, results: CalcResults): Warni
       text: `Only ${round(results.spottedKmwVol, 0)} bbl of KMW fits with pipe in the hole; ${round(results.totalPillVol, 0)} bbl is needed for the anchor EMW. Backfill ${round(results.bblBackfill, 0)} bbl of KMW while tripping out.`,
     });
   }
-  const rp = results.rp13d;
-  if (!rp.available) {
-    warnings.push({ level: "warn", text: `API RP 13D swab/surge not calculated: ${rp.reason ?? "inputs incomplete"}` });
-  } else {
-    const fitV = n(inputs, "fit");
-    const desired = n(inputs, "desiredEmw");
-    for (const row of rp.trips) {
-      const shoe = row.points.find((p) => p.key === "shoe");
-      if (shoe && isNum(fitV) && shoe.surgeEmw > fitV) {
-        warnings.push({
-          level: "warn",
-          text: `RP 13D surge at ${row.speed} ft/min: shoe EMW ${round(shoe.surgeEmw, 2)} ppge is above FIT (${fitV} ppge).`,
-        });
-        break;
-      }
-    }
-    for (const row of rp.trips) {
-      const anc = row.points.find((p) => p.key === "anchor");
-      if (anc && isNum(desired) && anc.swabEmw < desired) {
-        warnings.push({
-          level: "warn",
-          text: `RP 13D swab at ${row.speed} ft/min: anchor EMW ${round(anc.swabEmw, 2)} ppge is below desired EMW (${desired} ppge) with connection SBP only. Hold dynamic SBP.`,
-        });
-        break;
-      }
-    }
-    const shoeEcd = rp.ecd.find((p) => p.key === "shoe");
-    if (shoeEcd && isNum(fitV) && shoeEcd.ecd > fitV) {
-      warnings.push({ level: "warn", text: `RP 13D ECD at the shoe (${round(shoeEcd.ecd, 2)} ppge) is above FIT (${fitV} ppge).` });
-    }
-    if (!rp.pois.some((p) => p.key === "td")) {
-      warnings.push({ level: "info", text: "Enter current well depth MD and TVD to check RP 13D ECD and swab/surge at bit / TD." });
-    }
+  if (results.selectedTripTable === "other") {
+    warnings.push({
+      level: "info",
+      text: "Open-hole size is not 6.75 / 7.875 / 8.5 in. Using the custom swab table — verify values in SafeVision.",
+    });
   }
   if (isNum(n(inputs, "initialFlowRate")) && isNum(n(inputs, "maxFlowRate")) && n(inputs, "initialFlowRate") > n(inputs, "maxFlowRate")) {
     warnings.push({
@@ -257,7 +352,7 @@ export function collectWarnings(inputs: WellInputs, results: CalcResults): Warni
   if (isNum(n(inputs, "fit")) && isNum(n(inputs, "desiredEmw")) && n(inputs, "fit") - n(inputs, "desiredEmw") < 0.6) {
     warnings.push({
       level: "warn",
-      text: "FIT − target EMW window is under 0.6 ppge. Steel-displacement trip speeds are tight — check the RP 13D surge EMW at shoe and anchor.",
+      text: "FIT − target EMW window is under 0.6 ppge. Steel-displacement automations are not valid — model surge in SafeVision.",
     });
   }
   if (inputs.taperedOn) {

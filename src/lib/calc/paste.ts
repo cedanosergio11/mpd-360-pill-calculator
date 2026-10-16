@@ -1,4 +1,5 @@
-import type { SectionType, WellInputs } from "./types";
+import { DEPTH_BEYOND_TD, depthBeyondFields, depthBlockMessage } from "./depth";
+import type { DepthField, SectionType, WellInputs } from "./types";
 
 type FieldKind = "text" | "number" | "date" | "section" | "bool";
 
@@ -158,6 +159,17 @@ function parseNumber(raw: string): number | "" {
   return Number.isFinite(n) ? n : "";
 }
 
+/** Thousands groups of three, or a plain number. "1,5" and "1,2345" are not numbers. */
+const STRICT_NUMBER = /^[+-]?(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?$/;
+
+function strictNumber(raw: string): number | "" | "bad" {
+  const trimmed = raw.trim();
+  if (!trimmed || isUnit(trimmed)) return "";
+  if (!STRICT_NUMBER.test(trimmed)) return "bad";
+  const n = Number(trimmed.replace(/,/g, ""));
+  return Number.isFinite(n) ? n : "bad";
+}
+
 function parseDate(raw: string): string {
   const t = raw.trim();
   const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -228,14 +240,91 @@ function cellsFromText(text: string): string[][] {
     .filter((row) => row.some((c) => c.trim()));
 }
 
-export function parseWellPaste(text: string): {
+const FIELD_LABELS: Partial<Record<keyof WellInputs, string>> = {
+  wellName: "Well name",
+  client: "Client",
+  date: "Date",
+  producedBy: "Produced by",
+  currentDepthMd: "Current well depth",
+  anchorMd: "Anchor point MD",
+  anchorTvd: "Anchor point TVD",
+  casingMd: "Casing depth MD",
+  casingTvd: "Casing depth TVD",
+  spotMd: "Spot depth MD",
+  spotTvd: "Spot depth TVD",
+  openHoleDia: "Open hole diameter",
+  desiredEmw: "Desired EMW",
+  odDp: "OD drill pipe",
+  idDp: "ID drill pipe",
+  idCasing: "ID casing",
+  currentMw: "Current MW",
+  pumpDisp: "Pump displacement",
+  kmw: "KMW",
+  sbpConnection: "SBP on connection",
+  fit: "FIT",
+  maxFlowRate: "Max flow rate",
+  desiredResolution: "Desired resolution",
+  initialFlowRate: "Initial flow rate",
+  overbalanceSlug: "Overbalance for slug",
+  safevisionNoSlug: "SafeVision AP ECD",
+  sectionType: "Section type",
+  topSlugBbl: "Top slug",
+  tdDepth: "TD depth",
+  taperedOn: "Tapered casing",
+};
+
+export interface PastePreviewRow {
+  field: keyof WellInputs;
+  label: string;
+  oldValue: WellInputs[keyof WellInputs];
+  newValue: WellInputs[keyof WellInputs];
+  changed: boolean;
+}
+
+export interface PastePreviewError {
+  code: "BAD_NUMBER" | typeof DEPTH_BEYOND_TD;
+  message: string;
+  blocking: true;
+  fields?: DepthField[];
+}
+
+/** Which of the sheet's own TVD columns were in the paste. There is no bit TVD. */
+export interface PasteFoundTvds {
+  anchorTvd: boolean;
+  casingTvd: boolean;
+  spotTvd: boolean;
+}
+
+export interface PastePreview {
+  rows: PastePreviewRow[];
+  errors: PastePreviewError[];
+  canApply: boolean;
+  foundTvds: PasteFoundTvds;
+}
+
+function sameValue(left: unknown, right: unknown): boolean {
+  if (typeof left === "number" && typeof right === "number" && Number.isFinite(left) && Number.isFinite(right)) {
+    return Math.abs(left - right) <= 1e-4;
+  }
+  return left === right;
+}
+
+function labelFor(field: keyof WellInputs): string {
+  return FIELD_LABELS[field] ?? field;
+}
+
+type Collected = {
   patch: Partial<WellInputs>;
-  matched: string[];
-} {
+  matched: (keyof WellInputs)[];
+  errors: PastePreviewError[];
+};
+
+function collectPaste(text: string, strict: boolean): Collected {
   const html = text.includes("<table") || text.includes("<tr") ? cellsFromHtml(text) : [];
   const rows = html.length ? html : cellsFromText(text);
   const patch: Partial<WellInputs> = {};
-  const matched: string[] = [];
+  const matched: (keyof WellInputs)[] = [];
+  const errors: PastePreviewError[] = [];
 
   for (const row of rows) {
     const cells = row.map((c) => c.trim()).filter((c) => c.length > 0);
@@ -250,6 +339,22 @@ export function parseWellPaste(text: string): {
         break;
       }
       if (value == null) continue;
+      if (strict && rule.kind === "number") {
+        const parsed = strictNumber(value);
+        if (parsed === "bad") {
+          errors.push({
+            code: "BAD_NUMBER",
+            message: `${labelFor(rule.field)} is not a number ("${value.trim()}").`,
+            blocking: true,
+          });
+          matched.push(rule.field);
+          break;
+        }
+        if (parsed === "") continue;
+        (patch as Record<string, unknown>)[rule.field] = parsed;
+        matched.push(rule.field);
+        break;
+      }
       const coerced = coerce(rule.kind, value);
       if (coerced === undefined) continue;
       (patch as Record<string, unknown>)[rule.field] = coerced;
@@ -258,7 +363,76 @@ export function parseWellPaste(text: string): {
     }
   }
 
+  return { patch, matched, errors };
+}
+
+export function parseWellPaste(text: string): {
+  patch: Partial<WellInputs>;
+  matched: string[];
+} {
+  const { patch, matched } = collectPaste(text, false);
   return { patch, matched };
+}
+
+function foundSheetTvds(patch: Partial<WellInputs>): PasteFoundTvds {
+  return {
+    anchorTvd: typeof patch.anchorTvd === "number",
+    casingTvd: typeof patch.casingTvd === "number",
+    spotTvd: typeof patch.spotTvd === "number",
+  };
+}
+
+function previewRow(
+  current: WellInputs,
+  field: keyof WellInputs,
+  newValue: WellInputs[keyof WellInputs],
+): PastePreviewRow {
+  const oldValue = current[field];
+  return {
+    field,
+    label: labelFor(field),
+    oldValue,
+    newValue,
+    changed: !sameValue(oldValue, newValue),
+  };
+}
+
+/**
+ * Preview a sheet paste. Does not write.
+ * "Current well depth" maps to `currentDepthMd` only.
+ * TVDs are the sheet fields in the paste. A changed MD does not recompute its TVD.
+ * An MD or TVD past TD blocks.
+ */
+export function previewPaste(current: WellInputs, text: string): PastePreview {
+  const { patch, matched, errors } = collectPaste(text, true);
+  const foundTvds = foundSheetTvds(patch);
+  const rows = matched
+    .filter((field) => field in patch)
+    .map((field) => previewRow(current, field, patch[field] as WellInputs[keyof WellInputs]));
+
+  if (errors.length) return { rows, errors, canApply: false, foundTvds };
+
+  const projected: WellInputs = { ...current, ...patch };
+  const depthFields = depthBeyondFields(projected);
+  if (depthFields.length) {
+    errors.push({
+      code: DEPTH_BEYOND_TD,
+      message: depthBlockMessage(depthFields),
+      blocking: true,
+      fields: depthFields,
+    });
+  }
+  return { rows, errors, canApply: errors.length === 0, foundTvds };
+}
+
+/** Apply a preview. Throws when the preview is blocked, and writes nothing. */
+export function applyPaste(current: WellInputs, preview: PastePreview): WellInputs {
+  if (!preview.canApply) throw new Error("Paste is blocked and was not applied.");
+  const next: WellInputs = { ...current };
+  for (const row of preview.rows) {
+    (next as unknown as Record<string, unknown>)[row.field] = row.newValue;
+  }
+  return next;
 }
 
 export function applyWellPaste(current: WellInputs, patch: Partial<WellInputs>): WellInputs {

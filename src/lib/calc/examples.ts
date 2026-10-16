@@ -1,5 +1,6 @@
+import { asNum, isNum } from "@/lib/utils";
 import type { WellInputs } from "./types";
-import { DEFAULT_CLINGING, DEFAULT_TRIP_SPEEDS } from "./rp13d";
+import { DEFAULT_CUSTOM_SWAB } from "./tables";
 
 export const EMPTY_INPUTS: WellInputs = {
   wellName: "",
@@ -47,28 +48,16 @@ export const EMPTY_INPUTS: WellInputs = {
   newCasingId: "",
   cementMw: "",
   tdDepth: "",
-  currentDepthTvd: "",
-  fann600: "",
-  fann300: "",
-  fann200: "",
-  fann100: "",
-  fann6: "",
-  fann3: "",
-  gel10: "",
-  circSbp: "",
-  tripSpeeds: [...DEFAULT_TRIP_SPEEDS],
-  pipeEnd: "closed",
-  clingingFactor: DEFAULT_CLINGING,
-  eccentricity: 0,
+  customSwab: [...DEFAULT_CUSTOM_SWAB],
 };
 
-/** Live values from MPD 360 (2026) Master Procedure Template — AUBURNIA 20-17 HC #4 ALT. */
-export const AUBURNIA: WellInputs = {
+/** EXAMPLE 1 sheet numbers. No well, client, or person name. */
+export const EXAMPLE_1: WellInputs = {
   ...EMPTY_INPUTS,
-  wellName: "AUBURNIA 20-17 HC #4 ALT",
-  client: "EXCO",
+  wellName: "EXAMPLE 1",
+  client: "",
   date: "2026-08-10",
-  producedBy: "Josh Russell",
+  producedBy: "",
   sectionType: "Production",
   pillMode: "noSlug",
   currentDepthMd: 18359,
@@ -160,12 +149,13 @@ export const EXAMPLE_SHALLOW: WellInputs = {
   overbalanceSlug: 200,
 };
 
-export const MOMENTUM: WellInputs = {
+/** EXAMPLE 2 sheet numbers. No well, client, or person name. */
+export const EXAMPLE_2: WellInputs = {
   ...EMPTY_INPUTS,
-  wellName: "Momentum 5-12-12 HU2",
-  client: "Paloma/Apex",
+  wellName: "EXAMPLE 2",
+  client: "",
   date: "2026-08-19",
-  producedBy: "Donald Sehr",
+  producedBy: "",
   sectionType: "Production",
   pillMode: "noSlug",
   currentDepthMd: 18889,
@@ -195,12 +185,13 @@ export const MOMENTUM: WellInputs = {
 };
 
 
-export const WW_FARMS: WellInputs = {
+/** EXAMPLE 3 sheet numbers. No well, client, or person name. */
+export const EXAMPLE_3: WellInputs = {
   ...EMPTY_INPUTS,
-  wellName: "WW Farms 34-3-10HC 1 Alt",
-  client: "Aethon",
+  wellName: "EXAMPLE 3",
+  client: "",
   date: "2026-08-30",
-  producedBy: "Donald Sehr",
+  producedBy: "",
   sectionType: "Production",
   pillMode: "noSlug",
   currentDepthMd: 26270,
@@ -228,12 +219,13 @@ export const WW_FARMS: WellInputs = {
 };
 
 
-export const WOOLWORTH: WellInputs = {
+/** EXAMPLE 4 sheet numbers. No well, client, or person name. */
+export const EXAMPLE_4: WellInputs = {
   ...EMPTY_INPUTS,
-  wellName: "WoolWorth #11 HH",
-  client: "R Lacy",
+  wellName: "EXAMPLE 4",
+  client: "",
   date: "2026-07-26",
-  producedBy: "Tanner Hembling",
+  producedBy: "",
   sectionType: "Production",
   pillMode: "noSlug",
   currentDepthMd: 11760,
@@ -262,11 +254,63 @@ export const WOOLWORTH: WellInputs = {
   idDp1: 3.826,
 };
 
+/** EXAMPLE 5 sheet numbers. No well, client, or person name. */
+export const EXAMPLE_5: WellInputs = {
+  ...EMPTY_INPUTS,
+  wellName: "EXAMPLE 5",
+  client: "",
+  date: "2026-10-05",
+  sectionType: "Intermediate",
+  pillMode: "noSlug",
+  currentDepthMd: 10530,
+  anchorMd: 10480,
+  anchorTvd: 10466,
+  casingMd: 3199,
+  casingTvd: 3187,
+  spotMd: 10480,
+  spotTvd: 10466,
+  openHoleDia: 12.25,
+  odDp: 5.5,
+  idDp: 4.778,
+  idCasing: 12.515,
+  currentMw: 11.4,
+  kmw: 14,
+  desiredEmw: 12,
+  sbpConnection: 325,
+  fit: 12.6,
+  maxFlowRate: 300,
+  initialFlowRate: 300,
+  safevisionNoSlug: 11.5,
+  pumpDisp: 0.0914,
+  desiredResolution: 30,
+  overbalanceSlug: 300,
+  taperedOn: false,
+  odDp1: 5.5,
+  idDp1: 4.778,
+};
+
+function digits(value: number, min: number, max: number): string {
+  if (!isNum(value)) return "—";
+  return value.toLocaleString("en-US", { minimumFractionDigits: min, maximumFractionDigits: max });
+}
+
+/**
+ * Load-well label from the preset's hole size, current MW, and spot MD.
+ * Built when this module loads. Names, dates, rigs, counties, and operators are not read.
+ */
+export function exampleLoadLabel(n: number, inputs: WellInputs): string {
+  const hole = digits(asNum(inputs.openHoleDia), 0, 2);
+  const mw = digits(asNum(inputs.currentMw), 1, 1);
+  const spot = digits(asNum(inputs.spotMd), 0, 0);
+  return `EXAMPLE ${n} — ${hole} in hole, ${mw} ppg, spot ${spot} ft MD`;
+}
+
 export const PRESETS: { id: string; label: string; inputs: WellInputs }[] = [
-  { id: "woolworth", label: "WoolWorth #11 HH", inputs: WOOLWORTH },
-  { id: "ww-farms", label: "WW Farms 34-3-10HC 1 Alt", inputs: WW_FARMS },
-  { id: "momentum", label: "Momentum 5-12-12 HU2", inputs: MOMENTUM },
-  { id: "auburnia", label: "Auburnia 20-17 HC #4 ALT", inputs: AUBURNIA },
   { id: "example-85", label: "Example 8.5 in hole", inputs: EXAMPLE_8_5 },
   { id: "shallow", label: "Shallow spot snapshot", inputs: EXAMPLE_SHALLOW },
+  { id: "example-1", label: exampleLoadLabel(1, EXAMPLE_1), inputs: EXAMPLE_1 },
+  { id: "example-2", label: exampleLoadLabel(2, EXAMPLE_2), inputs: EXAMPLE_2 },
+  { id: "example-3", label: exampleLoadLabel(3, EXAMPLE_3), inputs: EXAMPLE_3 },
+  { id: "example-4", label: exampleLoadLabel(4, EXAMPLE_4), inputs: EXAMPLE_4 },
+  { id: "example-5", label: exampleLoadLabel(5, EXAMPLE_5), inputs: EXAMPLE_5 },
 ];

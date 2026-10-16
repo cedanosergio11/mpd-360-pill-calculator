@@ -3,10 +3,10 @@ import { applyWellPaste, parseWellPaste } from "./paste";
 import { EMPTY_INPUTS } from "./examples";
 
 const tsv = [
-  "Well name\t\tMomentum 5-12-12 HU2",
-  "Client\t\tPaloma/Apex",
+  "Well name\t\tEXAMPLE 2",
+  "Client\t\tWorkbook",
   "Date\t\t8.19.26",
-  "Produced By\t\tDonald Sehr",
+  "Produced By\t\tEngineering",
   "Current Well Depth (MD)\t18889\tft.",
   "Anchor Point (BOC) (MD)\t12281\tft.",
   "Anchor Point (BOC) (TVD)\t11888\tft.",
@@ -35,11 +35,11 @@ const tsv = [
 describe("parseWellPaste", () => {
   const { patch, matched } = parseWellPaste(tsv);
 
-  it("maps Momentum workbook fields", () => {
-    expect(patch.wellName).toBe("Momentum 5-12-12 HU2");
-    expect(patch.client).toBe("Paloma/Apex");
+  it("maps EXAMPLE 2 workbook fields", () => {
+    expect(patch.wellName).toBe("EXAMPLE 2");
+    expect(patch.client).toBe("Workbook");
     expect(patch.date).toBe("2026-08-19");
-    expect(patch.producedBy).toBe("Donald Sehr");
+    expect(patch.producedBy).toBe("Engineering");
     expect(patch.currentDepthMd).toBe(18889);
     expect(patch.anchorMd).toBe(12281);
     expect(patch.anchorTvd).toBe(11888);
@@ -60,7 +60,7 @@ describe("parseWellPaste", () => {
 
   it("merges without clobbering pill mode", () => {
     const merged = applyWellPaste(EMPTY_INPUTS, patch);
-    expect(merged.wellName).toBe("Momentum 5-12-12 HU2");
+    expect(merged.wellName).toBe("EXAMPLE 2");
     expect(merged.pillMode).toBe(EMPTY_INPUTS.pillMode);
   });
 

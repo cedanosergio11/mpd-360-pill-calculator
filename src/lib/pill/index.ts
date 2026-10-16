@@ -3,4 +3,5 @@ export * from "./physics";
 export * from "./hydrostatic";
 export * from "./format";
 export * from "./from-calc";
+export * from "./simulate";
 export * from "./store";

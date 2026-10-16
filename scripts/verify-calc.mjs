@@ -1,4 +1,4 @@
-/** Standalone Auburnia regression — OH-honored no-DP pill (not casing ID for the whole height). */
+/** Standalone EXAMPLE 1 regression — OH-honored no-DP pill (not casing ID for the whole height). */
 const idDp = 3.826;
 const odDp = 4.5;
 const idCsg = 6.875;

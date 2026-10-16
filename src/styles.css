@@ -702,6 +702,3 @@ input[type="range"]:focus-visible::-webkit-slider-thumb {
   fill: var(--color-muted-foreground);
   font-size: 11px;
 }
-
-.tabs-scroll { scrollbar-width: none; }
-.tabs-scroll::-webkit-scrollbar { display: none; }

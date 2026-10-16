@@ -18,7 +18,7 @@ npm run dev
 
 Dev server listens on `http://localhost:8080`.
 
-- `npm test` runs Vitest on `src/**/*.test.ts` (calc + simulator). `scripts/verify-calc.mjs` is a standalone Auburnia regression.
+- `npm test` runs Vitest on `src/**/*.test.ts` (calc + simulator). `scripts/verify-calc.mjs` is a standalone EXAMPLE 1 regression.
 - `npm run typecheck` for `tsc --noEmit`.
 - `npm run build:pages` builds a static SPA for GitHub Pages (`dist/client`).
 

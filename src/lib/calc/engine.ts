@@ -8,7 +8,7 @@ import {
   roundUp,
   safeDiv,
 } from "@/lib/utils";
-import { calcRp13d, rheologyFrom, tripDp, tripSpeeds, type Rp13dResults } from "./rp13d";
+import { TRIP_TABLES, tripTableKey } from "./tables";
 import type {
   CementResults,
   TaperedResults,
@@ -18,6 +18,15 @@ import type {
 
 export function n(inputs: WellInputs, key: keyof WellInputs): number {
   return asNum(inputs[key]);
+}
+
+function swabTable(inputs: WellInputs, hole: number): [number, number][] {
+  const key = tripTableKey(hole);
+  if (key === "other") {
+    const custom = inputs.customSwab?.length === 7 ? inputs.customSwab : TRIP_TABLES.other.map((r) => r[1]);
+    return TRIP_TABLES.other.map(([speed], i) => [speed, custom[i] ?? 0]);
+  }
+  return TRIP_TABLES[key];
 }
 
 export function calcCement(inputs: WellInputs): CementResults {
@@ -130,7 +139,7 @@ export type TripStatic = {
   overbalanceSlug: number;
   safevisionNoSlug: number;
   staticStrippingPressure: number;
-  rp13d: Rp13dResults;
+  selectedTripTable: ReturnType<typeof tripTableKey>;
   tripPressures: TripPressure[];
   maxSwabPressure: number;
   maxDynamicSbp: number;
@@ -147,25 +156,21 @@ export function calcTripAndStatic(inputs: WellInputs): TripStatic {
   const kmw = n(inputs, "kmw");
   const anchorTvd = n(inputs, "anchorTvd");
   const desiredEmw = n(inputs, "desiredEmw");
+  const openHoleDia = n(inputs, "openHoleDia");
   const fit = n(inputs, "fit");
   const safevisionNoSlug = n(inputs, "safevisionNoSlug");
   const staticStrippingPressure = (desiredEmw - currentMw) * 0.052 * anchorTvd;
-  // API RP 13D swab at the anchor (POI = anchor, friction anchor→surface). Replaces the SafeVision table.
-  const rp13d = calcRp13d(inputs);
-  const rh = rheologyFrom(inputs);
-  const anchorMd = n(inputs, "anchorMd");
-  const tripPressures: TripPressure[] =
-    rp13d.available && rh && isNum(anchorMd) && isNum(anchorTvd)
-      ? tripSpeeds(inputs).map((speed) => {
-          const swabPressure = ceilingMath(tripDp(inputs, rh, anchorMd, speed), 10);
-          return {
-            speed,
-            ppge: swabPressure / (0.052 * anchorTvd),
-            swabPressure,
-            dynamicPressure: staticStrippingPressure + swabPressure,
-          };
-        })
-      : [];
+  const selectedTripTable = tripTableKey(openHoleDia);
+  const table = swabTable(inputs, openHoleDia);
+  const tripPressures: TripPressure[] = table.map(([speed, ppge]) => {
+    const swabPressure = ceilingMath(ppge * 0.052 * anchorTvd, 10);
+    return {
+      speed,
+      ppge,
+      swabPressure,
+      dynamicPressure: staticStrippingPressure + swabPressure,
+    };
+  });
   const maxSwabPressure = tripPressures.at(-1)?.swabPressure ?? Number.NaN;
   const maxDynamicSbp = staticStrippingPressure + maxSwabPressure;
   const casingTvd = n(inputs, "casingTvd");
@@ -186,7 +191,7 @@ export function calcTripAndStatic(inputs: WellInputs): TripStatic {
     overbalanceSlug: n(inputs, "overbalanceSlug"),
     safevisionNoSlug,
     staticStrippingPressure,
-    rp13d,
+    selectedTripTable,
     tripPressures,
     maxSwabPressure,
     maxDynamicSbp,
