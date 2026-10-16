@@ -178,22 +178,31 @@ export default defineConfig(({ command, isPreview }) => ({
     // GitHub Pages is static — skip Grok PWA server middleware / install page.
     ...(isGitHubPages ? [] : [grokPwaPlugin()]),
     tailwindcss(),
-    // Pages: SPA-only. Nitro github_pages prerender + grok-pwa/serverDir is too
-    // broken for this Grok/pglite app (empty index, nitro env build fails).
+    // Pages prerender used TanStack Start SPA shell mode: an empty suspense
+    // document that hydrateRoot then mismatches (React #418). Prerender the
+    // real `/` document instead. Nitro's github_pages preset stays skipped.
     tanstackStart(
       isGitHubPages
         ? {
-            spa: {
+            prerender: {
               enabled: true,
-              prerender: {
-                onSuccess: ({ html }) => {
-                  const dir = join(process.cwd(), "dist/client");
-                  writeFileSync(join(dir, "index.html"), html);
-                  writeFileSync(join(dir, "404.html"), html);
-                  writeFileSync(join(dir, ".nojekyll"), "");
+              crawlLinks: false,
+              autoStaticPathsDiscovery: false,
+            },
+            pages: [
+              {
+                path: "/",
+                prerender: {
+                  crawlLinks: false,
+                  onSuccess: ({ html }) => {
+                    const dir = join(process.cwd(), "dist/client");
+                    writeFileSync(join(dir, "index.html"), html);
+                    writeFileSync(join(dir, "404.html"), html);
+                    writeFileSync(join(dir, ".nojekyll"), "");
+                  },
                 },
               },
-            },
+            ],
           }
         : undefined,
     ),
