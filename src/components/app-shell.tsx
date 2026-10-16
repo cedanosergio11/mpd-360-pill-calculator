@@ -36,6 +36,7 @@ import { ScheduleView } from "@/components/schedule-view";
 import { DisplacementView } from "@/components/displacement-view";
 import { CementView } from "@/components/cement-view";
 import { AuditView } from "@/components/audit-view";
+import { Rp13dView } from "@/components/rp13d/view";
 import { PressureWindow } from "@/components/pressure-window";
 import { SimulatorView } from "@/components/simulator-view";
 import { ExcelPasteButton } from "@/components/excel-paste";
@@ -55,6 +56,7 @@ const TABS: { id: WorkspaceTab; label: string }[] = [
   { id: "displacement", label: "Displacement" },
   { id: "cement", label: "Cement" },
   { id: "audit", label: "Audit" },
+  { id: "rp13d", label: "RP 13D" },
 ];
 
 export function AppShell() {
@@ -373,6 +375,7 @@ export function AppShell() {
               {tab === "displacement" ? <DisplacementView inputs={inputs} results={results} /> : null}
               {tab === "cement" ? <CementView inputs={inputs} results={results} /> : null}
               {tab === "audit" ? <AuditView inputs={inputs} results={results} warnings={warnings} /> : null}
+              {tab === "rp13d" ? <Rp13dView inputs={inputs} results={results} /> : null}
             </div>
 
             <div className="hidden print:block">

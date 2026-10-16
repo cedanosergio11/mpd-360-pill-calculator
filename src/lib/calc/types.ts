@@ -221,6 +221,6 @@ export interface DepthField {
 
 /** Calc is blocked. `fields` is the list to show instead of empty tables. */
 export interface DepthBlock {
-  code: "DEPTH_BEYOND_TD";
+  code: "DEPTH_BEYOND_TD" | "MD_BEYOND_SURVEY";
   fields: DepthField[];
 }

@@ -263,11 +263,15 @@ export interface Poi {
   tvd: number;
 }
 
+export const BIT_NEEDS_SURVEY = "needs survey to bit";
+
 export interface EcdPoint extends Poi {
   pa: number;
   esd: number;
   ecd: number;
   laminar: boolean;
+  /** Set when this depth cannot be calculated. The bit uses `BIT_NEEDS_SURVEY`. */
+  reason?: string | null;
 }
 
 export interface TripPoint extends Poi {
@@ -333,6 +337,28 @@ export function pointsOfInterest(inputs: Rp13dInputs): Poi[] {
 }
 
 export function calcRp13d(inputs: Rp13dInputs): Rp13dResult {
+  return withBitSurveyRow(inputs, calcRp13dBody(inputs));
+}
+
+function withBitSurveyRow(inputs: Rp13dInputs, result: Rp13dResult): Rp13dResult {
+  if (finite(inputs.bitTvd) && inputs.bitTvd > 0) return result;
+  if (!finite(inputs.bitMd) || !(inputs.bitMd > 0)) return result;
+  if (result.ecd.some((point) => point.depth === "bit" && point.reason === BIT_NEEDS_SURVEY)) return result;
+  const bit: EcdPoint = {
+    depth: "bit",
+    label: "Bit",
+    md: inputs.bitMd,
+    tvd: Number.NaN,
+    pa: Number.NaN,
+    esd: Number.NaN,
+    ecd: Number.NaN,
+    laminar: false,
+    reason: BIT_NEEDS_SURVEY,
+  };
+  return { ...result, ecd: [...result.ecd.filter((point) => point.depth !== "bit"), bit] };
+}
+
+function calcRp13dBody(inputs: Rp13dInputs): Rp13dResult {
   const rh = rheologyFrom(inputs);
   const rho = inputs.mw;
   const q = inputs.flowGpm;

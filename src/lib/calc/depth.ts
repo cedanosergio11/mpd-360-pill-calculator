@@ -73,6 +73,31 @@ export function bitTvd(inputs: WellInputs): number | null {
   return surveyTvdAt(inputs, bit);
 }
 
+/**
+ * Anchor, shoe, and spot MDs that are past the last survey station.
+ * A stored MD/TVD tie is itself a station, so a loaded well is not blocked
+ * for being the deepest tie. The bit MD is not checked: the sheet uses it
+ * for volumes, and a missing bit TVD stays null.
+ */
+export function mdBeyondSurveyFields(inputs: WellInputs): DepthField[] {
+  const fields: DepthField[] = [];
+  const stations = realSurvey(inputs);
+  const last = stations.at(-1)?.md ?? 0;
+  for (const pair of MD_TVD_PAIRS) {
+    const md = finite(inputs[pair.md]);
+    if (md == null) continue;
+    const tied = stations.some((point) => Math.abs(point.md - md) <= EPS);
+    if (tied || !(md > last + EPS)) continue;
+    fields.push({
+      label: pair.mdLabel,
+      value: md,
+      limit: last,
+      limitLabel: "last survey station",
+    });
+  }
+  return fields;
+}
+
 function surveyOmitting(inputs: WellInputs, md: MdKey, tvd: TvdKey): SurveyPoint[] {
   return surveyFromInputs({ ...inputs, [md]: "", [tvd]: "" });
 }

@@ -3,6 +3,7 @@ export {
   DEFAULT_TRIP_SPEEDS,
   annularFrictionTo,
   annulusSections,
+  BIT_NEEDS_SURVEY,
   calcRp13d,
   ecd,
   eccentricityRatio,

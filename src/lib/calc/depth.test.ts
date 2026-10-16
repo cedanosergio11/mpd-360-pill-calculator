@@ -80,6 +80,32 @@ describe("depth block", () => {
   it("treats a depth equal to the limit as inside", () => {
     expect(depthBeyondFields({ ...EXAMPLE_8_5, currentDepthMd: 17650, tdDepth: 17650 })).toEqual([]);
   });
+
+  it("does not block a bit MD past the last survey station", () => {
+    const inputs = { ...EXAMPLE_8_5, currentDepthMd: 17000 };
+    expect(bitTvd(inputs)).toBeNull();
+    expect(calculate(inputs).depthBlock).toBeNull();
+    expect(calculate(inputs).totalPillVol).toBe(calculate(EXAMPLE_8_5).totalPillVol);
+  });
+
+  it("blocks an untied shoe, anchor, or spot MD in results.depthBlock", () => {
+    const shoe = calculate({ ...EXAMPLE_8_5, casingMd: 16000, casingTvd: "" });
+    expect(shoe.depthBlock).toEqual({
+      code: "MD_BEYOND_SURVEY",
+      fields: [{ label: "Casing depth MD", value: 16000, limit: 15400, limitLabel: "last survey station" }],
+    });
+    const anchor = calculate({ ...EXAMPLE_8_5, anchorMd: 16000, anchorTvd: "" });
+    expect(anchor.depthBlock).toEqual({
+      code: "MD_BEYOND_SURVEY",
+      fields: [{ label: "Anchor point MD", value: 16000, limit: 15400, limitLabel: "last survey station" }],
+    });
+    const spot = calculate({ ...EXAMPLE_8_5, spotMd: 16000, spotTvd: "" });
+    expect(spot.depthBlock).toEqual({
+      code: "MD_BEYOND_SURVEY",
+      fields: [{ label: "Spot depth MD", value: 16000, limit: 13900, limitLabel: "last survey station" }],
+    });
+    expect(calculate(EXAMPLE_8_5).depthBlock).toBeNull();
+  });
 });
 
 describe("survey TVD on an MD change", () => {

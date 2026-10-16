@@ -130,15 +130,16 @@ describe("compareEcd", () => {
     expect(rows[0].difference).toBeCloseTo(-0.035934759224972, 8);
     expect(rows[1].sheetBasis).toBe("esd");
     expect(rows[1].sheetEcd).toBe(results.esdCasingNoDp);
-    expect(rows[2]).toMatchObject({ sheetEcd: null, sheetBasis: "esd", difference: null });
+    expect(rows[2]).toMatchObject({ sheetEcd: null, sheetBasis: "esd", difference: null, reason: "needs survey to bit" });
+    expect(bitTvd(EXAMPLE_8_5)).toBeNull();
   });
 
   it("leaves the difference empty when the sheet has no ECD at that depth", () => {
     const rows = compareEcd([], { shoe: 12.4 });
     expect(rows).toEqual([
-      { depth: "anchor", label: "Anchor", rp13dEcd: null, sheetEcd: null, difference: null, sheetBasis: "esd" },
-      { depth: "shoe", label: "Shoe", rp13dEcd: null, sheetEcd: 12.4, difference: null, sheetBasis: "esd" },
-      { depth: "bit", label: "Bit", rp13dEcd: null, sheetEcd: null, difference: null, sheetBasis: "esd" },
+      { depth: "anchor", label: "Anchor", rp13dEcd: null, sheetEcd: null, difference: null, sheetBasis: "esd", reason: null },
+      { depth: "shoe", label: "Shoe", rp13dEcd: null, sheetEcd: 12.4, difference: null, sheetBasis: "esd", reason: null },
+      { depth: "bit", label: "Bit", rp13dEcd: null, sheetEcd: null, difference: null, sheetBasis: "esd", reason: null },
     ]);
   });
 });

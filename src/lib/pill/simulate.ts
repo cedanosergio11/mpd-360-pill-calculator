@@ -43,8 +43,11 @@ export function simulate(
       }
     }
   }
-  if (fields.length || results.depthBlock) {
-    return { ok: false, code: DEPTH_BEYOND_TD, fields: fields.length ? fields : results.depthBlock!.fields };
+  if (results.depthBlock) {
+    return { ok: false, code: results.depthBlock.code, fields: results.depthBlock.fields };
+  }
+  if (fields.length) {
+    return { ok: false, code: DEPTH_BEYOND_TD, fields };
   }
 
   const base = live ?? placedState(inputs, results);

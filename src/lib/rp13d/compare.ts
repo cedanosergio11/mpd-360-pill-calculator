@@ -34,6 +34,8 @@ export interface EcdComparison {
   label: string;
   rp13dEcd: number | null;
   sheetEcd: number | null;
+  /** Why this row has no RP 13D ECD. The bit past the survey is "needs survey to bit". */
+  reason: string | null;
   /**
    * RP 13D ECD minus the sheet value, ppg. Null when either side is missing.
    * With `sheetBasis: "esd"` this is RP 13D ECD minus sheet ESD.
@@ -86,7 +88,10 @@ function sheetAt(depth: DepthKey, sheet: SheetEcd): { value: number | null; basi
  * that friction is supplied. Otherwise the shoe is the static ESD.
  * The bit stays empty.
  */
-export function compareEcd(points: Pick<EcdPoint, "depth" | "ecd">[], sheet: SheetEcd): EcdComparison[] {
+export function compareEcd(
+  points: Pick<EcdPoint, "depth" | "ecd" | "reason">[],
+  sheet: SheetEcd,
+): EcdComparison[] {
   return DEPTHS.map(({ depth, label }) => {
     const rp = points.find((point) => point.depth === depth);
     const rp13dEcd = rp && finite(rp.ecd) ? rp.ecd : null;
@@ -99,6 +104,7 @@ export function compareEcd(points: Pick<EcdPoint, "depth" | "ecd">[], sheet: She
       sheetEcd,
       difference: rp13dEcd != null && sheetEcd != null ? rp13dEcd - sheetEcd : null,
       sheetBasis: sheetSide.basis,
+      reason: rp?.reason ?? null,
     };
   });
 }

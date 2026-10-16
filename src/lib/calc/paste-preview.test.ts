@@ -72,6 +72,22 @@ describe("previewPaste", () => {
     expect(() => applyPaste(EXAMPLE_8_5, preview)).toThrow(/blocked/);
   });
 
+  it("does not block a bit MD past the survey when it is inside TD", () => {
+    const preview = previewPaste(EXAMPLE_8_5, "Current well depth\t17000\tft");
+    expect(preview.errors.map((error) => error.code)).not.toContain("MD_BEYOND_SURVEY");
+    expect(preview.canApply).toBe(true);
+    expect(applyPaste(EXAMPLE_8_5, preview).currentDepthMd).toBe(17000);
+  });
+
+  it("blocks a shoe MD past the last survey station", () => {
+    const preview = previewPaste(EXAMPLE_8_5, "Casing depth MD\t16000\tft");
+    expect(preview.canApply).toBe(false);
+    expect(preview.errors[0]?.code).toBe("MD_BEYOND_SURVEY");
+    expect(preview.errors[0]?.fields).toEqual([
+      { label: "Casing depth MD", value: 16000, limit: 15400, limitLabel: "last survey station" },
+    ]);
+  });
+
   it("blocks a depth past TD with the field list", () => {
     const preview = previewPaste(EXAMPLE_8_5, "Current well depth\t18000\tft");
     expect(preview.canApply).toBe(false);

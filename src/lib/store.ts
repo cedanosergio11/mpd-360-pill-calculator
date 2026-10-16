@@ -10,7 +10,8 @@ export type WorkspaceTab =
   | "schedule"
   | "displacement"
   | "cement"
-  | "audit";
+  | "audit"
+  | "rp13d";
 
 interface ScenarioRecord {
   id: string;
@@ -57,6 +58,7 @@ export const useAppStore = create<AppState>()(
       setField: (key, value) =>
         set((s) => {
           const next = { ...s.inputs, [key]: value };
+          // Bit MD is a volume depth. It is stored past the survey; only anchor, shoe, and spot are ties.
           if (key !== "anchorMd" && key !== "casingMd" && key !== "spotMd") {
             return { inputs: next, editBlock: null };
           }

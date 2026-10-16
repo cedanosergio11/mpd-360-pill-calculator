@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { calculate } from "@/lib/calc/engine";
-import { EMPTY_INPUTS } from "@/lib/calc/examples";
+import { EMPTY_INPUTS, EXAMPLE_8_5 } from "@/lib/calc/examples";
 import { surveyTvdAt } from "@/lib/calc/depth";
 import type { WellInputs } from "@/lib/calc/types";
 import { useAppStore } from "@/lib/store";
@@ -75,5 +75,43 @@ describe("setField survey TVD", () => {
     expect(expected).not.toBeNull();
     expect(inputs.anchorTvd).toBeCloseTo(expected!, 6);
     expect(inputs.anchorTvd).not.toBe(10466);
+  });
+
+  it("stores a bit MD past the last survey station and does not set editBlock", () => {
+    useAppStore.getState().setInputs(EXAMPLE_8_5);
+    useAppStore.getState().setField("currentDepthMd", 17000);
+    const { inputs, editBlock } = useAppStore.getState();
+    expect(editBlock).toBeNull();
+    expect(inputs.currentDepthMd).toBe(17000);
+    expect(calculate(inputs).depthBlock).toBeNull();
+    useAppStore.getState().setInputs(EXAMPLE_8_5);
+  });
+
+  it("blocks shoe, anchor, and spot edits past the last survey station", () => {
+    useAppStore.getState().setInputs(EXAMPLE_8_5);
+    useAppStore.getState().setField("casingMd", 16000);
+    expect(useAppStore.getState().inputs.casingMd).toBe(EXAMPLE_8_5.casingMd);
+    expect(useAppStore.getState().editBlock).toEqual({
+      code: "MD_BEYOND_SURVEY",
+      fields: [{ label: "Casing depth MD", value: 16000, limit: 15400, limitLabel: "last survey station" }],
+    });
+    expect(calculate(useAppStore.getState().inputs).depthBlock).toBeNull();
+
+    useAppStore.getState().setInputs(EXAMPLE_8_5);
+    useAppStore.getState().setField("anchorMd", 20000);
+    expect(useAppStore.getState().inputs.anchorMd).toBe(EXAMPLE_8_5.anchorMd);
+    expect(useAppStore.getState().editBlock?.code).toBe("MD_BEYOND_SURVEY");
+    expect(useAppStore.getState().editBlock?.fields).toEqual([
+      { label: "Anchor point MD", value: 20000, limit: 15400, limitLabel: "last survey station" },
+    ]);
+
+    useAppStore.getState().setInputs(EXAMPLE_8_5);
+    useAppStore.getState().setField("spotMd", 16000);
+    expect(useAppStore.getState().inputs.spotMd).toBe(EXAMPLE_8_5.spotMd);
+    expect(useAppStore.getState().editBlock).toEqual({
+      code: "MD_BEYOND_SURVEY",
+      fields: [{ label: "Spot depth MD", value: 16000, limit: 13900, limitLabel: "last survey station" }],
+    });
+    useAppStore.getState().setInputs(EXAMPLE_8_5);
   });
 });
