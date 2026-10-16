@@ -253,7 +253,47 @@ export const EXAMPLE_4: WellInputs = {
   idDp1: 3.826,
 };
 
+/** EXAMPLE 5 sheet numbers. No well, client, or person name. */
+export const EXAMPLE_5: WellInputs = {
+  ...EMPTY_INPUTS,
+  wellName: "EXAMPLE 5",
+  client: "",
+  date: "2026-10-05",
+  sectionType: "Intermediate",
+  pillMode: "noSlug",
+  currentDepthMd: 10530,
+  anchorMd: 10480,
+  anchorTvd: 10466,
+  casingMd: 3199,
+  casingTvd: 3187,
+  spotMd: 10480,
+  spotTvd: 10466,
+  openHoleDia: 12.25,
+  odDp: 5.5,
+  idDp: 4.778,
+  idCasing: 12.515,
+  currentMw: 11.4,
+  kmw: 14,
+  desiredEmw: 12,
+  sbpConnection: 325,
+  fit: 12.6,
+  maxFlowRate: 300,
+  initialFlowRate: 300,
+  safevisionNoSlug: 11.5,
+  pumpDisp: 0.0914,
+  desiredResolution: 30,
+  overbalanceSlug: 300,
+  taperedOn: false,
+  odDp1: 5.5,
+  idDp1: 4.778,
+};
+
 export const PRESETS: { id: string; label: string; inputs: WellInputs }[] = [
   { id: "example-85", label: "Example 8.5 in hole", inputs: EXAMPLE_8_5 },
   { id: "shallow", label: "Shallow spot snapshot", inputs: EXAMPLE_SHALLOW },
+  { id: "example-1", label: "EXAMPLE 1", inputs: EXAMPLE_1 },
+  { id: "example-2", label: "EXAMPLE 2", inputs: EXAMPLE_2 },
+  { id: "example-3", label: "EXAMPLE 3", inputs: EXAMPLE_3 },
+  { id: "example-4", label: "EXAMPLE 4", inputs: EXAMPLE_4 },
+  { id: "example-5", label: "EXAMPLE 5", inputs: EXAMPLE_5 },
 ];
