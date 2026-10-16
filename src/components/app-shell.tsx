@@ -131,6 +131,7 @@ export function AppShell() {
       <Toaster
         theme="dark"
         position="bottom-right"
+        className="print:hidden"
         toastOptions={{ className: "border-border bg-card text-card-foreground" }}
       />
       <div className="flex min-h-dvh flex-col bg-background text-foreground">
