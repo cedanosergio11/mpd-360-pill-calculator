@@ -1,6 +1,7 @@
 import type { CalcResults, ScheduleResult, WellInputs } from "@/lib/calc/types";
 import { esdCasingWithDp, esdTargetWithDp, pillHeightWithDp } from "@/lib/calc/engine";
 import { asNum, formatExact, formatNumber, isNum } from "@/lib/utils";
+import { useChicagoDate } from "@/lib/chicago-date";
 import { formatVersion } from "@/lib/version";
 import { Badge } from "@/components/ui/badge";
 import { dKmw, dBbl, dEmw, dFt, dPsi, dStk } from "@/components/fmt";
@@ -59,6 +60,7 @@ export function ProcedureDoc({
   const chase = results.correctedChase;
   const overFit = shoeExceedsFit(inputs, results);
   const shoeEq = esdCasingWithDp(results);
+  const printedDate = useChicagoDate();
 
   return (
     <article className="procedure-sheet mx-auto w-full min-w-0 max-w-4xl overflow-x-auto rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-8">
@@ -78,7 +80,7 @@ export function ProcedureDoc({
             <div className="text-base font-semibold">{inputs.wellName || "Untitled well"}</div>
             <div>{inputs.client || "—"}</div>
             <div className="text-muted-foreground">
-              {inputs.date} · {inputs.producedBy || "—"}
+              {printedDate || "—"} · {inputs.producedBy || "—"}
             </div>
           </div>
         </div>
@@ -101,7 +103,7 @@ export function ProcedureDoc({
         <div className="mt-1 grid grid-cols-2 sm:grid-cols-4">
           <Cell label="Well" value={inputs.wellName || "—"} />
           <Cell label="Client" value={inputs.client || "—"} />
-          <Cell label="Date" value={String(inputs.date || "—")} />
+          <Cell label="Date" value={printedDate || "—"} />
           <Cell label="Prepared by" value={inputs.producedBy || "—"} />
           <Cell label="Active MW" value={dEmw(mw)} unit="ppg" />
           <Cell label="KMW" value={dKmw(kmw)} unit="ppg" />
