@@ -34,8 +34,15 @@ interface AppState {
   deleteScenario: (id: string) => void;
 }
 
+/** Local calendar date `YYYY-MM-DD`. Not UTC, and not evaluated during prerender. */
+export function localDateInput(now = new Date()): string {
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
+}
+
 function blankWell(): WellInputs {
-  return { ...EMPTY_INPUTS, date: new Date().toISOString().slice(0, 10) };
+  return { ...EMPTY_INPUTS, date: "" };
 }
 
 export const useAppStore = create<AppState>()(
@@ -47,8 +54,9 @@ export const useAppStore = create<AppState>()(
       scenarios: [],
       setField: (key, value) => set((s) => ({ inputs: { ...s.inputs, [key]: value } })),
       setInputs: (inputs) => set({ inputs }),
-      reset: () => set({ inputs: blankWell() }),
-      loadPreset: (inputs) => set({ inputs: { ...inputs } }),
+      reset: () => set({ inputs: { ...blankWell(), date: localDateInput() } }),
+      loadPreset: (inputs) =>
+        set({ inputs: { ...inputs, date: inputs.date || localDateInput() } }),
       setTab: (tab) => set({ tab }),
       saveScenario: (name) => {
         const { inputs, scenarios } = get();
