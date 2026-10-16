@@ -1,25 +1,37 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { calculate } from "./engine";
-import { PRESETS } from "./examples";
+import { EXAMPLE_1, EXAMPLE_2, EXAMPLE_3, EXAMPLE_4, EXAMPLE_5, PRESETS, exampleLoadLabel } from "./examples";
 import { useAppStore } from "@/lib/store";
 
-const LOAD_WELL_LABELS = [
-  "Example 8.5 in hole",
-  "Shallow spot snapshot",
-  "EXAMPLE 1",
-  "EXAMPLE 2",
-  "EXAMPLE 3",
-  "EXAMPLE 4",
-  "EXAMPLE 5",
-];
+const NUMBERED = [
+  [1, EXAMPLE_1],
+  [2, EXAMPLE_2],
+  [3, EXAMPLE_3],
+  [4, EXAMPLE_4],
+  [5, EXAMPLE_5],
+] as const;
 
 describe("Load well", () => {
-  it("lists the scrubbed examples", () => {
+  it("lists labels built from hole size, current MW, and spot MD", () => {
     const shell = readFileSync(new URL("../../components/app-shell.tsx", import.meta.url), "utf8");
     expect(shell).toMatch(/PRESETS\.map\(\(p\)/);
     expect(shell).toContain("{p.label}");
-    expect(PRESETS.map((preset) => preset.label)).toEqual(LOAD_WELL_LABELS);
+    const labels = PRESETS.map((preset) => preset.label);
+    expect(labels.slice(0, 2)).toEqual(["Example 8.5 in hole", "Shallow spot snapshot"]);
+    for (const [n, inputs] of NUMBERED) {
+      const label = exampleLoadLabel(n, inputs);
+      expect(labels).toContain(label);
+      const named = {
+        ...inputs,
+        wellName: "NOT USED",
+        client: "NOT USED",
+        date: "1999-01-01",
+        producedBy: "NOT USED",
+      };
+      expect(exampleLoadLabel(n, named)).toBe(label);
+    }
+    for (const label of labels) console.log(label);
   });
 
   it("loads each preset and calculates", () => {

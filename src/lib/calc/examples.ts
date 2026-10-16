@@ -1,3 +1,4 @@
+import { asNum, isNum } from "@/lib/utils";
 import type { WellInputs } from "./types";
 import { DEFAULT_CUSTOM_SWAB } from "./tables";
 
@@ -288,12 +289,28 @@ export const EXAMPLE_5: WellInputs = {
   idDp1: 4.778,
 };
 
+function digits(value: number, min: number, max: number): string {
+  if (!isNum(value)) return "—";
+  return value.toLocaleString("en-US", { minimumFractionDigits: min, maximumFractionDigits: max });
+}
+
+/**
+ * Load-well label from the preset's hole size, current MW, and spot MD.
+ * Built when this module loads. Names, dates, rigs, counties, and operators are not read.
+ */
+export function exampleLoadLabel(n: number, inputs: WellInputs): string {
+  const hole = digits(asNum(inputs.openHoleDia), 0, 2);
+  const mw = digits(asNum(inputs.currentMw), 1, 1);
+  const spot = digits(asNum(inputs.spotMd), 0, 0);
+  return `EXAMPLE ${n} — ${hole} in hole, ${mw} ppg, spot ${spot} ft MD`;
+}
+
 export const PRESETS: { id: string; label: string; inputs: WellInputs }[] = [
   { id: "example-85", label: "Example 8.5 in hole", inputs: EXAMPLE_8_5 },
   { id: "shallow", label: "Shallow spot snapshot", inputs: EXAMPLE_SHALLOW },
-  { id: "example-1", label: "EXAMPLE 1", inputs: EXAMPLE_1 },
-  { id: "example-2", label: "EXAMPLE 2", inputs: EXAMPLE_2 },
-  { id: "example-3", label: "EXAMPLE 3", inputs: EXAMPLE_3 },
-  { id: "example-4", label: "EXAMPLE 4", inputs: EXAMPLE_4 },
-  { id: "example-5", label: "EXAMPLE 5", inputs: EXAMPLE_5 },
+  { id: "example-1", label: exampleLoadLabel(1, EXAMPLE_1), inputs: EXAMPLE_1 },
+  { id: "example-2", label: exampleLoadLabel(2, EXAMPLE_2), inputs: EXAMPLE_2 },
+  { id: "example-3", label: exampleLoadLabel(3, EXAMPLE_3), inputs: EXAMPLE_3 },
+  { id: "example-4", label: exampleLoadLabel(4, EXAMPLE_4), inputs: EXAMPLE_4 },
+  { id: "example-5", label: exampleLoadLabel(5, EXAMPLE_5), inputs: EXAMPLE_5 },
 ];
