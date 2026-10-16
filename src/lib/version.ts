@@ -10,7 +10,7 @@
  * Always prepend a ReleaseNote and mirror it in CHANGELOG.md.
  */
 
-export const APP_VERSION = "1.0.7.1";
+export const APP_VERSION = "2.1.0 (1.0.7.1 sheet model)";
 
 export type ReleaseNote = {
   version: string;
@@ -20,6 +20,14 @@ export type ReleaseNote = {
 };
 
 export const RELEASES: ReleaseNote[] = [
+  {
+    version: "2.1.0",
+    date: "2026-10-16",
+    title: "Displayed version 2.1.0, sheet model 1.0.7.1",
+    notes: [
+      "The app shows 2.1.0 (1.0.7.1 sheet model). The sheet calculation is unchanged.",
+    ],
+  },
   {
     version: "1.0.7.1",
     date: "2026-10-05",
@@ -211,5 +219,5 @@ export const RELEASES: ReleaseNote[] = [
 ];
 
 export function formatVersion(version = APP_VERSION) {
-  return `v ${version}`;
+  return version;
 }

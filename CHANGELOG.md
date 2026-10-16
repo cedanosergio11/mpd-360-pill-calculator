@@ -9,6 +9,12 @@ Version scheme: `major.minor.patch.build` (shown in-app as `v 1.0.0.0`).
 
 ---
 
+## 2.1.0 — 2026-10-16
+
+Displayed version 2.1.0, sheet model 1.0.7.1
+
+- The app shows 2.1.0 (1.0.7.1 sheet model). The sheet calculation is unchanged.
+
 ## 1.0.7.1 — 2026-10-05
 
 Shoe ESD counts only KMW above the shoe
