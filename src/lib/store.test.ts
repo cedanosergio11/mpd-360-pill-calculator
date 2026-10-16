@@ -1,8 +1,26 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { calculate } from "@/lib/calc/engine";
 import { EXAMPLE_8_5 } from "@/lib/calc/examples";
 import { simulate } from "@/lib/pill/simulate";
-import { useAppStore } from "@/lib/store";
+import { localDateInput, useAppStore } from "@/lib/store";
+
+describe("localDateInput", () => {
+  it("uses the local calendar day", () => {
+    const evening = new Date(2026, 9, 16, 23, 45, 0);
+    expect(localDateInput(evening)).toBe("2026-10-16");
+    if (evening.getTimezoneOffset() > 0) {
+      expect(evening.toISOString().slice(0, 10)).not.toBe("2026-10-16");
+    }
+    const source = readFileSync(new URL("./store.ts", import.meta.url), "utf8");
+    const fn = source.slice(source.indexOf("export function localDateInput"), source.indexOf("function blankWell"));
+    expect(fn).toContain("getFullYear");
+    expect(fn).toContain("getDate");
+    expect(fn).not.toContain("toISOString");
+    const examples = readFileSync(new URL("./calc/examples.ts", import.meta.url), "utf8");
+    expect(examples).not.toContain("toISOString");
+  });
+});
 
 describe("setField", () => {
   it("stores an anchor MD and keeps the sheet TVD", () => {

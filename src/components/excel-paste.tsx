@@ -9,11 +9,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { depthFieldSentence } from "@/components/depth-block";
+import { toUiErrors } from "@/components/paste-errors";
 import { applyPaste, previewPaste, type PastePreview, type PastePreviewError } from "@/lib/calc/paste";
 import { useAppStore } from "@/lib/store";
 
-const CODE_TITLE: Record<PastePreviewError["code"], string> = {
+/** Title before the line. The TVD codes have none: their sentence is the whole message. */
+const CODE_TITLE: Partial<Record<PastePreviewError["code"], string>> = {
   BAD_NUMBER: "Not a number",
   DEPTH_BEYOND_TD: "Depth past TD or below the bit",
 };
@@ -75,6 +76,8 @@ export function ExcelPasteButton({ compact = false }: { compact?: boolean }) {
   }
 
   const refused = !!preview && !preview.canApply;
+  const uiErrors = toUiErrors(preview?.errors);
+  const flagged = new Set<string>(uiErrors.flatMap((e) => e.highlight));
   const empty = !!preview && preview.canApply && preview.rows.length === 0;
   const canApply = !!preview && preview.canApply && preview.rows.length > 0 && !busy;
 
@@ -125,19 +128,15 @@ export function ExcelPasteButton({ compact = false }: { compact?: boolean }) {
           {refused ? (
             <div role="alert" data-paste-refused className="mt-3 rounded-xl border border-destructive/60 bg-destructive/15 px-3 py-2 text-sm break-words">
               <p className="font-semibold text-destructive">Paste refused — nothing was applied</p>
-              <ul className="mt-1 list-disc space-y-1 pl-5">
-                {preview!.errors.flatMap((error, i) =>
-                  error.fields?.length
-                    ? error.fields.map((field, j) => (
-                        <li key={`${i}-${j}`}>
-                          <span className="font-medium">{CODE_TITLE[error.code]}:</span> {depthFieldSentence(field)}
-                        </li>
-                      ))
-                    : [
-                        <li key={i}>
-                          <span className="font-medium">{CODE_TITLE[error.code]}:</span> {error.message}
-                        </li>,
-                      ],
+              {uiErrors.length > 1 ? <p className="text-xs text-muted-foreground">{uiErrors.length} problems</p> : null}
+              <ul id="paste-errors" className="mt-1 list-disc space-y-1 pl-5">
+                {uiErrors.flatMap((error, i) =>
+                  error.lines.map((line, j) => (
+                    <li key={`${i}-${j}`} data-paste-error={error.code}>
+                      {CODE_TITLE[error.code as PastePreviewError["code"]] ? <span className="font-medium">{CODE_TITLE[error.code as PastePreviewError["code"]]}: </span> : null}
+                      {line}
+                    </li>
+                  )),
                 )}
               </ul>
             </div>
@@ -154,10 +153,20 @@ export function ExcelPasteButton({ compact = false }: { compact?: boolean }) {
               <ul className="mt-1 grid gap-0.5">
                 {PASTE_TVDS.map(([field, label]) => {
                   const found = preview.foundTvds[field];
+                  const bad = flagged.has(field);
                   return (
-                    <li key={field} data-paste-tvd={field} data-found={found ? "yes" : "no"} className="flex flex-wrap gap-x-2">
+                    <li
+                      key={field}
+                      data-paste-tvd={field}
+                      data-found={found ? "yes" : "no"}
+                      data-invalid={bad ? "true" : undefined}
+                      aria-invalid={bad || undefined}
+                      aria-describedby={bad ? "paste-errors" : undefined}
+                      className={`flex flex-wrap gap-x-2 rounded ${bad ? "-mx-1 bg-destructive/15 px-1 ring-1 ring-destructive" : ""}`}
+                    >
                       <span className={found ? "font-semibold text-foreground" : "font-semibold text-destructive"}>{found ? "Found" : "Missing"}</span>
                       <span>{label}</span>
+                      {bad ? <span className="font-semibold text-destructive">Error</span> : null}
                     </li>
                   );
                 })}
@@ -181,7 +190,13 @@ export function ExcelPasteButton({ compact = false }: { compact?: boolean }) {
                 </thead>
                 <tbody>
                   {preview.rows.map((row) => (
-                    <tr key={String(row.field)} className="border-t border-border">
+                    <tr
+                      key={String(row.field)}
+                      data-invalid={flagged.has(row.field) ? "true" : undefined}
+                      aria-invalid={flagged.has(row.field) || undefined}
+                      aria-describedby={flagged.has(row.field) ? "paste-errors" : undefined}
+                      className={`border-t border-border ${flagged.has(row.field) ? "bg-destructive/15 outline outline-1 -outline-offset-1 outline-destructive" : ""}`}
+                    >
                       <td className="px-2 py-1 break-words">{row.label}</td>
                       <td className="px-2 py-1 font-mono break-all text-muted-foreground">{show(row.oldValue)}</td>
                       <td className={`px-2 py-1 font-mono break-all ${row.changed ? "font-semibold" : "text-muted-foreground"}`}>

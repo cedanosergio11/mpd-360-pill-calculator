@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EXAMPLE_8_5, EMPTY_INPUTS } from "./examples";
+import { EXAMPLE_8_5, EMPTY_INPUTS, PRESETS } from "./examples";
 import { applyPaste, applyWellPaste, parseWellPaste, previewPaste } from "./paste";
 
 describe("previewPaste", () => {
@@ -98,10 +98,10 @@ describe("previewPaste", () => {
   });
 
   it("applies a shoe MD inside TD and keeps the sheet TVD", () => {
-    const preview = previewPaste(EXAMPLE_8_5, "Casing depth MD\t16000\tft");
+    const preview = previewPaste(EXAMPLE_8_5, "Casing depth MD\t12000\tft");
     expect(preview.canApply).toBe(true);
     const applied = applyPaste(EXAMPLE_8_5, preview);
-    expect(applied.casingMd).toBe(16000);
+    expect(applied.casingMd).toBe(12000);
     expect(applied.casingTvd).toBe(EXAMPLE_8_5.casingTvd);
   });
 
@@ -114,6 +114,78 @@ describe("previewPaste", () => {
         { label: "Current well depth", value: 18000, limit: 17650, limitLabel: "TD" },
       ]),
     );
+  });
+
+  it("refuses a TVD strictly deeper than its own MD, one error per field", () => {
+    const preview = previewPaste(
+      EMPTY_INPUTS,
+      ["Anchor point MD\t8000\tft", "Anchor point TVD\t9000\tft", "Spot depth MD\t7000\tft", "Spot depth TVD\t7001\tft"].join("\n"),
+    );
+    expect(preview.canApply).toBe(false);
+    expect(preview.errors).toEqual([
+      expect.objectContaining({ code: "TVD_DEEPER_THAN_MD", fields: ["anchorTvd"] }),
+      expect.objectContaining({ code: "TVD_DEEPER_THAN_MD", fields: ["spotTvd"] }),
+    ]);
+    expect(preview.errors.every((error) => error.fields?.every((field) => typeof field === "string"))).toBe(true);
+    expect(preview.foundTvds).toEqual({ anchorTvd: true, casingTvd: false, spotTvd: true });
+    expect(() => applyPaste(EMPTY_INPUTS, preview)).toThrow(/blocked/);
+  });
+
+  it("refuses a deeper MD with a strictly shallower TVD", () => {
+    const preview = previewPaste(
+      EMPTY_INPUTS,
+      [
+        "Casing depth MD\t8000\tft",
+        "Casing depth TVD\t7000\tft",
+        "Anchor point MD\t9000\tft",
+        "Anchor point TVD\t4000\tft",
+      ].join("\n"),
+    );
+    expect(preview.canApply).toBe(false);
+    expect(preview.errors).toEqual([
+      expect.objectContaining({
+        code: "TVD_OUT_OF_ORDER",
+        fields: ["casingTvd", "anchorTvd"],
+        message: expect.any(String),
+      }),
+    ]);
+    expect(preview.foundTvds).toEqual({ anchorTvd: true, casingTvd: true, spotTvd: false });
+    expect(() => applyPaste(EMPTY_INPUTS, preview)).toThrow(/blocked/);
+    const belowAnchor = previewPaste(EXAMPLE_8_5, "Casing depth MD\t16000\tft");
+    expect(belowAnchor.canApply).toBe(false);
+    expect(belowAnchor.errors).toEqual([
+      expect.objectContaining({ code: "TVD_OUT_OF_ORDER", fields: ["anchorTvd", "casingTvd"] }),
+      expect.objectContaining({ code: "TVD_OUT_OF_ORDER", fields: ["spotTvd", "casingTvd"] }),
+    ]);
+    expect(belowAnchor.foundTvds).toEqual({ anchorTvd: false, casingTvd: false, spotTvd: false });
+  });
+
+  it("accepts a TVD equal to its MD", () => {
+    const preview = previewPaste(EMPTY_INPUTS, ["Anchor point MD\t10000\tft", "Anchor point TVD\t10000\tft"].join("\n"));
+    expect(preview.errors).toEqual([]);
+    expect(preview.canApply).toBe(true);
+    expect(applyPaste(EMPTY_INPUTS, preview).anchorTvd).toBe(10000);
+    expect(applyPaste(EMPTY_INPUTS, preview).anchorMd).toBe(10000);
+  });
+
+  it("accepts the MD and TVD pairs on all seven presets", () => {
+    expect(PRESETS).toHaveLength(7);
+    for (const preset of PRESETS) {
+      const text = [
+        ["Anchor point MD", preset.inputs.anchorMd],
+        ["Anchor point TVD", preset.inputs.anchorTvd],
+        ["Casing depth MD", preset.inputs.casingMd],
+        ["Casing depth TVD", preset.inputs.casingTvd],
+        ["Spot depth MD", preset.inputs.spotMd],
+        ["Spot depth TVD", preset.inputs.spotTvd],
+      ]
+        .filter(([, value]) => value !== "" && value != null)
+        .map(([label, value]) => `${label}\t${value}\tft`)
+        .join("\n");
+      const preview = previewPaste(preset.inputs, text);
+      expect(preview.errors, preset.label).toEqual([]);
+      expect(preview.canApply, preset.label).toBe(true);
+    }
   });
 
   it("leaves the loose sheet parser unchanged", () => {

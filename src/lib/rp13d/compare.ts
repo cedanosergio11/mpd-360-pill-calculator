@@ -37,10 +37,9 @@ export interface EcdComparison {
   /** Why this row has no RP 13D ECD. A missing bit TVD is "bit TVD not in sheet paste". */
   reason: string | null;
   /**
-   * RP 13D ECD minus the sheet value, ppg. Null when either side is missing.
-   * With `sheetBasis: "esd"` this is RP 13D ECD minus sheet ESD.
-   * With `sheetBasis: "ecd"` this is RP 13D ECD minus the sheet circulating ECD
-   * (`currentMw + friction to that point / (0.052 * TVD)`).
+   * RP 13D ECD minus the sheet circulating ECD, ppg, when `sheetBasis` is `"ecd"`.
+   * Null when either side is missing, and null when `sheetBasis` is `"esd"`
+   * (a static ESD is not subtracted from RP 13D ECD).
    */
   difference: number | null;
   sheetBasis: SheetBasis;
@@ -102,7 +101,8 @@ export function compareEcd(
       label,
       rp13dEcd,
       sheetEcd,
-      difference: rp13dEcd != null && sheetEcd != null ? rp13dEcd - sheetEcd : null,
+      difference:
+        sheetSide.basis === "ecd" && rp13dEcd != null && sheetEcd != null ? rp13dEcd - sheetEcd : null,
       sheetBasis: sheetSide.basis,
       reason: rp?.reason ?? null,
     };

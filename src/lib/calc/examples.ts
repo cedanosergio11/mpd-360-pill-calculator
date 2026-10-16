@@ -5,7 +5,7 @@ import { DEFAULT_CUSTOM_SWAB } from "./tables";
 export const EMPTY_INPUTS: WellInputs = {
   wellName: "",
   client: "",
-  date: new Date().toISOString().slice(0, 10),
+  date: "",
   producedBy: "",
   sectionType: "Production",
   pillMode: "noSlug",
@@ -88,9 +88,9 @@ export const EXAMPLE_1: WellInputs = {
 
 export const EXAMPLE_8_5: WellInputs = {
   ...EMPTY_INPUTS,
-  wellName: "RIG - WELL",
+  wellName: "EXAMPLE",
   client: "Client",
-  date: new Date().toISOString().slice(0, 10),
+  date: "",
   producedBy: "Engineering",
   sectionType: "Production",
   currentDepthMd: 17650,
@@ -306,8 +306,8 @@ export function exampleLoadLabel(n: number, inputs: WellInputs): string {
 }
 
 export const PRESETS: { id: string; label: string; inputs: WellInputs }[] = [
-  { id: "example-85", label: "Example 8.5 in hole", inputs: EXAMPLE_8_5 },
-  { id: "shallow", label: "Shallow spot snapshot", inputs: EXAMPLE_SHALLOW },
+  { id: "example-85", label: exampleLoadLabel(6, EXAMPLE_8_5), inputs: EXAMPLE_8_5 },
+  { id: "shallow", label: exampleLoadLabel(7, EXAMPLE_SHALLOW), inputs: EXAMPLE_SHALLOW },
   { id: "example-1", label: exampleLoadLabel(1, EXAMPLE_1), inputs: EXAMPLE_1 },
   { id: "example-2", label: exampleLoadLabel(2, EXAMPLE_2), inputs: EXAMPLE_2 },
   { id: "example-3", label: exampleLoadLabel(3, EXAMPLE_3), inputs: EXAMPLE_3 },

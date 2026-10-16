@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { NumberField, Section, TextField } from "@/components/fields";
 import { ExcelPasteButton } from "@/components/excel-paste";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -5,7 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Field } from "@/components/fields";
 import { Input } from "@/components/ui/input";
-import { useChicagoDate } from "@/lib/chicago-date";
+import { chicagoDate } from "@/lib/chicago-date";
 import { useAppStore } from "@/lib/store";
 import { calculate } from "@/lib/calc";
 import { formatNumber, isNum } from "@/lib/utils";
@@ -15,8 +16,19 @@ import { dPsi } from "@/components/fmt";
 export function InputPanel() {
   const inputs = useAppStore((s) => s.inputs);
   const setField = useAppStore((s) => s.setField);
-  const printedDate = useChicagoDate();
   const results = calculate(inputs);
+
+  // First paint stays date="" so prerendered HTML matches hydration.
+  // The Chicago day is written only after persist rehydration, and only when the field is empty.
+  useEffect(() => {
+    const stampChicagoDate = () => {
+      if (useAppStore.getState().inputs.date) return;
+      useAppStore.getState().setField("date", chicagoDate());
+    };
+    const unsubscribe = useAppStore.persist.onFinishHydration(stampChicagoDate);
+    if (useAppStore.persist.hasHydrated()) stampChicagoDate();
+    return unsubscribe;
+  }, []);
 
   return (
     <div className="flex flex-col">
@@ -26,7 +38,7 @@ export function InputPanel() {
       <Section title="Well information">
         <TextField label="Well name" value={inputs.wellName} onChange={(v) => setField("wellName", v)} />
         <TextField label="Client" value={inputs.client} onChange={(v) => setField("client", v)} />
-        <TextField label="Date" type="date" value={printedDate} onChange={() => {}} />
+        <TextField label="Date" type="date" value={inputs.date} onChange={(v) => setField("date", v)} />
         <TextField label="Produced by" value={inputs.producedBy} onChange={(v) => setField("producedBy", v)} />
         <Field label="Section type">
           <Select

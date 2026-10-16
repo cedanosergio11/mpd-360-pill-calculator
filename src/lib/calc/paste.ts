@@ -281,12 +281,36 @@ export interface PastePreviewRow {
   changed: boolean;
 }
 
-export interface PastePreviewError {
-  code: "BAD_NUMBER" | typeof DEPTH_BEYOND_TD;
-  message: string;
-  blocking: true;
-  fields?: DepthField[];
-}
+/** Sheet TVD columns. There is no bit TVD. */
+export type PasteTvdField = "anchorTvd" | "casingTvd" | "spotTvd";
+
+export type PastePreviewError =
+  | {
+      code: "BAD_NUMBER";
+      message: string;
+      blocking: true;
+      fields?: undefined;
+    }
+  | {
+      code: typeof DEPTH_BEYOND_TD;
+      message: string;
+      blocking: true;
+      fields: DepthField[];
+    }
+  | {
+      code: "TVD_DEEPER_THAN_MD";
+      message: string;
+      blocking: true;
+      /** The TVD key whose value is strictly deeper than its own MD. */
+      fields: [PasteTvdField];
+    }
+  | {
+      code: "TVD_OUT_OF_ORDER";
+      message: string;
+      blocking: true;
+      /** Both TVD keys. The shallower-MD point is first. */
+      fields: [PasteTvdField, PasteTvdField];
+    };
 
 /** Which of the sheet's own TVD columns were in the paste. There is no bit TVD. */
 export interface PasteFoundTvds {
@@ -374,6 +398,66 @@ export function parseWellPaste(text: string): {
   return { patch, matched };
 }
 
+const TVD_POINTS: { md: "anchorMd" | "casingMd" | "spotMd"; tvd: PasteTvdField }[] = [
+  { md: "anchorMd", tvd: "anchorTvd" },
+  { md: "casingMd", tvd: "casingTvd" },
+  { md: "spotMd", tvd: "spotTvd" },
+];
+
+function finiteDepth(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * TVD cannot be deeper than its own MD. Equal depths are inside the well.
+ * One error per failing TVD, with that TVD key in `fields`.
+ */
+function tvdDeeperThanMdErrors(inputs: WellInputs): PastePreviewError[] {
+  const errors: PastePreviewError[] = [];
+  for (const point of TVD_POINTS) {
+    const md = finiteDepth(inputs[point.md]);
+    const tvd = finiteDepth(inputs[point.tvd]);
+    if (md == null || tvd == null || !(tvd > md)) continue;
+    errors.push({
+      code: "TVD_DEEPER_THAN_MD",
+      message: `${labelFor(point.tvd)} ${tvd} ft is deeper than its MD ${md} ft.`,
+      blocking: true,
+      fields: [point.tvd],
+    });
+  }
+  return errors;
+}
+
+/**
+ * A point with a deeper MD cannot have a strictly shallower TVD than the casing shoe.
+ * The shoe is the depth datum. Anchor and spot are not compared with each other:
+ * EXAMPLE 8.5 loses TVD from the anchor to the spot. Equal MD or equal TVD is in order.
+ * `fields` is both TVD keys, shallower MD first.
+ */
+function tvdOutOfOrderErrors(inputs: WellInputs): PastePreviewError[] {
+  const placed = TVD_POINTS.flatMap((point) => {
+    const md = finiteDepth(inputs[point.md]);
+    const tvd = finiteDepth(inputs[point.tvd]);
+    if (md == null || tvd == null) return [];
+    return [{ tvdKey: point.tvd, md, tvd }];
+  });
+  const shoe = placed.find((point) => point.tvdKey === "casingTvd");
+  if (!shoe) return [];
+  const errors: PastePreviewError[] = [];
+  for (const other of placed) {
+    if (other.tvdKey === "casingTvd") continue;
+    const [shallow, deep] = shoe.md < other.md ? [shoe, other] : other.md < shoe.md ? [other, shoe] : [null, null];
+    if (!shallow || !deep || !(shallow.tvd > deep.tvd)) continue;
+    errors.push({
+      code: "TVD_OUT_OF_ORDER",
+      message: `${labelFor(shallow.tvdKey)} is at a shallower MD (${shallow.md} ft) than ${labelFor(deep.tvdKey)} (${deep.md} ft), but its TVD ${shallow.tvd} ft is deeper than ${deep.tvd} ft.`,
+      blocking: true,
+      fields: [shallow.tvdKey, deep.tvdKey],
+    });
+  }
+  return errors;
+}
+
 function foundSheetTvds(patch: Partial<WellInputs>): PasteFoundTvds {
   return {
     anchorTvd: typeof patch.anchorTvd === "number",
@@ -401,7 +485,7 @@ function previewRow(
  * Preview a sheet paste. Does not write.
  * "Current well depth" maps to `currentDepthMd` only.
  * TVDs are the sheet fields in the paste. A changed MD does not recompute its TVD.
- * An MD or TVD past TD blocks.
+ * An MD or TVD past TD blocks. A TVD deeper than its own MD, or a deeper MD with a strictly shallower TVD, blocks. TVD equal to MD is accepted.
  */
 export function previewPaste(current: WellInputs, text: string): PastePreview {
   const { patch, matched, errors } = collectPaste(text, true);
@@ -413,6 +497,7 @@ export function previewPaste(current: WellInputs, text: string): PastePreview {
   if (errors.length) return { rows, errors, canApply: false, foundTvds };
 
   const projected: WellInputs = { ...current, ...patch };
+  errors.push(...tvdDeeperThanMdErrors(projected), ...tvdOutOfOrderErrors(projected));
   const depthFields = depthBeyondFields(projected);
   if (depthFields.length) {
     errors.push({

@@ -37,12 +37,11 @@ describe("compareEcd", () => {
       expect(row.rp13dEcd).toBe(point.ecd);
       if (row.depth === "bit") {
         expect(row.sheetEcd).toBeNull();
-        expect(row.difference).toBeNull();
       } else {
         expect(row.sheetEcd).toBe(sheet[row.depth]);
-        expect(row.difference).toBeCloseTo(point.ecd - sheet[row.depth]!, 9);
       }
       expect(row.sheetBasis).toBe("esd");
+      expect(row.difference).toBeNull();
     }
   });
 
@@ -128,6 +127,7 @@ describe("compareEcd", () => {
     expect(rows[0].difference).toBeCloseTo(-0.035934759224972, 8);
     expect(rows[1].sheetBasis).toBe("esd");
     expect(rows[1].sheetEcd).toBe(results.esdCasingNoDp);
+    expect(rows[1].difference).toBeNull();
     expect(rows[2]).toMatchObject({
       sheetEcd: null,
       sheetBasis: "esd",
