@@ -16,6 +16,8 @@ import { useAppStore } from "@/lib/store";
 const CODE_TITLE: Record<PastePreviewError["code"], string> = {
   BAD_NUMBER: "Not a number",
   DEPTH_BEYOND_TD: "Depth past TD or below the bit",
+  TVD_DEEPER_THAN_MD: "TVD deeper than MD",
+  TVD_OUT_OF_ORDER: "TVD out of order",
 };
 
 function show(value: unknown): string {
@@ -127,7 +129,7 @@ export function ExcelPasteButton({ compact = false }: { compact?: boolean }) {
               <p className="font-semibold text-destructive">Paste refused — nothing was applied</p>
               <ul className="mt-1 list-disc space-y-1 pl-5">
                 {preview!.errors.flatMap((error, i) =>
-                  error.fields?.length
+                  error.code === "DEPTH_BEYOND_TD"
                     ? error.fields.map((field, j) => (
                         <li key={`${i}-${j}`}>
                           <span className="font-medium">{CODE_TITLE[error.code]}:</span> {depthFieldSentence(field)}
