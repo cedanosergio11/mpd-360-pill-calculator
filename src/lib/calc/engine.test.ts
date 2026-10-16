@@ -53,7 +53,8 @@ describe("calculate — EXAMPLE 2 at 17.4 EMW", () => {
     expect(example2.drillStringVolAtSpot).toBe(153);
     expect(example2.topOfPillNoDp).toBe(3717);
     expect(round(example2.finalKwm, 0)).toBe(153);
-    expect(example2.correctedPillVol).toBe(204);
+    // Chase is about −1.1 bbl, so the annulus keeps the barrel that does not fit in the string.
+    expect(example2.correctedPillVol).toBe(205);
     expect(example2.spottedKmwVol).toBe(example2.correctedPillVol + example2.finalKwm);
     expect(example2.bblBackfill).toBe(0);
     expect(example2.kmwRoomWithPipe).toBe(455);

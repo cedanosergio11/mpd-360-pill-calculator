@@ -7,6 +7,7 @@ import {
   safeDiv,
 } from "@/lib/utils";
 import { equalizeFloatAirCap, surveyFromInputs, tvdOfSurvey } from "./equalize";
+import { bbl, placedAnnulusBbl } from "./nodp-placement";
 import type { TaperedResults, WellInputs } from "./types";
 import { calcTapered, type TripStatic, type WellCaps } from "./engine";
 
@@ -72,9 +73,7 @@ export function calcNoDpPill(inputs: WellInputs, caps: WellCaps, pressures: Trip
         ? safeDiv(totalPillVol, capPipeOh)
         : drillStringOpenHole + (totalPillVol - volOhWithPipe) / capPipeCsg;
   }
-  const correctedPillVol = useTapered
-    ? round(requiredVolAnnulus, 0)
-    : round(requiredVolAnnulus, 0);
+  const correctedPillVol = placedAnnulusBbl(bbl(requiredVolAnnulus), bbl(calculatedChase));
   const finalKwm = useTapered
     ? tapered.mudInDp
     : correctedChase === 0
