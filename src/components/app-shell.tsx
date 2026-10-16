@@ -45,7 +45,6 @@ import { BrandGlyph, BrandWordmark } from "@/components/brand-mark";
 import { calculate, collectWarnings, buildSchedule, scheduleToCsv } from "@/lib/calc";
 import { esdCasingWithDp } from "@/lib/calc/engine";
 import { PRESETS as workbookPresets } from "@/lib/calc/examples";
-import { useChicagoDate } from "@/lib/chicago-date";
 import { presentPresets } from "@/lib/present-presets";
 import { useAppStore, type WorkspaceTab } from "@/lib/store";
 import { useSimulator } from "@/lib/pill/store";
@@ -76,7 +75,6 @@ export function AppShell() {
   const loadScenario = useAppStore((s) => s.loadScenario);
   const deleteScenario = useAppStore((s) => s.deleteScenario);
   const scenarios = useAppStore((s) => s.scenarios);
-  const printedDate = useChicagoDate();
   const [drawer, setDrawer] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
@@ -316,7 +314,7 @@ export function AppShell() {
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
                   <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground">
-                    {inputs.client || "Client"} · {printedDate}
+                    {inputs.client || "Client"} · {inputs.date}
                   </p>
                   <h1 className="text-xl font-semibold tracking-tight text-balance sm:text-3xl">
                     {inputs.wellName || "Pill procedure"}

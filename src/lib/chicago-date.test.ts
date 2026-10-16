@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { calculate } from "@/lib/calc/engine";
 import { EXAMPLE_8_5 } from "@/lib/calc/examples";
@@ -20,6 +21,18 @@ describe("chicagoDate", () => {
     const printed = chicagoDate(new Date("2026-10-16T18:00:00.000Z"));
     const withPrinted = calculate({ ...EXAMPLE_8_5, date: printed });
     const withOther = calculate({ ...EXAMPLE_8_5, date: "1999-01-01" });
+    const cleared = calculate({ ...EXAMPLE_8_5, date: "" });
     expect(JSON.stringify(withPrinted)).toBe(JSON.stringify(withOther));
+    expect(JSON.stringify(withPrinted)).toBe(JSON.stringify(cleared));
+  });
+
+  it("stays an editable input that defaults after mount", () => {
+    const panel = readFileSync(new URL("../components/input-panel.tsx", import.meta.url), "utf8");
+    expect(panel).toContain('label="Date"');
+    expect(panel).toContain('type="date"');
+    expect(panel).toContain('value={inputs.date}');
+    expect(panel).toContain('onChange={(v) => setField("date", v)}');
+    expect(panel).toContain("chicagoDate()");
+    expect(panel).toContain("useEffect");
   });
 });
