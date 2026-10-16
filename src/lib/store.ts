@@ -31,7 +31,10 @@ interface AppState {
   tab: WorkspaceTab;
   hydrated: boolean;
   scenarios: ScenarioRecord[];
-  /** Set when an MD edit is past the last other survey station. Not persisted. */
+  /**
+   * Set when an anchor, shoe, or spot MD is past the last other survey station.
+   * A bit MD past the survey is not a block. Not persisted.
+   */
   editBlock: SurveyEditBlock | null;
   setField: <K extends keyof WellInputs>(key: K, value: WellInputs[K]) => void;
   setInputs: (inputs: WellInputs) => void;

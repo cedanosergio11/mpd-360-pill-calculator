@@ -81,6 +81,16 @@ describe("depth block", () => {
     expect(depthBeyondFields({ ...EXAMPLE_8_5, currentDepthMd: 17650, tdDepth: 17650 })).toEqual([]);
   });
 
+  it("lets a bit one foot past TD calculate and still blocks a bit farther past TD", () => {
+    const oneFoot = { ...EXAMPLE_8_5, currentDepthMd: 17651 };
+    expect(depthBeyondFields(oneFoot)).toEqual([]);
+    expect(calculate(oneFoot).depthBlock).toBeNull();
+    expect(calculate(oneFoot).procedurePossible).toBe(true);
+    expect(depthBeyondFields({ ...EXAMPLE_8_5, currentDepthMd: 18000 })).toEqual([
+      { label: "Current well depth", value: 18000, limit: 17650, limitLabel: "TD" },
+    ]);
+  });
+
   it("does not block a bit MD past the last survey station", () => {
     const inputs = { ...EXAMPLE_8_5, currentDepthMd: 17000 };
     expect(bitTvd(inputs)).toBeNull();

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { calculate } from "@/lib/calc/engine";
 import { EMPTY_INPUTS, EXAMPLE_8_5 } from "@/lib/calc/examples";
-import { surveyTvdAt } from "@/lib/calc/depth";
+import { bitTvd, surveyTvdAt } from "@/lib/calc/depth";
 import type { WellInputs } from "@/lib/calc/types";
+import { simulate } from "@/lib/pill/simulate";
 import { useAppStore } from "@/lib/store";
 
 /** EXAMPLE depths, with no client or well name. */
@@ -84,6 +85,24 @@ describe("setField survey TVD", () => {
     expect(editBlock).toBeNull();
     expect(inputs.currentDepthMd).toBe(17000);
     expect(calculate(inputs).depthBlock).toBeNull();
+    expect(simulate(inputs, calculate(inputs), [15400]).ok).toBe(true);
+    useAppStore.getState().setInputs(EXAMPLE_8_5);
+  });
+
+  it("stores a one-foot bit MD edit on EXAMPLE 8.5 and the sheet still calculates", () => {
+    useAppStore.getState().setInputs(EXAMPLE_8_5);
+    useAppStore.getState().setField("currentDepthMd", 17651);
+    const { inputs, editBlock } = useAppStore.getState();
+    expect(editBlock).toBeNull();
+    expect(inputs.currentDepthMd).toBe(17651);
+    expect(bitTvd(inputs)).toBeNull();
+    const results = calculate(inputs);
+    const baseline = calculate(EXAMPLE_8_5);
+    expect(results.depthBlock).toBeNull();
+    expect(results.procedurePossible).toBe(true);
+    expect(results.totalPillVol).toBe(baseline.totalPillVol);
+    expect(results.masp).toBe(baseline.masp);
+    expect(simulate(inputs, results, [15400]).ok).toBe(true);
     useAppStore.getState().setInputs(EXAMPLE_8_5);
   });
 
@@ -96,6 +115,10 @@ describe("setField survey TVD", () => {
       fields: [{ label: "Casing depth MD", value: 16000, limit: 15400, limitLabel: "last survey station" }],
     });
     expect(calculate(useAppStore.getState().inputs).depthBlock).toBeNull();
+    expect(simulate(useAppStore.getState().inputs, calculate(useAppStore.getState().inputs), [15400])).toMatchObject({
+      ok: false,
+      code: "MD_BEYOND_SURVEY",
+    });
 
     useAppStore.getState().setInputs(EXAMPLE_8_5);
     useAppStore.getState().setField("anchorMd", 20000);
@@ -104,6 +127,7 @@ describe("setField survey TVD", () => {
     expect(useAppStore.getState().editBlock?.fields).toEqual([
       { label: "Anchor point MD", value: 20000, limit: 15400, limitLabel: "last survey station" },
     ]);
+    expect(simulate(useAppStore.getState().inputs, calculate(useAppStore.getState().inputs), [15400]).ok).toBe(false);
 
     useAppStore.getState().setInputs(EXAMPLE_8_5);
     useAppStore.getState().setField("spotMd", 16000);
@@ -112,6 +136,7 @@ describe("setField survey TVD", () => {
       code: "MD_BEYOND_SURVEY",
       fields: [{ label: "Spot depth MD", value: 16000, limit: 13900, limitLabel: "last survey station" }],
     });
+    expect(simulate(useAppStore.getState().inputs, calculate(useAppStore.getState().inputs), [15400]).ok).toBe(false);
     useAppStore.getState().setInputs(EXAMPLE_8_5);
   });
 });
