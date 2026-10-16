@@ -1,4 +1,4 @@
-import { bbl, ft, ppg2, psi, signedFt } from "@/lib/pill/format";
+import { bbl, ft, ppg2, psi, signedFt } from "@/components/fmt";
 import { emwAt, hydrostaticLayers, pressureAt, tvdFn } from "@/lib/pill/hydrostatic";
 import type { PillModel, WellState } from "@/lib/pill/types";
 

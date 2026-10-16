@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import type { PointerEvent } from "react";
-import { ft, fmt1, ppg2 } from "@/lib/pill/format";
+import { dBbl, dPsi, ft, ppg2 } from "@/components/fmt";
 import { emwAt, hydrostaticLayers, layerAt, pressureAt, tvdFn } from "@/lib/pill/hydrostatic";
 import { PLOT_HEIGHT, PLOT_TOP, VIEW_H, VIEW_W } from "@/lib/pill/plot";
 import type { PillModel, WellState } from "@/lib/pill/types";
@@ -515,7 +515,7 @@ export function WellboreSchematic({
               className="wb-pill-tick"
             />
             <text x={HOLE_X - 14} y={leftY.string} textAnchor="end" className="wb-data">
-              String {fmt1.format(model.pipeKmwInHole)} bbl
+              String {dBbl(model.pipeKmwInHole)} bbl
             </text>
           </>
         ) : null}
@@ -548,7 +548,7 @@ export function WellboreSchematic({
             textAnchor="middle"
             className="wb-data"
           >
-            Chase {fmt1.format(model.pipeChaseInHole)} bbl
+            Chase {dBbl(model.pipeChaseInHole)} bbl
           </text>
         ) : null}
 
@@ -570,7 +570,7 @@ export function WellboreSchematic({
               textAnchor="middle"
               className="wb-data"
             >
-              KMW {fmt1.format(model.pipeKmwInHole)} bbl
+              KMW {dBbl(model.pipeKmwInHole)} bbl
             </text>
           </>
         ) : null}
@@ -591,7 +591,7 @@ export function WellboreSchematic({
               textAnchor="middle"
               className="wb-data"
             >
-              KMW {fmt1.format(model.annularKmwVolume)} bbl
+              KMW {dBbl(model.annularKmwVolume)} bbl
             </text>
           </>
         ) : null}
@@ -604,8 +604,8 @@ export function WellboreSchematic({
             className="wb-data"
           >
             {model.pipeDelta > 0
-              ? `TT Gain ${fmt1.format(model.tripTankGain)} bbl`
-              : `TT Fill ${fmt1.format(model.backfillVolume)} bbl`}
+              ? `TT Gain ${dBbl(model.tripTankGain)} bbl`
+              : `TT Fill ${dBbl(model.backfillVolume)} bbl`}
           </text>
         ) : null}
 
@@ -697,7 +697,7 @@ export function WellboreSchematic({
           <div className="space-y-0.5">
             <div>{ft(hoverDepth)}</div>
             <div className="text-muted-foreground">{hoverLayer?.name ?? "—"}</div>
-            <div>{fmt1.format(hoverPsi)} psi · {ppg2(hoverEmw)}</div>
+            <div>{dPsi(hoverPsi)} psi · {ppg2(hoverEmw)}</div>
           </div>
         ) : null}
       </div>

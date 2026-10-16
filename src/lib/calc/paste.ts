@@ -288,10 +288,18 @@ export interface PastePreviewError {
   fields?: DepthField[];
 }
 
+/** Which of the sheet's own TVD columns were in the paste. There is no bit TVD. */
+export interface PasteFoundTvds {
+  anchorTvd: boolean;
+  casingTvd: boolean;
+  spotTvd: boolean;
+}
+
 export interface PastePreview {
   rows: PastePreviewRow[];
   errors: PastePreviewError[];
   canApply: boolean;
+  foundTvds: PasteFoundTvds;
 }
 
 function sameValue(left: unknown, right: unknown): boolean {
@@ -366,6 +374,14 @@ export function parseWellPaste(text: string): {
   return { patch, matched };
 }
 
+function foundSheetTvds(patch: Partial<WellInputs>): PasteFoundTvds {
+  return {
+    anchorTvd: typeof patch.anchorTvd === "number",
+    casingTvd: typeof patch.casingTvd === "number",
+    spotTvd: typeof patch.spotTvd === "number",
+  };
+}
+
 function previewRow(
   current: WellInputs,
   field: keyof WellInputs,
@@ -389,11 +405,12 @@ function previewRow(
  */
 export function previewPaste(current: WellInputs, text: string): PastePreview {
   const { patch, matched, errors } = collectPaste(text, true);
+  const foundTvds = foundSheetTvds(patch);
   const rows = matched
     .filter((field) => field in patch)
     .map((field) => previewRow(current, field, patch[field] as WellInputs[keyof WellInputs]));
 
-  if (errors.length) return { rows, errors, canApply: false };
+  if (errors.length) return { rows, errors, canApply: false, foundTvds };
 
   const projected: WellInputs = { ...current, ...patch };
   const depthFields = depthBeyondFields(projected);
@@ -405,7 +422,7 @@ export function previewPaste(current: WellInputs, text: string): PastePreview {
       fields: depthFields,
     });
   }
-  return { rows, errors, canApply: errors.length === 0 };
+  return { rows, errors, canApply: errors.length === 0, foundTvds };
 }
 
 /** Apply a preview. Throws when the preview is blocked, and writes nothing. */

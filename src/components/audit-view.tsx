@@ -4,6 +4,7 @@ import { useAppStore } from "@/lib/store";
 import { EqualizeWorkedExample } from "@/components/equalize-example";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { dBbl, dEmw, dFt, dPsi } from "@/components/fmt";
 
 export function AuditView({
   inputs,
@@ -46,33 +47,33 @@ export function AuditView({
         <h3 className="text-sm font-semibold">Pill calculation audit</h3>
         <dl className="mt-3 grid gap-1 text-sm sm:grid-cols-2">
           <Row k="Drill string capacity" v={`${fmt4(results.drillStringCap)} bbl/ft`} />
-          <Row k="DS volume @ spot" v={`${formatNumber(results.drillStringVolAtSpot, 0)} bbl`} />
+          <Row k="DS volume @ spot" v={`${dBbl(results.drillStringVolAtSpot)} bbl`} />
           <Row k="Casing capacity" v={`${fmt4(results.casingCap)} bbl/ft`} />
           <Row k="Annular capacity" v={`${fmt4(results.annularCap)} bbl/ft`} />
           <Row k="Open hole capacity" v={`${fmt4(results.openHoleCap)} bbl/ft`} />
-          <Row k="Height of pill w/o DP" v={`${formatNumber(results.heightPillNoDp, 0)} ft`} />
-          <Row k="Required annulus volume" v={`${formatNumber(results.requiredVolAnnulus, 1)} bbl`} />
-          <Row k="Corrected annulus volume" v={`${formatNumber(results.correctedPillVol, 0)} bbl`} />
-          <Row k="KMW that fits with DP" v={`${formatNumber(results.spottedKmwVol, 0)} bbl`} />
-          <Row k="Room with pipe (annulus + DP to bit)" v={`${formatNumber(results.kmwRoomWithPipe, 0)} bbl`} />
-          <Row k="KMW needed (no DP)" v={`${formatNumber(results.totalPillVol, 0)} bbl`} />
-          <Row k="Min height with DP" v={`${formatNumber(results.minHeightPillWithDp, 0)} ft`} />
-          <Row k="KMW backfill while POOH" v={`${formatNumber(results.bblBackfill, 0)} bbl`} />
-          <Row k="Chase calculated" v={`${formatNumber(results.calculatedChase, 1)} bbl`} />
-          <Row k="Chase corrected" v={`${formatNumber(results.correctedChase, 1)} bbl`} />
-          <Row k="Final KWM in DS (as pumped)" v={`${formatNumber(results.finalKwm, 1)} bbl`} />
-          <Row k="Equalize dump (VTT)" v={`${formatNumber(results.equalizeDumpBbl, 1)} bbl`} />
-          <Row k="KMW left in DP" v={`${formatNumber(results.remainingKmwInDp, 1)} bbl`} />
-          <Row k="Air cap to" v={`${formatNumber(results.airCapTopMd, 0)} ft`} />
-          <Row k="Annular height after equalize" v={`${formatNumber(results.minHeightWithDp, 0)} ft`} />
-          <Row k="Extra psi from dump" v={`${formatNumber(results.balancedAdditionalPsi, 0)} psi`} />
-          <Row k="Add. ppg @ shoe" v={`${formatExact(results.addPpgCsg, 3)} ppge`} />
-          <Row k="Add. ppg @ target" v={`${formatExact(results.addPpgTarget, 3)} ppge`} />
-          <Row k="Initial ΔP" v={`${formatNumber(results.pressureDifferential, 0)} psi`} />
-          <Row k="Slug pressure" v={`${formatNumber(results.slugPressure, 0)} psi`} />
-          <Row k="Slug volume" v={`${formatExact(results.slugPillVol, 1)} bbl`} />
-          <Row k="Slug fallout" v={`${formatNumber(results.slugFallOut, 1)} bbl`} />
-          <Row k="KWM + chase" v={`${formatNumber(results.kwmPlusChase, 0)} bbl`} />
+          <Row k="Height of pill w/o DP" v={`${dFt(results.heightPillNoDp)} ft`} />
+          <Row k="Required annulus volume" v={`${dBbl(results.requiredVolAnnulus)} bbl`} />
+          <Row k="Corrected annulus volume" v={`${dBbl(results.correctedPillVol)} bbl`} />
+          <Row k="KMW that fits with DP" v={`${dBbl(results.spottedKmwVol)} bbl`} />
+          <Row k="Room with pipe (annulus + DP to bit)" v={`${dBbl(results.kmwRoomWithPipe)} bbl`} />
+          <Row k="KMW needed (no DP)" v={`${dBbl(results.totalPillVol)} bbl`} />
+          <Row k="Min height with DP" v={`${dFt(results.minHeightPillWithDp)} ft`} />
+          <Row k="KMW backfill while POOH" v={`${dBbl(results.bblBackfill)} bbl`} />
+          <Row k="Chase calculated" v={`${dBbl(results.calculatedChase)} bbl`} />
+          <Row k="Chase corrected" v={`${dBbl(results.correctedChase)} bbl`} />
+          <Row k="Final KWM in DS (as pumped)" v={`${dBbl(results.finalKwm)} bbl`} />
+          <Row k="Equalize dump (VTT)" v={`${dBbl(results.equalizeDumpBbl)} bbl`} />
+          <Row k="KMW left in DP" v={`${dBbl(results.remainingKmwInDp)} bbl`} />
+          <Row k="Air cap to" v={`${dFt(results.airCapTopMd)} ft`} />
+          <Row k="Annular height after equalize" v={`${dFt(results.minHeightWithDp)} ft`} />
+          <Row k="Extra psi from dump" v={`${dPsi(results.balancedAdditionalPsi)} psi`} />
+          <Row k="Add. ppg @ shoe" v={`${dEmw(results.addPpgCsg)} ppge`} />
+          <Row k="Add. ppg @ target" v={`${dEmw(results.addPpgTarget)} ppge`} />
+          <Row k="Initial ΔP" v={`${dPsi(results.pressureDifferential)} psi`} />
+          <Row k="Slug pressure" v={`${dPsi(results.slugPressure)} psi`} />
+          <Row k="Slug volume" v={`${dBbl(results.slugPillVol)} bbl`} />
+          <Row k="Slug fallout" v={`${dBbl(results.slugFallOut)} bbl`} />
+          <Row k="KWM + chase" v={`${dBbl(results.kwmPlusChase)} bbl`} />
         </dl>
       </section>
 

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { PointerEvent } from "react";
 import type { ScheduleRow } from "@/lib/calc/types";
 import { formatNumber } from "@/lib/utils";
+import { dPsi, dStk } from "@/components/fmt";
 
 const VW = 720;
 const VH = 280;
@@ -87,7 +88,7 @@ export function ScheduleSbpChart({ rows }: { rows: ScheduleRow[] }) {
         <h3 className="text-sm font-semibold">SBP vs pump strokes</h3>
         <span className="text-[11px] text-muted-foreground">
           {active
-            ? `Step ${active.step} · ${formatNumber(active.strokes, 0)} stk · ${active.open ? "Open choke" : `${formatNumber(active.sbp, 0)} psi`}`
+            ? `Step ${active.step} · ${dStk(active.strokes)} stk · ${active.open ? "Open choke" : `${dPsi(active.sbp)} psi`}`
             : "Hover a step"}
         </span>
       </div>

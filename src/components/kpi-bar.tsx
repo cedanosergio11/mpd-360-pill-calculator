@@ -1,4 +1,5 @@
-import { formatExact, formatNumber, isNum } from "@/lib/utils";
+import { isNum } from "@/lib/utils";
+import { dBbl, dEmw, dPsi } from "@/components/fmt";
 import type { CalcResults, WellInputs } from "@/lib/calc/types";
 import { esdTargetWithDp } from "@/lib/calc/engine";
 import { asNum } from "@/lib/utils";
@@ -30,18 +31,18 @@ export function KpiBar({ inputs, results }: { inputs: WellInputs; results: CalcR
   const emw = asNum(inputs.desiredEmw);
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      <Kpi label="MASP" value={formatNumber(results.masp, 0)} unit="psi" warn={isNum(results.maxDynamicSbp) && isNum(results.masp) && results.maxDynamicSbp > results.masp} />
-      <Kpi label="Total pill" value={formatNumber(results.totalPillVol, 0)} unit="bbl" />
+      <Kpi label="MASP" value={dPsi(results.masp)} unit="psi" warn={isNum(results.maxDynamicSbp) && isNum(results.masp) && results.maxDynamicSbp > results.masp} />
+      <Kpi label="Total pill" value={dBbl(results.totalPillVol)} unit="bbl" />
       {withSlug ? (
-        <Kpi label="Slug volume" value={formatExact(results.slugPillVol, 1)} unit="bbl" />
+        <Kpi label="Slug volume" value={dBbl(results.slugPillVol)} unit="bbl" />
       ) : isNum(results.bblBackfill) && results.bblBackfill > 0 ? (
-        <Kpi label="KMW backfill" value={formatNumber(results.bblBackfill, 0)} unit="bbl" warn />
+        <Kpi label="KMW backfill" value={dBbl(results.bblBackfill)} unit="bbl" warn />
       ) : (
-        <Kpi label="Chase" value={formatNumber(results.correctedChase, 0)} unit="bbl" />
+        <Kpi label="Chase" value={dBbl(results.correctedChase)} unit="bbl" />
       )}
       <Kpi
         label="Target ESD"
-        value={formatExact(esdTargetWithDp(results, emw), 2)}
+        value={dEmw(esdTargetWithDp(results, emw))}
         unit="ppge"
       />
     </div>

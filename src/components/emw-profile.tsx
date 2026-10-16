@@ -1,5 +1,5 @@
 import { useId, useMemo, useState, type PointerEvent } from "react";
-import { fmt0, fmt1, fmt2, ft, ppg, ppg2 } from "@/lib/pill/format";
+import { dEmw, dFt, dPsi, ft, ppg, ppg2, tick0, tick1 } from "@/components/fmt";
 import {
   emwAt,
   hydrostaticLayers,
@@ -308,7 +308,7 @@ export function EmwProfile({
                   textAnchor="middle"
                   className="wb-muted-label"
                 >
-                  {fmt1.format(tick)}
+                  {tick1(tick)}
                 </text>
                 <text
                   x={x}
@@ -316,7 +316,7 @@ export function EmwProfile({
                   textAnchor="middle"
                   className="wb-muted-label"
                 >
-                  {fmt1.format(tick)}
+                  {tick1(tick)}
                 </text>
               </g>
             );
@@ -340,7 +340,7 @@ export function EmwProfile({
                   textAnchor="end"
                   className="wb-muted-label"
                 >
-                  {isTd ? "TD" : fmt0.format(tick)}
+                  {isTd ? "TD" : tick0(tick)}
                 </text>
               </g>
             );
@@ -461,7 +461,7 @@ export function EmwProfile({
             y={tdY - 8}
             className="emw-td-label"
           >
-            {fmt2.format(tdEmw)}
+            {dEmw(tdEmw)}
           </text>
 
           {anchorY != null && anchorEmw != null ? (
@@ -477,7 +477,7 @@ export function EmwProfile({
                 y={anchorY - 8}
                 className="emw-anchor-label"
               >
-                {fmt2.format(anchorEmw)}
+                {dEmw(anchorEmw)}
               </text>
             </g>
           ) : null}
@@ -488,7 +488,7 @@ export function EmwProfile({
               y={shoeY - 5}
               className="wb-data"
             >
-              Bit {fmt0.format(state.pipeDepth)}
+              Bit {dFt(state.pipeDepth)}
             </text>
           ) : null}
 
@@ -501,7 +501,7 @@ export function EmwProfile({
               y={anchorY - 5}
               className="wb-anchor-label"
             >
-              Anchor {fmt0.format(anchorMd ?? 0)}
+              Anchor {dFt(anchorMd ?? 0)}
             </text>
           ) : null}
 
@@ -515,7 +515,7 @@ export function EmwProfile({
               y={casingY - 5}
               className="wb-casing-label"
             >
-              Csg {fmt0.format(casingMd ?? 0)}
+              Csg {dFt(casingMd ?? 0)}
             </text>
           ) : null}
 
@@ -600,9 +600,9 @@ export function EmwProfile({
               <div className="text-pill">
                 EMW: {ppg2(hover.emw)}
               </div>
-              <div>Pressure: {fmt1.format(hover.pressure)} psi</div>
-              <div>Depth (MD): {fmt2.format(hover.depth)} ft</div>
-              <div>Depth (TVD): {fmt2.format(hover.tvd)} ft</div>
+              <div>Pressure: {dPsi(hover.pressure)} psi</div>
+              <div>Depth (MD): {dFt(hover.depth)} ft</div>
+              <div>Depth (TVD): {dFt(hover.tvd)} ft</div>
               <div className="pt-0.5 text-muted-foreground">
                 {hover.layer?.name ?? "—"} · {ppg(hover.layer?.mw ?? 0)}
               </div>
@@ -629,9 +629,9 @@ export function EmwProfile({
       </p>
       <p className="sr-only">
         Bottomhole equivalent mud weight {ppg2(tdEmw)} at {ft(state.wellDepth)},
-        {fmt0.format(tdPsi)} psi
+        {dPsi(tdPsi)} psi
         {anchorEmw != null && anchorMd != null
-          ? `. Anchor EMW ${ppg2(anchorEmw)} at ${ft(anchorMd)}${anchorPsi != null ? `, ${fmt0.format(anchorPsi)} psi` : ""}`
+          ? `. Anchor EMW ${ppg2(anchorEmw)} at ${ft(anchorMd)}${anchorPsi != null ? `, ${dPsi(anchorPsi)} psi` : ""}`
           : ""}
         . Axis from {ppg(scale.min)} to {ppg(scale.max)}.
       </p>

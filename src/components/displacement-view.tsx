@@ -2,6 +2,7 @@ import type { CalcResults, WellInputs } from "@/lib/calc/types";
 import type { RihFitStage } from "@/lib/calc/rih-fit";
 import { buildRihFitStops } from "@/lib/calc/rih-fit";
 import { formatExact, formatNumber, isNum } from "@/lib/utils";
+import { dEmw, dFt } from "@/components/fmt";
 
 type Mark = { d: number; label: string; kind: "top" | "stop" | "shoe" };
 
@@ -58,12 +59,12 @@ export function DisplacementView({ inputs, results }: { inputs: WellInputs; resu
         </div>
 
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <Mini label="FIT" value={`${formatExact(fit, 2)} ppge`} />
+          <Mini label="FIT" value={`${dEmw(fit)} ppge`} />
           <Mini
             label="Pill"
             value={
               isNum(firstTop) && isNum(plan.pillBase)
-                ? `${formatNumber(firstTop, 0)}–${formatNumber(plan.pillBase, 0)} ft`
+                ? `${formatNumber(firstTop, 0)}–${dFt(plan.pillBase)} ft`
                 : "—"
             }
           />
@@ -128,7 +129,7 @@ export function DisplacementView({ inputs, results }: { inputs: WellInputs; resu
                       {s.canReachBase ? `Stage ${s.index} — to shoe` : `Stop ${s.index}`}
                     </span>
                     <span className="font-mono text-xs tabular-nums text-muted-foreground">
-                      pill {formatNumber(s.pillTop, 0)}–{formatNumber(s.pillBase, 0)} ft
+                      pill {formatNumber(s.pillTop, 0)}–{dFt(s.pillBase)} ft
                     </span>
                   </div>
                   {s.canReachBase ? (
@@ -137,7 +138,7 @@ export function DisplacementView({ inputs, results }: { inputs: WellInputs; resu
                       {isNum(s.shoeEsdAtStop) ? (
                         <span className="text-muted-foreground">
                           {" "}
-                          ({formatExact(s.shoeEsdAtStop, 2)} ppge)
+                          ({dEmw(s.shoeEsdAtStop)} ppge)
                         </span>
                       ) : null}
                       .
@@ -146,9 +147,9 @@ export function DisplacementView({ inputs, results }: { inputs: WellInputs; resu
                     <p className="mt-1 text-sm">
                       Stop at{" "}
                       <span className="font-mono font-medium tabular-nums">
-                        {formatNumber(s.stopBit ?? 0, 0)} ft
+                        {dFt(s.stopBit ?? 0)} ft
                       </span>{" "}
-                      bit — shoe {formatExact(s.shoeEsdAtStop, 2)} ppge. Circulate extra KMW so the
+                      bit — shoe {dEmw(s.shoeEsdAtStop)} ppge. Circulate extra KMW so the
                       next pill top is that bit depth.
                     </p>
                   )}

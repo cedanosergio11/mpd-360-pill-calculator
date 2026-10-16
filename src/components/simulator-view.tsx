@@ -7,8 +7,10 @@ import { WellboreSchematic } from "@/components/wellbore-schematic";
 import type { CalcResults, WellInputs } from "@/lib/calc/types";
 import { simulate } from "@/lib/pill/simulate";
 import { useSimulator, wellFromStores } from "@/lib/pill/store";
-import { bbl, ft } from "@/lib/pill/format";
+import { bbl, ft } from "@/components/fmt";
 import { asNum, formatNumber, isNum } from "@/lib/utils";
+import { dBbl } from "@/components/fmt";
+import { DepthBlockPanel } from "@/components/depth-block";
 
 export function SimulatorView({
   inputs,
@@ -76,16 +78,11 @@ export function SimulatorView({
 
   if (!run.ok) {
     return (
-      <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
-        <p className="font-semibold text-destructive">Simulator is blocked</p>
-        <ul className="mt-2 space-y-1 text-muted-foreground">
-          {run.fields.map((field) => (
-            <li key={`${field.label}-${field.limitLabel}-${field.limit}`}>
-              {field.label} {field.value} ft is past {field.limitLabel} {field.limit} ft
-            </li>
-          ))}
-        </ul>
-      </div>
+      <DepthBlockPanel
+        fields={run.fields}
+        title="Simulator is blocked — no numbers shown"
+        note="simulate() refused: a depth is past TD or below the bit. Fix it on the inputs to run the simulator."
+      />
     );
   }
   const model = run.models[0];
@@ -103,15 +100,15 @@ export function SimulatorView({
       {isNum(results.bblBackfill) && results.bblBackfill > 0 ? (
         <div className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm">
           <p className="font-semibold text-destructive">
-            KMW backfill while POOH: {results.bblBackfill.toFixed(0)} bbl
+            KMW backfill while POOH: {dBbl(results.bblBackfill)} bbl
             {model.kmwBackfillApplied > 0.05
-              ? ` · applied ${model.kmwBackfillApplied.toFixed(1)} bbl`
+              ? ` · applied ${dBbl(model.kmwBackfillApplied)} bbl`
               : ""}
           </p>
           <p className="mt-1 text-pretty text-muted-foreground">
-            {formatNumber(results.totalPillVol, 0)} bbl of {isNum(desiredEmw) ? `${desiredEmw} ppge` : "target"} KMW
-            is needed at the anchor. Only {formatNumber(results.spottedKmwVol, 0)} bbl fits with pipe in the hole.
-            With Trip Tank On, the first {results.bblBackfill.toFixed(0)} bbl of hole fill while pulling is KMW
+            {dBbl(results.totalPillVol)} bbl of {isNum(desiredEmw) ? `${desiredEmw} ppge` : "target"} KMW
+            is needed at the anchor. Only {dBbl(results.spottedKmwVol)} bbl fits with pipe in the hole.
+            With Trip Tank On, the first {dBbl(results.bblBackfill)} bbl of hole fill while pulling is KMW
             (pill grows); then switch to active mud.
           </p>
         </div>

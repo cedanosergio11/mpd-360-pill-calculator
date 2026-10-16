@@ -1,5 +1,6 @@
 import type { CalcResults, WellInputs } from "@/lib/calc/types";
 import { asNum, formatNumber, isNum } from "@/lib/utils";
+import { dFt } from "@/components/fmt";
 
 type Marker = {
   label: string;
@@ -32,21 +33,21 @@ export function Wellbore({ inputs, results }: { inputs: WellInputs; results: Cal
           depth: topWith,
           color: "#4d8f8a",
           dash: false,
-          depthText: results.topOfPillWithDp === "Surface" ? "Surface" : `${formatNumber(topWith, 0)} ft MD`,
+          depthText: results.topOfPillWithDp === "Surface" ? "Surface" : `${dFt(topWith)} ft MD`,
         },
         {
           label: "Top of pill w/o DP",
           depth: topWithout,
           color: "#c45c4a",
           dash: true,
-          depthText: results.topOfPillNoDp <= 0 ? "Surface" : `${formatNumber(results.topOfPillNoDp, 0)} ft MD`,
+          depthText: results.topOfPillNoDp <= 0 ? "Surface" : `${dFt(results.topOfPillNoDp)} ft MD`,
         },
         {
           label: "Spot depth",
           depth: spot,
           color: "#e8ebe6",
           dash: false,
-          depthText: `${formatNumber(spot, 0)} ft MD`,
+          depthText: `${dFt(spot)} ft MD`,
         },
       ]
     : [];
@@ -56,7 +57,7 @@ export function Wellbore({ inputs, results }: { inputs: WellInputs; results: Cal
       depth: casing,
       color: "#8a97a3",
       dash: false,
-      depthText: `${formatNumber(casing, 0)} ft MD`,
+      depthText: `${dFt(casing)} ft MD`,
     });
   }
   if (ready && isNum(anchor) && anchor >= 0 && anchor <= depthMax && Math.abs(anchor - spot) > 20) {
@@ -65,7 +66,7 @@ export function Wellbore({ inputs, results }: { inputs: WellInputs; results: Cal
       depth: anchor,
       color: "#6aa89f",
       dash: true,
-      depthText: `${formatNumber(anchor, 0)} ft MD`,
+      depthText: `${dFt(anchor)} ft MD`,
     });
   }
 

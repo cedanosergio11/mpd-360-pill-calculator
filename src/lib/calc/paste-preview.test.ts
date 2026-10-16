@@ -27,6 +27,28 @@ describe("previewPaste", () => {
     expect(applied.pumpDisp).toBe(1500);
   });
 
+  it("reports which sheet TVDs the paste carried", () => {
+    expect(previewPaste(EXAMPLE_8_5, "Current well depth\t17000\tft").foundTvds).toEqual({
+      anchorTvd: false,
+      casingTvd: false,
+      spotTvd: false,
+    });
+    expect(previewPaste(EXAMPLE_8_5, "Anchor point TVD\t11111\tft").foundTvds).toEqual({
+      anchorTvd: true,
+      casingTvd: false,
+      spotTvd: false,
+    });
+    expect(
+      previewPaste(
+        EXAMPLE_8_5,
+        ["Anchor point TVD\t11111\tft", "Casing depth TVD\t10100\tft", "Spot depth TVD\t11000\tft"].join("\n"),
+      ).foundTvds,
+    ).toEqual({ anchorTvd: true, casingTvd: true, spotTvd: true });
+    const bad = previewPaste(EXAMPLE_8_5, "Anchor point TVD\t1,5\tft\nSpot depth TVD\t11000\tft");
+    expect(bad.canApply).toBe(false);
+    expect(bad.foundTvds).toEqual({ anchorTvd: false, casingTvd: false, spotTvd: true });
+  });
+
   it("keeps the sheet TVD when only the MD is pasted", () => {
     const preview = previewPaste(EXAMPLE_8_5, "Anchor point MD\t12000\tft");
     expect(preview.canApply).toBe(true);

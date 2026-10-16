@@ -3,6 +3,7 @@ import { esdCasingWithDp, esdTargetWithDp, pillHeightWithDp } from "@/lib/calc/e
 import { asNum, formatExact, formatNumber, isNum } from "@/lib/utils";
 import { formatVersion } from "@/lib/version";
 import { Badge } from "@/components/ui/badge";
+import { dKmw, dBbl, dEmw, dFt, dPsi, dStk } from "@/components/fmt";
 
 function Cell({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
@@ -60,7 +61,7 @@ export function ProcedureDoc({
   const shoeEq = esdCasingWithDp(results);
 
   return (
-    <article className="procedure-sheet mx-auto max-w-4xl overflow-x-auto rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-8">
+    <article className="procedure-sheet mx-auto w-full min-w-0 max-w-4xl overflow-x-auto rounded-2xl border border-border bg-card p-4 text-card-foreground shadow-sm sm:p-8">
       <header className="procedure-letterhead border-b-2 border-foreground/30 pb-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -91,7 +92,7 @@ export function ProcedureDoc({
 
       {overFit ? (
         <div className="procedure-hot procedure-fit-banner mt-4 rounded-xl px-4 py-3 text-sm font-semibold">
-          Not issuable — shoe ESD at or above FIT. FIT {formatExact(fit, 2)} ppge · as-pumped {formatExact(results.esdCasingNoDp, 2)} · equalized {formatExact(shoeEq, 2)}. Engineering aid only.
+          Not issuable — shoe ESD at or above FIT. FIT {dEmw(fit)} ppge · as-pumped {dEmw(results.esdCasingNoDp)} · equalized {dEmw(shoeEq)}. Engineering aid only.
         </div>
       ) : null}
 
@@ -102,8 +103,8 @@ export function ProcedureDoc({
           <Cell label="Client" value={inputs.client || "—"} />
           <Cell label="Date" value={String(inputs.date || "—")} />
           <Cell label="Prepared by" value={inputs.producedBy || "—"} />
-          <Cell label="Active MW" value={formatExact(mw, 1)} unit="ppg" />
-          <Cell label="KMW" value={formatExact(kmw, 1)} unit="ppg" />
+          <Cell label="Active MW" value={dEmw(mw)} unit="ppg" />
+          <Cell label="KMW" value={dKmw(kmw)} unit="ppg" />
           <Cell label="Target EMW" value={formatExact(emw, 1)} unit="ppge" />
           <Cell label="FIT" value={formatExact(fit, 2)} unit="ppge" />
           <Cell label="Spot MD" value={formatNumber(spot, 0)} unit="ft" />
@@ -133,8 +134,8 @@ export function ProcedureDoc({
               Line up the pumping system through the kill line and pull out holding required SBP.
               {withSlug && isNum(results.slugPillVol) ? (
                 <span className="mt-1 block text-muted-foreground">
-                  Pump {formatNumber(results.slugPillVol, 1)} bbl slug of {formatExact(kmw, 1)} ppg KMW (
-                  {formatNumber(results.strokesToPumpSlug, 0)} stk) before lining up on the drill string.
+                  Pump {dBbl(results.slugPillVol)} bbl slug of {dKmw(kmw)} ppg KMW (
+                  {dStk(results.strokesToPumpSlug)} stk) before lining up on the drill string.
                 </span>
               ) : null}
             </p>
@@ -156,9 +157,9 @@ export function ProcedureDoc({
               {results.tripPressures.map((row) => (
                 <tr key={row.speed}>
                   <td>{row.speed} ft/min</td>
-                  <td>{formatNumber(results.staticStrippingPressure, 0)} psi</td>
+                  <td>{dPsi(results.staticStrippingPressure)} psi</td>
                   <td className={row.speed >= 80 ? "procedure-hot" : "procedure-warm"}>
-                    {formatNumber(row.dynamicPressure, 0)} psi
+                    {dPsi(row.dynamicPressure)} psi
                   </td>
                 </tr>
               ))}
@@ -175,7 +176,7 @@ export function ProcedureDoc({
         <li>
           <span className="procedure-n">4</span>
           <p>
-            POOH to <span className="font-mono font-medium tabular-nums">{formatNumber(spot, 0)} ft MD</span>{" "}
+            POOH to <span className="font-mono font-medium tabular-nums">{dFt(spot)} ft MD</span>{" "}
             while pumping across the top and hold back pressure to keep proper fill. Spot the pill per the
             schedule below.
           </p>
@@ -187,7 +188,7 @@ export function ProcedureDoc({
           <h3>{title}</h3>
           <span>
             {schedule.rows.length
-              ? `${schedule.rows.length} steps · ${inputs.sectionType} · ${formatNumber(schedule.finalVolume, 0)} bbl · ${formatNumber(schedule.finalStrokes, 0)} stk`
+              ? `${schedule.rows.length} steps · ${inputs.sectionType} · ${dBbl(schedule.finalVolume)} bbl · ${dStk(schedule.finalStrokes)} stk`
               : "Waiting for inputs"}
           </span>
         </div>
@@ -220,7 +221,7 @@ export function ProcedureDoc({
                   <td>{Math.round(row.volume)}</td>
                   <td>{Math.round(row.strokes)}</td>
                   <td>
-                    {row.density.toFixed(1)}
+                    {dEmw(row.density)}
                     {row.density === kmw ? (
                       <Badge variant="default" className="ml-1.5 print:hidden">
                         KMW
@@ -277,7 +278,7 @@ export function ProcedureDoc({
             Continue conventional POOH / backfill with active mud unless additional KMW is required.
             {isNum(results.bblBackfill) && results.bblBackfill > 0 ? (
               <span className="procedure-note-hot">
-                Note: This will require {formatNumber(results.bblBackfill, 0)} bbl of KMW of backfill
+                Note: This will require {dBbl(results.bblBackfill)} bbl of KMW of backfill
                 while tripping out
               </span>
             ) : null}
@@ -289,44 +290,44 @@ export function ProcedureDoc({
         <div className="rounded-xl border border-border p-3">
           <h3 className="procedure-kicker">As pumped</h3>
           <dl className="mt-1">
-            <Line k="Annulus KMW" v={`${formatNumber(asPumpedAnn, 1)} bbl`} />
-            <Line k="KMW in DP" v={`${formatNumber(asPumpedStr, 1)} bbl`} />
-            <Line k="KMW spotted (fits)" v={`${formatNumber(results.spottedKmwVol, 0)} bbl`} />
-            <Line k="KMW needed (no DP)" v={`${formatNumber(results.totalPillVol, 0)} bbl`} />
+            <Line k="Annulus KMW" v={`${dBbl(asPumpedAnn)} bbl`} />
+            <Line k="KMW in DP" v={`${dBbl(asPumpedStr)} bbl`} />
+            <Line k="KMW spotted (fits)" v={`${dBbl(results.spottedKmwVol)} bbl`} />
+            <Line k="KMW needed (no DP)" v={`${dBbl(results.totalPillVol)} bbl`} />
             {isNum(results.bblBackfill) && results.bblBackfill > 0 ? (
-              <Line k="KMW backfill POOH" v={`${formatNumber(results.bblBackfill, 0)} bbl`} />
+              <Line k="KMW backfill POOH" v={`${dBbl(results.bblBackfill)} bbl`} />
             ) : (
-              <Line k="Chase in DP" v={`${formatNumber(chase, 1)} bbl`} />
+              <Line k="Chase in DP" v={`${dBbl(chase)} bbl`} />
             )}
-            <Line k="Top of pill (no DP)" v={`${formatNumber(results.topOfPillNoDp, 0)} ft`} />
-            <Line k="Anchor EMW" v={`${formatExact(emw, 2)} ppge`} />
-            <Line k="ESD @ shoe" v={`${formatExact(results.esdCasingNoDp, 2)} ppge`} />
+            <Line k="Top of pill (no DP)" v={`${dFt(results.topOfPillNoDp)} ft`} />
+            <Line k="Anchor EMW" v={`${dEmw(emw)} ppge`} />
+            <Line k="ESD @ shoe" v={`${dEmw(results.esdCasingNoDp)} ppge`} />
           </dl>
         </div>
         <div className="rounded-xl border border-border p-3">
           <h3 className="procedure-kicker">After equalizing (float / air cap)</h3>
           <dl className="mt-1">
-            <Line k="Annulus KMW" v={`${formatNumber(eqAnnulus, 1)} bbl`} />
-            <Line k="KMW left in DP" v={`${formatNumber(results.remainingKmwInDp, 1)} bbl`} />
-            <Line k="Dump / VTT" v={`${formatNumber(results.equalizeDumpBbl, 1)} bbl`} />
-            <Line k="Air cap to" v={`${formatNumber(results.airCapTopMd, 0)} ft`} />
-            <Line k="Anchor EMW" v={`${formatExact(esdTargetWithDp(results, emw), 2)} ppge`} />
-            <Line k="ESD @ shoe" v={`${formatExact(esdCasingWithDp(results), 2)} ppge`} />
+            <Line k="Annulus KMW" v={`${dBbl(eqAnnulus)} bbl`} />
+            <Line k="KMW left in DP" v={`${dBbl(results.remainingKmwInDp)} bbl`} />
+            <Line k="Dump / VTT" v={`${dBbl(results.equalizeDumpBbl)} bbl`} />
+            <Line k="Air cap to" v={`${dFt(results.airCapTopMd)} ft`} />
+            <Line k="Anchor EMW" v={`${dEmw(esdTargetWithDp(results, emw))} ppge`} />
+            <Line k="ESD @ shoe" v={`${dEmw(esdCasingWithDp(results))} ppge`} />
             <Line
               k="Top of pill"
               v={
                 results.topOfPillWithDp === "Surface"
                   ? "Surface"
-                  : `${formatNumber(results.topOfPillWithDp as number, 0)} ft`
+                  : `${dFt(results.topOfPillWithDp as number)} ft`
               }
             />
-            <Line k="Annular height" v={`${formatNumber(pillHeightWithDp(results), 0)} ft`} />
+            <Line k="Annular height" v={`${dFt(pillHeightWithDp(results))} ft`} />
           </dl>
         </div>
       </section>
 
       <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-        Keep shoe ECD below FIT ({formatExact(fit, 2)} ppge) while spotting — confirm the last KMW rate in
+        Keep shoe ECD below FIT ({dEmw(fit)} ppge) while spotting — confirm the last KMW rate in
         SafeVision before issuing this procedure. Engineering aid only; not a controlled operational release.
       </p>
 

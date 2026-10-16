@@ -9,6 +9,7 @@ import { useAppStore } from "@/lib/store";
 import { calculate } from "@/lib/calc";
 import { formatNumber, isNum } from "@/lib/utils";
 import { TRIP_TABLES } from "@/lib/calc/tables";
+import { dPsi } from "@/components/fmt";
 
 export function InputPanel() {
   const inputs = useAppStore((s) => s.inputs);
@@ -170,7 +171,7 @@ export function InputPanel() {
       </Section>
 
       <div className="px-4 py-3 text-[11px] text-muted-foreground">
-        MASP {formatNumber(results.masp, 0)} psi · APL {formatNumber(results.initialAplAnchor, 0)} psi
+        MASP {dPsi(results.masp)} psi · APL {dPsi(results.initialAplAnchor)} psi
       </div>
     </div>
   );

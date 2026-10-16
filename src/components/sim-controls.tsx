@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { CalcResults, WellInputs } from "@/lib/calc/types";
-import { bblFt, ft, ppg } from "@/lib/pill/format";
+import { bblFt, ft, ppg } from "@/components/fmt";
 import { useSimulator } from "@/lib/pill/store";
 import type { PillModel, PipeEnd, WellState } from "@/lib/pill/types";
 import { cn } from "@/lib/utils";

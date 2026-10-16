@@ -39,6 +39,7 @@ import { AuditView } from "@/components/audit-view";
 import { Rp13dView } from "@/components/rp13d/view";
 import { PressureWindow } from "@/components/pressure-window";
 import { SimulatorView } from "@/components/simulator-view";
+import { DepthBlockPanel } from "@/components/depth-block";
 import { ExcelPasteButton } from "@/components/excel-paste";
 import { BrandGlyph, BrandWordmark } from "@/components/brand-mark";
 import { calculate, collectWarnings, buildSchedule, scheduleToCsv } from "@/lib/calc";
@@ -135,7 +136,7 @@ export function AppShell() {
             </Button>
             <div className="flex min-w-0 items-center gap-2.5">
               <BrandGlyph className="size-8 shrink-0" />
-              <div className="min-w-0">
+              <div className="min-w-0 max-[359px]:sr-only">
                 <BrandWordmark className="text-sm sm:text-base" />
                 <div className="truncate text-[11px] text-muted-foreground">
                   Procedure & simulator
@@ -169,7 +170,7 @@ export function AppShell() {
                     <ChevronDown className="opacity-60" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-[16rem]">
+                <DropdownMenuContent align="end" data-load-well-menu className="w-[min(20rem,calc(100vw-1rem))] min-w-0">
                   {scenarios.length > 0 ? (
                     <>
                       <DropdownMenuLabel>Saved wells</DropdownMenuLabel>
@@ -183,7 +184,7 @@ export function AppShell() {
                           }}
                         >
                           <span className="min-w-0">
-                            <span className="block truncate">{s.name}</span>
+                            <span className="block break-words whitespace-normal">{s.name}</span>
                             <span className="block text-[10px] text-muted-foreground">
                               {new Date(s.savedAt).toLocaleString()}
                             </span>
@@ -208,8 +209,8 @@ export function AppShell() {
                   ) : null}
                   <DropdownMenuLabel>Workbook examples</DropdownMenuLabel>
                   {PRESETS.map((p) => (
-                    <DropdownMenuItem key={p.id} onClick={() => { loadPreset(p.inputs); toast.success(`Loaded ${p.label}`); }}>
-                      {p.label}
+                    <DropdownMenuItem key={p.id} className="items-start whitespace-normal" onClick={() => { loadPreset(p.inputs); toast.success(`Loaded ${p.label}`); }}>
+                      <span className="min-w-0 break-words whitespace-normal">{p.label}</span>
                     </DropdownMenuItem>
                   ))}
                   <DropdownMenuSeparator />
@@ -331,7 +332,7 @@ export function AppShell() {
                 </div>
               </div>
 
-              {tab === "simulator" ? null : <KpiBar inputs={inputs} results={results} />}
+              {tab === "simulator" || tab === "rp13d" ? null : <KpiBar inputs={inputs} results={results} />}
 
               <div className="flex gap-1 overflow-x-auto overscroll-x-contain rounded-xl bg-muted p-1 [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {TABS.map((t) => (
@@ -351,11 +352,14 @@ export function AppShell() {
                 ))}
               </div>
 
+              {tab !== "rp13d" && results.depthBlock ? (
+                <DepthBlockPanel fields={results.depthBlock.fields} />
+              ) : null}
               {tab === "simulator" ? (
                 <SimulatorView inputs={inputs} results={results} />
               ) : null}
               {tab === "procedure" ? (
-                <div className="grid gap-4 xl:grid-cols-[1fr_280px]">
+                <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
                   <ProcedureDoc inputs={inputs} results={results} schedule={schedule} />
                   <div className="print:hidden space-y-4">
                     <PressureWindow inputs={inputs} results={results} />
@@ -379,7 +383,11 @@ export function AppShell() {
             </div>
 
             <div className="hidden print:block">
-              <ProcedureDoc inputs={inputs} results={results} schedule={schedule} />
+              {tab === "rp13d" ? (
+                <Rp13dView inputs={inputs} results={results} print />
+              ) : (
+                <ProcedureDoc inputs={inputs} results={results} schedule={schedule} />
+              )}
             </div>
           </main>
         </div>

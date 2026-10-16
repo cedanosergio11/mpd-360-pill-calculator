@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { bbl, ft, ppg, ppg2, psi } from "@/lib/pill/format";
+import { bbl, ft, ppg, ppg2, psi } from "@/components/fmt";
 import { emwAt, hydrostaticLayers, pressureAt, tvdFn } from "@/lib/pill/hydrostatic";
 import { volumeBelowDepth } from "@/lib/pill/physics";
 import type { PillModel, WellState } from "@/lib/pill/types";
@@ -60,8 +60,8 @@ export function AnalysisPanels({
         <Row label="Annular capacity" value={`${model.annularBblFt.toFixed(4)} bbl/ft`} />
         <Row label="Pipe displacement" value={`${model.pipeBblFt.toFixed(4)} bbl/ft`} />
         <Row label="Open hole" value={`${model.openHoleBblFt.toFixed(4)} bbl/ft`} />
-        <Row label="Annulus to shoe" value={bbl(annulusToPipe, 2)} />
-        <Row label="Open hole below shoe" value={bbl(volumeBelowPipe, 2)} />
+        <Row label="Annulus to shoe" value={bbl(annulusToPipe)} />
+        <Row label="Open hole below shoe" value={bbl(volumeBelowPipe)} />
         <Row label="Placed annular pill" value={bbl(model.annularKmwVolume)} />
         {model.kmwBackfillRequired > 0.5 ? (
           <Row

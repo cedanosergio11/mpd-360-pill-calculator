@@ -1,6 +1,7 @@
 import type { CalcResults, ScheduleResult, WellInputs } from "@/lib/calc/types";
 import { ScheduleSbpChart } from "@/components/schedule-chart";
 import { formatNumber, isNum } from "@/lib/utils";
+import { dBbl, dEmw, dFt, dPsi, dStk } from "@/components/fmt";
 
 export function ScheduleView({
   inputs,
@@ -15,10 +16,10 @@ export function ScheduleView({
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
-          ["Static stripping", formatNumber(results.staticStrippingPressure, 0), "psi"],
-          ["Max dynamic SBP", formatNumber(results.maxDynamicSbp, 0), "psi"],
-          ["Final pump volume", formatNumber(schedule.finalVolume, 0), "bbl"],
-          ["Final strokes", formatNumber(schedule.finalStrokes, 0), "stk"],
+          ["Static stripping", dPsi(results.staticStrippingPressure), "psi"],
+          ["Max dynamic SBP", dPsi(results.maxDynamicSbp), "psi"],
+          ["Final pump volume", dBbl(schedule.finalVolume), "bbl"],
+          ["Final strokes", dStk(schedule.finalStrokes), "stk"],
         ].map(([l, v, u]) => (
           <div key={l} className="rounded-xl border border-border bg-card px-3 py-3">
             <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">{l}</div>
@@ -50,9 +51,9 @@ export function ScheduleView({
               {results.tripPressures.map((row) => (
                 <tr key={row.speed} className="border-t border-border/70">
                   <td className="py-1.5 font-mono tabular-nums">{row.speed} ft/min</td>
-                  <td className="py-1.5 font-mono tabular-nums">{row.ppge.toFixed(2)} ppge</td>
-                  <td className="py-1.5 font-mono tabular-nums">{formatNumber(row.swabPressure, 0)} psi</td>
-                  <td className="py-1.5 font-mono tabular-nums">{formatNumber(row.dynamicPressure, 0)} psi</td>
+                  <td className="py-1.5 font-mono tabular-nums">{dEmw(row.ppge)} ppge</td>
+                  <td className="py-1.5 font-mono tabular-nums">{dPsi(row.swabPressure)} psi</td>
+                  <td className="py-1.5 font-mono tabular-nums">{dPsi(row.dynamicPressure)} psi</td>
                 </tr>
               ))}
             </tbody>
@@ -101,7 +102,7 @@ export function ScheduleView({
                   <td className="py-1.5 font-mono tabular-nums">{Math.round(row.flow)}</td>
                   <td className="py-1.5 font-mono tabular-nums">{Math.round(row.volume)}</td>
                   <td className="py-1.5 font-mono tabular-nums">{Math.round(row.strokes)}</td>
-                  <td className="py-1.5 font-mono tabular-nums">{row.density.toFixed(2)}</td>
+                  <td className="py-1.5 font-mono tabular-nums">{dEmw(row.density)}</td>
                   <td className="py-1.5 font-mono tabular-nums">{Math.round(row.staticSbp)}</td>
                   <td className="py-1.5 text-muted-foreground">{row.activityNotes}</td>
                 </tr>
@@ -112,7 +113,7 @@ export function ScheduleView({
         {isNum(results.resolutionPressureGain) ? (
           <p className="mt-3 text-[11px] text-muted-foreground">
             {asNumSafe(inputs.desiredResolution)} bbl resolution drops SBP by{" "}
-            {formatNumber(results.resolutionPressureGain, 0)} psi ({formatNumber(results.resolutionHeightGain, 0)} ft
+            {dPsi(results.resolutionPressureGain)} psi ({dFt(results.resolutionHeightGain)} ft
             of annular height). Production sections step flow down after SBP reaches 50 psi.
           </p>
         ) : null}

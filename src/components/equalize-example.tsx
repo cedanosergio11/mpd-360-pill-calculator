@@ -1,6 +1,7 @@
 import { equalizeFloatAirCap, surveyFromInputs, tvdOfSurvey } from "@/lib/calc/equalize";
 import type { CalcResults, WellInputs } from "@/lib/calc/types";
 import { asNum, formatExact, formatNumber, isNum } from "@/lib/utils";
+import { dBbl, dEmw, dFt, dPsi } from "@/components/fmt";
 
 function Eq({ children, className }: { children: string; className?: string }) {
   return (
@@ -83,14 +84,14 @@ export function EqualizeWorkedExample({
         2. As pumped (V = 0 dump)
       </h4>
       <dl>
-        <Row k="KMW in DP" v={`${formatNumber(V0, 1)} bbl`} />
-        <Row k="Chase in DP" v={`${formatNumber(isNum(chase) ? chase : 0, 1)} bbl`} />
-        <Row k="KMW height in DP" v={`${formatNumber(hKmw0, 0)} ft  (${formatNumber(V0, 1)} / C_DP)`} />
-        <Row k="Top of KMW in DP" v={`${formatNumber(kmwTop0, 0)} ft MD`} />
-        <Row k="Annular pill height" v={`${formatNumber(h0, 0)} ft`} />
-        <Row k="Bit TVD" v={`${formatNumber(bitTvd, 0)} ft`} />
+        <Row k="KMW in DP" v={`${dBbl(V0)} bbl`} />
+        <Row k="Chase in DP" v={`${dBbl(isNum(chase) ? chase : 0)} bbl`} />
+        <Row k="KMW height in DP" v={`${dFt(hKmw0)} ft  (${formatNumber(V0, 1)} / C_DP)`} />
+        <Row k="Top of KMW in DP" v={`${dFt(kmwTop0)} ft MD`} />
+        <Row k="Annular pill height" v={`${dFt(h0)} ft`} />
+        <Row k="Bit TVD" v={`${dFt(bitTvd)} ft`} />
       </dl>
-      <Eq className="mt-2">{`P_ann = 14.7 + 0.052×${mw.toFixed(1)}×${formatNumber(bitTvd, 0)} + 0.052×(${kmw.toFixed(1)}−${mw.toFixed(1)})×${formatNumber(h0, 0)} = ${formatNumber(pAnn0, 0)} psi`}</Eq>
+      <Eq className="mt-2">{`P_ann = 14.7 + 0.052×${mw.toFixed(1)}×${formatNumber(bitTvd, 0)} + 0.052×(${kmw.toFixed(1)}−${mw.toFixed(1)})×${formatNumber(h0, 0)} = ${dPsi(pAnn0)} psi`}</Eq>
       <Eq>{`P_DP  = 14.7 + 0.052×ρ_base×TVD_chase + 0.052×${kmw.toFixed(1)}×TVD_KMW`}</Eq>
       <p className="mt-1 text-xs text-muted-foreground">
         If DP pressure is higher than the annulus, KMW falls through the float until the two sides match. Air
@@ -103,25 +104,25 @@ export function EqualizeWorkedExample({
       <Eq>{`h_ann(V) = ${formatNumber(h0, 0)} + V / C_ann`}</Eq>
       <Eq>{`h_KMW,DP(V) = (${formatNumber(V0, 1)} − V) / C_DP`}</Eq>
       <dl className="mt-2">
-        <Row k="Dump V (VTT gain)" v={`${formatNumber(eq.dumpBbl, 2)} bbl`} />
-        <Row k="Δh in annulus" v={`${formatNumber(dh, 0)} ft  (${formatNumber(eq.dumpBbl, 2)} / C_ann)`} />
-        <Row k="P at bit (balanced)" v={`${formatNumber(eq.pDp, 0)} psi  (DP = annulus)`} />
+        <Row k="Dump V (VTT gain)" v={`${dBbl(eq.dumpBbl)} bbl`} />
+        <Row k="Δh in annulus" v={`${dFt(dh)} ft  (${formatNumber(eq.dumpBbl, 2)} / C_ann)`} />
+        <Row k="P at bit (balanced)" v={`${dPsi(eq.pDp)} psi  (DP = annulus)`} />
       </dl>
 
       <h4 className="mt-4 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         4. After equalizing
       </h4>
       <dl>
-        <Row k="KMW left in DP" v={`${formatNumber(eq.remainingPipeKmw, 1)} bbl  (${formatNumber(hKmw1, 0)} ft)`} />
-        <Row k="Air cap to" v={`${formatNumber(eq.airCapMd, 0)} ft MD`} />
-        <Row k="Annular KMW height" v={`${formatNumber(eq.equalizedAnnularHeightMd, 0)} ft`} />
-        <Row k="Extra psi from dump" v={`${formatNumber(eq.extraPsi, 0)} psi`} />
+        <Row k="KMW left in DP" v={`${dBbl(eq.remainingPipeKmw)} bbl  (${dFt(hKmw1)} ft)`} />
+        <Row k="Air cap to" v={`${dFt(eq.airCapMd)} ft MD`} />
+        <Row k="Annular KMW height" v={`${dFt(eq.equalizedAnnularHeightMd)} ft`} />
+        <Row k="Extra psi from dump" v={`${dPsi(eq.extraPsi)} psi`} />
         <Row
           k="ΔEMW at anchor"
-          v={`${formatExact(results.addPpgTarget, 3)} ppg  →  ${formatExact(isNum(emw) ? emw + results.addPpgTarget : results.anchorPointEsd, 2)} ppge`}
+          v={`${dEmw(results.addPpgTarget)} ppg  →  ${dEmw(isNum(emw) ? emw + results.addPpgTarget : results.anchorPointEsd)} ppge`}
         />
       </dl>
-      <Eq>{`ΔP = 0.052 × (${kmw.toFixed(1)} − ${mw.toFixed(1)}) × V / C_ann = ${formatNumber(eq.extraPsi, 1)} psi`}</Eq>
+      <Eq>{`ΔP = 0.052 × (${kmw.toFixed(1)} − ${mw.toFixed(1)}) × V / C_ann = ${dPsi(eq.extraPsi)} psi`}</Eq>
     </section>
   );
 }
