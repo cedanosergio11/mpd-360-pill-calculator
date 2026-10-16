@@ -1,6 +1,6 @@
 import { useId, useMemo, useState } from "react";
 import type { PointerEvent } from "react";
-import { dBbl, dPsi, ft, ppg2 } from "@/components/fmt";
+import { dBbl, dFt, dPsi, ft, ppg2 } from "@/components/fmt";
 import { emwAt, hydrostaticLayers, layerAt, pressureAt, tvdFn } from "@/lib/pill/hydrostatic";
 import { PLOT_HEIGHT, PLOT_TOP, VIEW_H, VIEW_W } from "@/lib/pill/plot";
 import type { PillModel, WellState } from "@/lib/pill/types";
@@ -55,6 +55,15 @@ function spreadLabels(
 function farFrom(y: number, others: number[], gap = LABEL_GAP) {
   return others.every((o) => Math.abs(o - y) >= gap);
 }
+
+/** Inside-DP air: RKB down to the first fluid in the string (chase, else KMW, else the bit). */
+export function dpAirBottomFt(model: { pipeChaseInHole: number; pipeChaseTop: number; pipeKmwInHole: number; pipeKmwTop: number }, pipeDepth: number): number {
+  return model.pipeChaseInHole > 0.05 ? model.pipeChaseTop : model.pipeKmwInHole > 0.05 ? model.pipeKmwTop : pipeDepth;
+}
+/** The air band is drawn (and labelled, and in the legend) once its bottom is more than ~1 ft below RKB. */
+export const DP_AIR_MIN_FT = 1;
+/** Visual minimum height of the air band. Drawing only: depth values and labels are unchanged. */
+const DP_AIR_MIN_PX = 8;
 
 export function WellboreSchematic({
   state,
@@ -182,7 +191,12 @@ export function WellboreSchematic({
   const showAnchorLabel =
     anchorY != null && farFrom(anchorY + 4, [pipeBottomY + 4], LABEL_GAP);
 
-  const showAirLabel = pipeChaseY - PLOT_TOP > 12 && model.pipeChaseTop > 30;
+  const airBottomFt = dpAirBottomFt(model, state.pipeDepth);
+  const airShown = airBottomFt > DP_AIR_MIN_FT;
+  const airTrueY = yFor(airBottomFt);
+  // Visual floor only: the band is at least DP_AIR_MIN_PX tall; fluid below starts under it on screen.
+  const airVisY = airShown ? Math.max(airTrueY, PLOT_TOP + DP_AIR_MIN_PX) : PLOT_TOP;
+  const airLabelY = airVisY - PLOT_TOP >= 14 ? PLOT_TOP + (airVisY - PLOT_TOP) / 2 + 3.5 : airVisY + 11;
   const showDpKmwLabel = model.pipeKmwInHole > 0.05 && pipeBottomY - pipeKmwY > 16;
   const showDpChaseLabel = model.pipeChaseInHole > 0.05 && pipeKmwY - pipeChaseY > 16;
   const pillBelowBit = pillBottomY - Math.max(pillY, pipeBottomY) > 28;
@@ -377,22 +391,16 @@ export function WellboreSchematic({
             x={innerLeft}
             y={PLOT_TOP}
             width={pipeInner}
-            height={Math.max(
-              0,
-              (model.pipeChaseInHole > 0.05
-                ? pipeChaseY
-                : model.pipeKmwInHole > 0.05
-                  ? pipeKmwY
-                  : pipeBottomY) - PLOT_TOP,
-            )}
+            height={Math.max(0, airVisY - PLOT_TOP)}
             className="wb-bore-air"
+            data-dp-air={airShown ? "true" : undefined}
           />
           {model.pipeChaseInHole > 0.05 ? (
             <rect
               x={innerLeft}
-              y={pipeChaseY}
+              y={Math.max(pipeChaseY, airVisY)}
               width={pipeInner}
-              height={Math.max(0, pipeKmwY - pipeChaseY)}
+              height={Math.max(0, pipeKmwY - Math.max(pipeChaseY, airVisY))}
               fill="var(--color-fluid)"
             />
           ) : null}
@@ -400,9 +408,9 @@ export function WellboreSchematic({
             <>
               <rect
                 x={innerLeft}
-                y={pipeKmwY}
+                y={Math.max(pipeKmwY, airVisY)}
                 width={pipeInner}
-                height={Math.max(0, pipeBottomY - pipeKmwY)}
+                height={Math.max(0, pipeBottomY - Math.max(pipeKmwY, airVisY))}
                 fill={`url(#${pillGrad})`}
                 className="wb-pill-stroke"
               />
@@ -520,14 +528,15 @@ export function WellboreSchematic({
           </>
         ) : null}
 
-        {showAirLabel ? (
+        {airShown ? (
           <text
             x={CX}
-            y={PLOT_TOP + Math.min(22, (pipeChaseY - PLOT_TOP) / 2 + 4)}
+            y={airLabelY}
             textAnchor="middle"
             className="wb-muted-label"
+            data-dp-air-label
           >
-            Air
+            Air 0–{dFt(airBottomFt)} ft
           </text>
         ) : null}
 

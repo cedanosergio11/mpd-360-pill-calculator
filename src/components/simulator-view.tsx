@@ -3,7 +3,7 @@ import { AnalysisPanels } from "@/components/analysis-panels";
 import { EmwProfile } from "@/components/emw-profile";
 import { SimPlacePanel, SimToolbar } from "@/components/sim-controls";
 import { StatsStrip } from "@/components/stats-strip";
-import { WellboreSchematic } from "@/components/wellbore-schematic";
+import { DP_AIR_MIN_FT, WellboreSchematic, dpAirBottomFt } from "@/components/wellbore-schematic";
 import type { CalcResults, WellInputs } from "@/lib/calc/types";
 import { simulate } from "@/lib/pill/simulate";
 import { useSimulator, wellFromStores } from "@/lib/pill/store";
@@ -139,7 +139,7 @@ export function SimulatorView({
             {model.pipeChaseInHole > 0.05 ? (
               <LegendSwatch className="bg-fluid" label="Chase in DP" />
             ) : null}
-            {model.pipeChaseTop > 80 && model.pipeChaseInHole < 0.05 ? (
+            {dpAirBottomFt(model, state.pipeDepth) > DP_AIR_MIN_FT ? (
               <LegendSwatch className="bg-card" label="Air in DP" />
             ) : null}
             <LegendSwatch className="bg-backfill" label="Fill above pill" />
