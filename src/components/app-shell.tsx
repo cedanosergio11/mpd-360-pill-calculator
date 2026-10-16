@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ChevronDown,
   Download,
@@ -44,11 +44,14 @@ import { ExcelPasteButton } from "@/components/excel-paste";
 import { BrandGlyph, BrandWordmark } from "@/components/brand-mark";
 import { calculate, collectWarnings, buildSchedule, scheduleToCsv } from "@/lib/calc";
 import { esdCasingWithDp } from "@/lib/calc/engine";
-import { PRESETS } from "@/lib/calc/examples";
-import { localDateInput, useAppStore, type WorkspaceTab } from "@/lib/store";
+import { PRESETS as workbookPresets } from "@/lib/calc/examples";
+import { presentPresets } from "@/lib/present-presets";
+import { useAppStore, type WorkspaceTab } from "@/lib/store";
 import { useSimulator } from "@/lib/pill/store";
 import { asNum, formatExact, slugify } from "@/lib/utils";
 import { RELEASES, formatVersion } from "@/lib/version";
+
+const PRESETS = presentPresets(workbookPresets);
 
 const TABS: { id: WorkspaceTab; label: string }[] = [
   { id: "simulator", label: "Simulator" },
@@ -72,18 +75,6 @@ export function AppShell() {
   const loadScenario = useAppStore((s) => s.loadScenario);
   const deleteScenario = useAppStore((s) => s.deleteScenario);
   const scenarios = useAppStore((s) => s.scenarios);
-
-  // First paint stays date="" so the prerendered HTML matches hydration.
-  // The local calendar day is stamped only after persist rehydration.
-  useEffect(() => {
-    const stampLocalDate = () => {
-      if (useAppStore.getState().inputs.date) return;
-      useAppStore.getState().setField("date", localDateInput());
-    };
-    const unsubscribe = useAppStore.persist.onFinishHydration(stampLocalDate);
-    if (useAppStore.persist.hasHydrated()) stampLocalDate();
-    return unsubscribe;
-  }, []);
 
   const [drawer, setDrawer] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);

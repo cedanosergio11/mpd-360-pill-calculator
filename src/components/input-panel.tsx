@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { NumberField, Section, TextField } from "@/components/fields";
 import { ExcelPasteButton } from "@/components/excel-paste";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -5,6 +6,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Field } from "@/components/fields";
 import { Input } from "@/components/ui/input";
+import { chicagoDate } from "@/lib/chicago-date";
 import { useAppStore } from "@/lib/store";
 import { calculate } from "@/lib/calc";
 import { formatNumber, isNum } from "@/lib/utils";
@@ -15,6 +17,18 @@ export function InputPanel() {
   const inputs = useAppStore((s) => s.inputs);
   const setField = useAppStore((s) => s.setField);
   const results = calculate(inputs);
+
+  // First paint stays date="" so prerendered HTML matches hydration.
+  // The Chicago day is written only after persist rehydration, and only when the field is empty.
+  useEffect(() => {
+    const stampChicagoDate = () => {
+      if (useAppStore.getState().inputs.date) return;
+      useAppStore.getState().setField("date", chicagoDate());
+    };
+    const unsubscribe = useAppStore.persist.onFinishHydration(stampChicagoDate);
+    if (useAppStore.persist.hasHydrated()) stampChicagoDate();
+    return unsubscribe;
+  }, []);
 
   return (
     <div className="flex flex-col">

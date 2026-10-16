@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { EMPTY_INPUTS } from "@/lib/calc/examples";
+import { chicagoDate } from "@/lib/chicago-date";
 import type { WellInputs } from "@/lib/calc/types";
 
 export type WorkspaceTab =
@@ -54,9 +55,9 @@ export const useAppStore = create<AppState>()(
       scenarios: [],
       setField: (key, value) => set((s) => ({ inputs: { ...s.inputs, [key]: value } })),
       setInputs: (inputs) => set({ inputs }),
-      reset: () => set({ inputs: { ...blankWell(), date: localDateInput() } }),
+      reset: () => set({ inputs: { ...blankWell(), date: chicagoDate() } }),
       loadPreset: (inputs) =>
-        set({ inputs: { ...inputs, date: inputs.date || localDateInput() } }),
+        set({ inputs: { ...inputs, date: inputs.date || chicagoDate() } }),
       setTab: (tab) => set({ tab }),
       saveScenario: (name) => {
         const { inputs, scenarios } = get();
